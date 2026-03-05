@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <column name="contact" order="100">
+            <widget type="autocomplete" fieldname="idcontacto">
+                <values source="contactos" fieldcode="idcontacto" fieldtitle="descripcion"/>
+            </widget>
+        </column>
+        <column name="moodle-instance" order="110">
+            <widget type="select" fieldname="idinstance">
+                <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+            </widget>
+        </column>
+        <column name="moodle-username" order="120">
+            <widget type="text" fieldname="moodle_username"/>
+        </column>
+        <column name="moodle-userid" order="130">
+            <widget type="text" fieldname="moodle_userid"/>
+        </column>
+        <column name="sync-direction" order="140">
+            <widget type="select" fieldname="sync_direction" translate="true">
+                <values title="bidirectional">bidirectional</values>
+                <values title="fs-to-moodle">fs_to_moodle</values>
+                <values title="moodle-to-fs">moodle_to_fs</values>
+            </widget>
+        </column>
+        <column name="sync-priority" display="none" order="145">
+            <widget type="select" fieldname="sync_priority" translate="true">
+                <values title="newest-wins">newest_wins</values>
+                <values title="fs-wins">fs_wins</values>
+                <values title="moodle-wins">moodle_wins</values>
+            </widget>
+        </column>
+        <column name="last-sync" order="150">
+            <widget type="datetime" fieldname="last_sync"/>
+        </column>
+        <column name="last-error" display="none" order="160">
+            <widget type="text" fieldname="last_error"/>
+        </column>
+    </columns>
+    <modals>
+        <group name="import-from-moodle" title="import-from-moodle" icon="fa-solid fa-download">
+            <column name="moodle-instance" numcolumns="12" description="select-moodle-instance-import">
+                <widget type="select" fieldname="idinstance" required="true">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="import-mode" numcolumns="12" description="import-mode-description">
+                <widget type="select" fieldname="import_mode" required="true" translate="true">
+                    <values title="create-client-per-user">create_client_per_user</values>
+                    <values title="assign-to-existing-client">assign_to_existing_client</values>
+                </widget>
+            </column>
+            <column name="customer" numcolumns="12" description="select-client-assign">
+                <widget type="autocomplete" fieldname="codcliente">
+                    <values source="clientes" fieldcode="codcliente" fieldtitle="nombre"/>
+                </widget>
+            </column>
+        </group>
+    </modals>
+</view>

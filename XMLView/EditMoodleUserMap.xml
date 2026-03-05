@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <group name="mapping" title="mapping" icon="fa-solid fa-link" order="100">
+            <column name="contact" numcolumns="6" order="100">
+                <widget type="autocomplete" fieldname="idcontacto">
+                    <values source="contactos" fieldcode="idcontacto" fieldtitle="descripcion"/>
+                </widget>
+            </column>
+            <column name="moodle-instance" numcolumns="6" order="110">
+                <widget type="select" fieldname="idinstance">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="moodle-userid" numcolumns="4" order="120">
+                <widget type="text" fieldname="moodle_userid" readonly="true"/>
+            </column>
+            <column name="moodle-username" numcolumns="4" order="130">
+                <widget type="text" fieldname="moodle_username" readonly="true"/>
+            </column>
+            <column name="creation-date" numcolumns="4" order="140">
+                <widget type="datetime" fieldname="creation_date" readonly="true"/>
+            </column>
+        </group>
+        <group name="sync-info" title="sync-info" icon="fa-solid fa-arrows-rotate" order="200">
+            <column name="sync-direction" numcolumns="4" order="100">
+                <widget type="select" fieldname="sync_direction" translate="true">
+                    <values title="bidirectional">bidirectional</values>
+                    <values title="fs-to-moodle">fs_to_moodle</values>
+                    <values title="moodle-to-fs">moodle_to_fs</values>
+                </widget>
+            </column>
+            <column name="sync-priority" numcolumns="4" order="105">
+                <widget type="select" fieldname="sync_priority" translate="true">
+                    <values title="newest-wins">newest_wins</values>
+                    <values title="fs-wins">fs_wins</values>
+                    <values title="moodle-wins">moodle_wins</values>
+                </widget>
+            </column>
+            <column name="last-sync" numcolumns="4" order="110">
+                <widget type="datetime" fieldname="last_sync" readonly="true"/>
+            </column>
+            <column name="last-error" numcolumns="12" order="120">
+                <widget type="textarea" fieldname="last_error" readonly="true"/>
+            </column>
+        </group>
+    </columns>
+    <rows>
+        <row type="actions">
+            <button type="action" label="sync-to-moodle" action="sync-to-moodle" icon="fa-solid fa-arrow-right" color="info"/>
+            <button type="action" label="sync-from-moodle" action="sync-from-moodle" icon="fa-solid fa-arrow-left" color="info"/>
+        </row>
+    </rows>
+</view>

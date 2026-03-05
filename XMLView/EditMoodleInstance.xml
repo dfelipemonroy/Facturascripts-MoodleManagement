@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <group name="connection" title="connection-data" numcolumns="12" valign="bottom">
+            <column name="name" numcolumns="4" order="100">
+                <widget type="text" fieldname="name" maxlength="100" required="true" icon="fa-solid fa-tag"/>
+            </column>
+            <column name="url" numcolumns="5" order="110">
+                <widget type="url" fieldname="url" maxlength="300" required="true" icon="fa-solid fa-globe"/>
+            </column>
+            <column name="token" numcolumns="3" order="120">
+                <widget type="password" fieldname="token" maxlength="200" icon="fa-solid fa-key"/>
+            </column>
+        </group>
+        <group name="config" title="configuration" numcolumns="12" valign="bottom">
+            <column name="status" numcolumns="3" order="150">
+                <widget type="select" fieldname="status" translate="true">
+                    <values title="active">active</values>
+                    <values title="inactive">inactive</values>
+                    <values title="maintenance">maintenance</values>
+                    <values title="unreachable">unreachable</values>
+                </widget>
+            </column>
+            <column name="environment" numcolumns="3" order="160">
+                <widget type="select" fieldname="environment" translate="true">
+                    <values title="production">production</values>
+                    <values title="staging">staging</values>
+                    <values title="development">development</values>
+                </widget>
+            </column>
+            <column name="company" numcolumns="3" order="170">
+                <widget type="select" fieldname="idempresa" onclick="EditEmpresa">
+                    <values source="empresas" fieldcode="idempresa" fieldtitle="nombrecorto"/>
+                </widget>
+            </column>
+            <column name="default-sync-priority" numcolumns="3" order="180">
+                <widget type="select" fieldname="default_sync_priority" translate="true">
+                    <values title="newest-wins">newest_wins</values>
+                    <values title="fs-wins">fs_wins</values>
+                    <values title="moodle-wins">moodle_wins</values>
+                </widget>
+            </column>
+        </group>
+        <group name="custom-fields" title="custom-fields-map" numcolumns="12">
+            <column name="custom-fields-map" numcolumns="12" order="250">
+                <widget type="textarea" fieldname="custom_fields_map"/>
+            </column>
+        </group>
+        <group name="site-info" title="site-info" numcolumns="12" valign="bottom">
+            <column name="moodle-release" numcolumns="2" order="200">
+                <widget type="text" fieldname="moodle_release" readonly="true"/>
+            </column>
+            <column name="site-name" numcolumns="3" order="210">
+                <widget type="text" fieldname="site_name" readonly="true"/>
+            </column>
+            <column name="lang" numcolumns="1" order="215">
+                <widget type="text" fieldname="lang" readonly="true"/>
+            </column>
+            <column name="service-username" numcolumns="2" order="220">
+                <widget type="text" fieldname="service_username" readonly="true"/>
+            </column>
+            <column name="available-functions" numcolumns="1" order="225">
+                <widget type="number" fieldname="available_functions" readonly="true"/>
+            </column>
+            <column name="last-check" numcolumns="2" order="230">
+                <widget type="datetime" fieldname="last_check" readonly="true"/>
+            </column>
+            <column name="last-error" numcolumns="12" order="240">
+                <widget type="textarea" fieldname="last_error" readonly="true"/>
+            </column>
+        </group>
+        <group name="notes" title="notes" numcolumns="12">
+            <column name="notes" numcolumns="12" order="300">
+                <widget type="textarea" fieldname="notes"/>
+            </column>
+        </group>
+    </columns>
+    <rows>
+        <row type="actions">
+            <button type="action" label="test-connection" color="info" action="test-connection" icon="fa-solid fa-plug"/>
+        </row>
+    </rows>
+</view>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <column name="name" order="100">
+            <widget type="text" fieldname="name"/>
+        </column>
+        <column name="url" order="110">
+            <widget type="url" fieldname="url"/>
+        </column>
+        <column name="status" order="120">
+            <widget type="select" fieldname="status" translate="true">
+                <values title="active">active</values>
+                <values title="inactive">inactive</values>
+                <values title="maintenance">maintenance</values>
+                <values title="unreachable">unreachable</values>
+            </widget>
+        </column>
+        <column name="environment" order="125">
+            <widget type="select" fieldname="environment" translate="true">
+                <values title="production">production</values>
+                <values title="staging">staging</values>
+                <values title="development">development</values>
+            </widget>
+        </column>
+        <column name="moodle-release" display="none" order="130">
+            <widget type="text" fieldname="moodle_release"/>
+        </column>
+        <column name="site-name" order="140">
+            <widget type="text" fieldname="site_name"/>
+        </column>
+        <column name="company" display="none" order="145">
+            <widget type="select" fieldname="idempresa">
+                <values source="empresas" fieldcode="idempresa" fieldtitle="nombrecorto"/>
+            </widget>
+        </column>
+        <column name="last-check" order="150">
+            <widget type="datetime" fieldname="last_check"/>
+        </column>
+    </columns>
+    <rows>
+        <row type="status">
+            <option color="success" fieldname="status" title="active">active</option>
+            <option color="secondary" fieldname="status" title="inactive">inactive</option>
+            <option color="warning" fieldname="status" title="maintenance">maintenance</option>
+            <option color="danger" fieldname="status" title="unreachable">unreachable</option>
+        </row>
+    </rows>
+</view>

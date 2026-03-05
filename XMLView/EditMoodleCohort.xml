@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <group name="cohort-data" title="cohort-data" icon="fa-solid fa-people-group" order="100">
+            <column name="name" numcolumns="4" order="100">
+                <widget type="text" fieldname="name" required="true"/>
+            </column>
+            <column name="moodle-instance" numcolumns="4" order="110">
+                <widget type="select" fieldname="idinstance">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="idnumber" numcolumns="2" order="120">
+                <widget type="text" fieldname="idnumber"/>
+            </column>
+            <column name="moodle-cohortid" numcolumns="2" order="125">
+                <widget type="number" fieldname="moodle_cohortid" readonly="true"/>
+            </column>
+            <column name="description" numcolumns="12" order="130">
+                <widget type="textarea" fieldname="description"/>
+            </column>
+        </group>
+        <group name="sync-info" title="sync-info" icon="fa-solid fa-arrows-rotate" order="200">
+            <column name="source" numcolumns="3" order="100">
+                <widget type="select" fieldname="source" translate="true">
+                    <values title="fs-managed">fs_managed</values>
+                    <values title="moodle-managed">moodle_managed</values>
+                    <values title="synced">synced</values>
+                </widget>
+            </column>
+            <column name="customer-group" numcolumns="3" order="110">
+                <widget type="select" fieldname="codgrupo">
+                    <values source="gruposclientes" fieldcode="codgrupo" fieldtitle="nombre"/>
+                </widget>
+            </column>
+            <column name="member-count" numcolumns="2" order="120">
+                <widget type="number" fieldname="member_count" readonly="true"/>
+            </column>
+            <column name="last-sync" numcolumns="3" order="130">
+                <widget type="datetime" fieldname="last_sync" readonly="true"/>
+            </column>
+        </group>
+    </columns>
+    <rows>
+        <row type="actions">
+            <button type="action" label="sync-cohort" action="sync-cohort" icon="fa-solid fa-arrows-rotate" color="info"/>
+            <button type="action" label="push-to-moodle" action="push-cohort-to-moodle" icon="fa-solid fa-arrow-right" color="warning"/>
+        </row>
+    </rows>
+</view>

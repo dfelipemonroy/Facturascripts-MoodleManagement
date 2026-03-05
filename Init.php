@@ -25,6 +25,7 @@ class Init extends InitClass
 {
     public function init(): void
     {
+        $this->loadExtension(new Extension\Controller\EditContacto());
     }
 
     public function uninstall(): void
