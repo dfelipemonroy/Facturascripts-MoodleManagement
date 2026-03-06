@@ -30,6 +30,18 @@ class EditMoodleCourseMap extends EditController
     /** @var array|null Cached module detail for modal display */
     public $moduleDetail = null;
 
+    /** @var array */
+    public $courseGroups = [];
+
+    /** @var string */
+    public $courseGroupsError = '';
+
+    /** @var array */
+    public $courseGroupMembers = [];
+
+    /** @var array Enrolled users in the course [{id, fullname, username}, ...] */
+    public $enrolledUsers = [];
+
     public function getModelClassName(): string
     {
         return 'MoodleCourseMap';
@@ -53,7 +65,9 @@ class EditMoodleCourseMap extends EditController
             ->addSearchFields(['moodle_userid', 'notes']);
 
         $this->addHtmlView('CourseContent', 'Tab/CourseContent', 'MoodleCourseMap', 'course-content', 'fa-solid fa-list-ul');
+        $this->addHtmlView('CourseGroups', 'Tab/CourseGroups', 'MoodleCourseMap', 'groups', 'fa-solid fa-people-group');
         $this->addHtmlView('EnrolmentMethods', 'Tab/EnrolmentMethods', 'MoodleCourseMap', 'enrolment-methods', 'fa-solid fa-key');
+        $this->addHtmlView('CourseMessaging', 'Tab/CourseMessaging', 'MoodleCourseMap', 'messaging', 'fa-solid fa-paper-plane');
     }
 
     protected function loadData($viewName, $view)
@@ -73,6 +87,15 @@ class EditMoodleCourseMap extends EditController
             case 'CourseContent':
                 $this->loadCourseContent();
                 $view->count = $this->getCourseContentSummary()['totalModules'];
+                break;
+
+            case 'CourseGroups':
+                $this->loadCourseGroups();
+                $view->count = count($this->courseGroups);
+                break;
+
+            case 'CourseMessaging':
+                $this->loadEnrolledUsersIfNeeded();
                 break;
 
             case 'EnrolmentMethods':
@@ -136,6 +159,32 @@ class EditMoodleCourseMap extends EditController
 
             case 'module-detail':
                 $this->loadModuleDetail();
+                return true;
+
+            case 'group-create':
+                $this->createGroupAction();
+                return true;
+
+            case 'group-delete':
+                $this->deleteGroupAction();
+                return true;
+
+            case 'group-add-member':
+                $this->addGroupMemberAction();
+                return true;
+
+            case 'group-remove-member':
+                $this->removeGroupMemberAction();
+                return true;
+
+            case 'send-course-message':
+                $this->sendCourseMessageAction();
+                return true;
+
+            case 'enrol-batch':
+            case 'unenrol-batch':
+            case 'suspend-batch':
+                $this->processEnrolmentBatch($action);
                 return true;
         }
 
@@ -698,5 +747,285 @@ class EditMoodleCourseMap extends EditController
             return array_map('intval', array_filter(explode(',', $value)));
         }
         return [];
+    }
+
+    // ── Group Management ──
+
+    private function loadCourseGroups(): void
+    {
+        /** @var MoodleCourseMap $map */
+        $map = $this->getModel();
+        if (empty($map->moodle_courseid)) {
+            return;
+        }
+
+        $instance = $map->getInstance();
+        if (empty($instance->id) || empty($instance->token)) {
+            $this->courseGroupsError = Tools::lang()->trans('moodle-instance-not-configured');
+            return;
+        }
+
+        if ($instance->status !== 'active') {
+            $this->courseGroupsError = Tools::lang()->trans('instance-not-active');
+            return;
+        }
+
+        $result = MoodleClient::getCourseGroups($instance, $map->moodle_courseid);
+        if (isset($result['exception'])) {
+            $this->courseGroupsError = $result['message'] ?? $result['exception'];
+            return;
+        }
+
+        $this->courseGroups = is_array($result) ? $result : [];
+
+        // Load member counts
+        if (!empty($this->courseGroups)) {
+            $groupIds = array_column($this->courseGroups, 'id');
+            $membersResult = MoodleClient::getGroupMembers($instance, $groupIds);
+            if (!isset($membersResult['exception']) && is_array($membersResult)) {
+                $this->courseGroupMembers = $membersResult;
+                // Add member count to each group
+                $memberCountMap = [];
+                foreach ($membersResult as $gm) {
+                    $memberCountMap[$gm['groupid']] = count($gm['userids'] ?? []);
+                }
+                foreach ($this->courseGroups as &$group) {
+                    $group['memberCount'] = $memberCountMap[$group['id']] ?? 0;
+                }
+                unset($group);
+            }
+        }
+
+        // Load enrolled users for the select dropdown
+        $enrolledResult = MoodleClient::getEnrolledUsers($instance, (int)$map->moodle_courseid);
+        if (!isset($enrolledResult['exception']) && is_array($enrolledResult)) {
+            foreach ($enrolledResult as $user) {
+                $this->enrolledUsers[] = [
+                    'id' => $user['id'],
+                    'fullname' => $user['fullname'] ?? ($user['firstname'] . ' ' . $user['lastname']),
+                    'username' => $user['username'] ?? '',
+                ];
+            }
+            usort($this->enrolledUsers, fn($a, $b) => strcasecmp($a['fullname'], $b['fullname']));
+        }
+    }
+
+    private function createGroupAction(): void
+    {
+        $data = $this->loadMapAndInstance();
+        if ($data === null) {
+            return;
+        }
+
+        [$map, $instance] = $data;
+
+        $name = trim($this->request->request->get('group_name', ''));
+        if (empty($name)) {
+            Tools::log()->warning('field-can-not-be-null', ['%fieldName%' => 'name']);
+            return;
+        }
+
+        $group = [
+            'courseid' => (int)$map->moodle_courseid,
+            'name' => $name,
+            'description' => $this->request->request->get('group_description', ''),
+            'descriptionformat' => 1,
+        ];
+
+        $result = MoodleClient::createGroups($instance, [$group]);
+        $this->handleCourseActionResult($result, 'group-created');
+    }
+
+    private function deleteGroupAction(): void
+    {
+        $data = $this->loadMapAndInstance();
+        if ($data === null) {
+            return;
+        }
+
+        [, $instance] = $data;
+
+        $groupId = (int)$this->request->request->get('group_id', 0);
+        if (empty($groupId)) {
+            return;
+        }
+
+        $result = MoodleClient::deleteGroups($instance, [$groupId]);
+        $this->handleCourseActionResult($result, 'group-deleted');
+    }
+
+    private function addGroupMemberAction(): void
+    {
+        $data = $this->loadMapAndInstance();
+        if ($data === null) {
+            return;
+        }
+
+        [, $instance] = $data;
+
+        $groupId = (int)$this->request->request->get('group_id', 0);
+        $userId = (int)$this->request->request->get('member_userid', 0);
+        if (empty($groupId) || empty($userId)) {
+            return;
+        }
+
+        $result = MoodleClient::addGroupMembers($instance, [
+            ['groupid' => $groupId, 'userid' => $userId],
+        ]);
+        $this->handleCourseActionResult($result, 'member-added');
+    }
+
+    private function removeGroupMemberAction(): void
+    {
+        $data = $this->loadMapAndInstance();
+        if ($data === null) {
+            return;
+        }
+
+        [, $instance] = $data;
+
+        $groupId = (int)$this->request->request->get('group_id', 0);
+        $userId = (int)$this->request->request->get('member_userid', 0);
+        if (empty($groupId) || empty($userId)) {
+            return;
+        }
+
+        $result = MoodleClient::deleteGroupMembers($instance, [
+            ['groupid' => $groupId, 'userid' => $userId],
+        ]);
+        $this->handleCourseActionResult($result, 'member-removed');
+    }
+
+    private function loadEnrolledUsersIfNeeded(): void
+    {
+        if (!empty($this->enrolledUsers)) {
+            return;
+        }
+
+        /** @var MoodleCourseMap $map */
+        $map = $this->getModel();
+        if (empty($map->moodle_courseid)) {
+            return;
+        }
+
+        $instance = $map->getInstance();
+        if (empty($instance->id) || empty($instance->token) || $instance->status !== 'active') {
+            return;
+        }
+
+        $enrolledResult = MoodleClient::getEnrolledUsers($instance, (int)$map->moodle_courseid);
+        if (!isset($enrolledResult['exception']) && is_array($enrolledResult)) {
+            foreach ($enrolledResult as $user) {
+                $this->enrolledUsers[] = [
+                    'id' => $user['id'],
+                    'fullname' => $user['fullname'] ?? ($user['firstname'] . ' ' . $user['lastname']),
+                    'username' => $user['username'] ?? '',
+                ];
+            }
+            usort($this->enrolledUsers, fn($a, $b) => strcasecmp($a['fullname'], $b['fullname']));
+        }
+    }
+
+    private function sendCourseMessageAction(): void
+    {
+        $data = $this->loadMapAndInstance();
+        if ($data === null) {
+            return;
+        }
+
+        [, $instance] = $data;
+
+        $text = trim($this->request->request->get('message_text', ''));
+        if (empty($text)) {
+            Tools::log()->warning('message-text-required');
+            return;
+        }
+
+        $recipientMode = $this->request->request->get('recipient_mode', 'all');
+        $targetUserIds = [];
+
+        if ($recipientMode === 'selected') {
+            $targetUserIds = array_map('intval', array_filter($this->request->request->getArray('recipient_userids')));
+        } else {
+            $this->loadEnrolledUsersIfNeeded();
+            foreach ($this->enrolledUsers as $user) {
+                $targetUserIds[] = (int)$user['id'];
+            }
+        }
+
+        if (empty($targetUserIds)) {
+            Tools::log()->warning('no-recipients');
+            return;
+        }
+
+        $messages = [];
+        foreach ($targetUserIds as $userId) {
+            $messages[] = ['touserid' => $userId, 'text' => $text];
+        }
+
+        $result = MoodleClient::sendInstantMessages($instance, $messages);
+
+        if (isset($result['exception'])) {
+            Tools::log()->error('message-send-failed', ['%error%' => $result['message'] ?? $result['exception']]);
+            return;
+        }
+
+        // Check per-message errors
+        $sent = 0;
+        $errors = [];
+        foreach ($result as $msgResult) {
+            if (!empty($msgResult['errormessage'])) {
+                $errors[] = $msgResult['errormessage'];
+            } else {
+                $sent++;
+            }
+        }
+
+        if ($sent > 0) {
+            Tools::log()->notice('messages-sent', ['%count%' => $sent]);
+        }
+        if (!empty($errors)) {
+            Tools::log()->warning('message-send-failed', ['%error%' => implode('; ', array_unique($errors))]);
+        }
+    }
+
+    private function processEnrolmentBatch(string $action): void
+    {
+        $codes = $this->request->request->getArray('codes');
+
+        if (empty($codes)) {
+            Tools::log()->warning('no-records-selected');
+            return;
+        }
+
+        $model = new \FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment();
+        $success = 0;
+        $errors = 0;
+
+        foreach ($codes as $code) {
+            if (!$model->loadFromCode($code)) {
+                continue;
+            }
+
+            $result = match ($action) {
+                'enrol-batch' => $model->enrol(),
+                'unenrol-batch' => $model->unenrol(),
+                'suspend-batch' => $model->suspend(),
+                default => false,
+            };
+
+            if ($result) {
+                $success++;
+            } else {
+                $errors++;
+            }
+        }
+
+        if ($success > 0) {
+            Tools::log()->notice('batch-action-success', ['%count%' => $success]);
+        }
+        if ($errors > 0) {
+            Tools::log()->warning('batch-action-errors', ['%count%' => $errors]);
+        }
     }
 }

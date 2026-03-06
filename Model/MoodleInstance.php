@@ -63,6 +63,9 @@ class MoodleInstance extends ModelClass
     public $service_username;
 
     /** @var int */
+    public $service_userid;
+
+    /** @var int */
     public $available_functions;
 
     /** @var string */

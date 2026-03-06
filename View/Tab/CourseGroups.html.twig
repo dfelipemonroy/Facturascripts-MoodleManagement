@@ -1,0 +1,197 @@
+{% set groups = fsc.courseGroups %}
+{% set error = fsc.courseGroupsError %}
+{% set model = fsc.getModel() %}
+{% set enrolledUsers = fsc.enrolledUsers %}
+
+<div class="container-fluid mt-3 mb-3">
+    {% if error is not empty %}
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            {{ error }}
+        </div>
+    {% else %}
+        {# Action buttons #}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted">{{ groups | length }} {{ trans('groups') | lower }}</span>
+            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                <i class="fa-solid fa-plus me-1"></i>{{ trans('create-group') }}
+            </button>
+        </div>
+
+        {% if groups is empty %}
+            <div class="alert alert-info">
+                <i class="fa-solid fa-info-circle me-1"></i>
+                {{ trans('no-groups-in-course') }}
+            </div>
+        {% else %}
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{{ trans('name') }}</th>
+                        <th>{{ trans('description') }}</th>
+                        <th class="text-center">{{ trans('member-count') }}</th>
+                        <th class="text-center">ID</th>
+                        <th class="text-end">{{ trans('actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in groups %}
+                        <tr>
+                            <td>
+                                <i class="fa-solid fa-people-group me-1 text-primary"></i>
+                                <strong>{{ group.name | default('—') }}</strong>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ group.description | default('—') | striptags | slice(0, 80) }}</small>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-secondary">{{ group.memberCount | default(0) }}</span>
+                            </td>
+                            <td class="text-center">
+                                <small class="text-muted">{{ group.id }}</small>
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="modal" data-bs-target="#membersModal"
+                                        onclick="loadGroupMembers({{ group.id }}, '{{ group.name | e('js') }}')">
+                                    <i class="fa-solid fa-users"></i>
+                                </button>
+                                <form method="post" class="d-inline"
+                                      onsubmit="return confirm('{{ trans('confirm-delete-group') }}');">
+                                    <input type="hidden" name="action" value="group-delete"/>
+                                    <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
+                                    <input type="hidden" name="activetab" value="CourseGroups"/>
+                                    <input type="hidden" name="group_id" value="{{ group.id }}"/>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    {% endif %}
+</div>
+
+{# Modal: Create Group #}
+<div class="modal fade" id="createGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" class="modal-content">
+            <input type="hidden" name="action" value="group-create"/>
+            <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
+            <input type="hidden" name="activetab" value="CourseGroups"/>
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa-solid fa-plus me-1"></i>{{ trans('create-group') }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">{{ trans('name') }}</label>
+                    <input type="text" name="group_name" class="form-control" required/>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">{{ trans('description') }}</label>
+                    <textarea name="group_description" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ trans('cancel') }}</button>
+                <button type="submit" class="btn btn-success">
+                    <i class="fa-solid fa-plus me-1"></i>{{ trans('create-group') }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Modal: Group Members #}
+<div class="modal fade" id="membersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa-solid fa-users me-1"></i>
+                    <span id="membersGroupName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {# Add member form #}
+                <form method="post" class="row g-2 mb-3">
+                    <input type="hidden" name="action" value="group-add-member"/>
+                    <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
+                    <input type="hidden" name="activetab" value="CourseGroups"/>
+                    <input type="hidden" name="group_id" id="addMemberGroupId" value=""/>
+                    <div class="col-8">
+                        <select name="member_userid" class="form-select form-select-sm" required>
+                            <option value="">— {{ trans('select-user') }} —</option>
+                            {% for user in enrolledUsers %}
+                                <option value="{{ user.id }}">{{ user.fullname }} ({{ user.username }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                            <i class="fa-solid fa-user-plus me-1"></i>{{ trans('add-member') }}
+                        </button>
+                    </div>
+                </form>
+
+                {# Members list #}
+                <div id="membersListContainer">
+                    <div class="text-center text-muted py-3">
+                        <i class="fa-solid fa-spinner fa-spin me-1"></i>{{ trans('loading') }}...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadGroupMembers(groupId, groupName) {
+    document.getElementById('membersGroupName').textContent = groupName;
+    document.getElementById('addMemberGroupId').value = groupId;
+
+    var container = document.getElementById('membersListContainer');
+    var groupData = {{ fsc.courseGroupMembers | json_encode | raw }};
+    var usersMap = {};
+    {% for user in enrolledUsers %}
+    usersMap[{{ user.id }}] = '{{ user.fullname | e('js') }} ({{ user.username | e('js') }})';
+    {% endfor %}
+
+    var members = [];
+    for (var i = 0; i < groupData.length; i++) {
+        if (groupData[i].groupid == groupId) {
+            members = groupData[i].userids || [];
+            break;
+        }
+    }
+
+    if (members.length === 0) {
+        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle me-1"></i>{{ trans('no-members') }}</div>';
+        return;
+    }
+
+    var html = '<table class="table table-sm"><thead><tr><th>{{ trans('user') }}</th><th class="text-end">{{ trans('actions') }}</th></tr></thead><tbody>';
+    for (var j = 0; j < members.length; j++) {
+        var displayName = usersMap[members[j]] || ('ID: ' + members[j]);
+        html += '<tr><td><i class="fa-solid fa-user me-1"></i>' + displayName + '</td>';
+        html += '<td class="text-end">';
+        html += '<form method="post" class="d-inline">';
+        html += '<input type="hidden" name="action" value="group-remove-member"/>';
+        html += '<input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>';
+        html += '<input type="hidden" name="activetab" value="CourseGroups"/>';
+        html += '<input type="hidden" name="group_id" value="' + groupId + '"/>';
+        html += '<input type="hidden" name="member_userid" value="' + members[j] + '"/>';
+        html += '<button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-user-minus"></i></button>';
+        html += '</form></td></tr>';
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+</script>

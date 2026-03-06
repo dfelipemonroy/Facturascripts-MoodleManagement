@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <group name="badge-data" title="badge-data" icon="fa-solid fa-award" numcolumns="12" order="100">
+            <column name="id" display="none" order="100">
+                <widget type="text" fieldname="id"/>
+            </column>
+            <column name="badge-name" numcolumns="4" order="110">
+                <widget type="text" fieldname="badge_name"/>
+            </column>
+            <column name="course" numcolumns="4" order="120">
+                <widget type="text" fieldname="course_name"/>
+            </column>
+            <column name="contact" numcolumns="4" order="130">
+                <widget type="autocomplete" fieldname="idcontacto" onclick="EditContacto">
+                    <values source="contactos" fieldcode="idcontacto" fieldtitle="descripcion"/>
+                </widget>
+            </column>
+            <column name="description" numcolumns="12" order="140">
+                <widget type="textarea" fieldname="description" readonly="true"/>
+            </column>
+        </group>
+        <group name="dates" title="dates" icon="fa-solid fa-calendar" numcolumns="6" order="200">
+            <column name="date-issued" numcolumns="6" order="100">
+                <widget type="datetime" fieldname="date_issued" readonly="true"/>
+            </column>
+            <column name="date-expire" numcolumns="6" order="110">
+                <widget type="datetime" fieldname="date_expire" readonly="true"/>
+            </column>
+            <column name="unique-hash" numcolumns="12" order="120">
+                <widget type="text" fieldname="unique_hash" readonly="true"/>
+            </column>
+            <column name="badge-url" numcolumns="6" order="130">
+                <widget type="text" fieldname="badge_url" readonly="true"/>
+            </column>
+            <column name="image-url" numcolumns="6" order="140">
+                <widget type="text" fieldname="image_url" readonly="true"/>
+            </column>
+        </group>
+        <group name="sync-info" title="sync-info" icon="fa-solid fa-arrows-rotate" numcolumns="6" order="210">
+            <column name="moodle-instance" numcolumns="6" order="100">
+                <widget type="select" fieldname="idinstance" onclick="EditMoodleInstance" readonly="true">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="moodle-userid" numcolumns="3" order="110">
+                <widget type="number" fieldname="moodle_userid" readonly="true"/>
+            </column>
+            <column name="badge-id" numcolumns="3" order="120">
+                <widget type="number" fieldname="badge_id" readonly="true"/>
+            </column>
+            <column name="moodle-courseid" numcolumns="3" order="130">
+                <widget type="number" fieldname="moodle_courseid" readonly="true"/>
+            </column>
+            <column name="invoice" numcolumns="3" order="140">
+                <widget type="number" fieldname="idfactura" onclick="EditFacturaCliente"/>
+            </column>
+            <column name="last-sync" numcolumns="6" order="150">
+                <widget type="datetime" fieldname="last_sync" readonly="true"/>
+            </column>
+        </group>
+    </columns>
+</view>

@@ -1,0 +1,397 @@
+{% set conversations = fsc.conversations %}
+{% set totalUnread = fsc.totalUnread %}
+
+<div class="container-fluid mt-3 mb-3">
+    {# Header with total unread, filters and new conversation button #}
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h5 class="mb-0">
+                <i class="fa-solid fa-comments me-2"></i>
+                {{ trans('moodle-conversations') }}
+                <span id="totalUnreadBadge" class="{{ totalUnread > 0 ? '' : 'd-none' }}">
+                    <span class="badge bg-danger ms-2"><span id="totalUnreadCount">{{ totalUnread }}</span> {{ trans('unread') }}</span>
+                </span>
+                <span id="refreshIndicator" class="ms-2 d-none">
+                    <i class="fa-solid fa-sync fa-spin text-muted" style="font-size: 0.8rem;"></i>
+                </span>
+            </h5>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <button type="button" class="btn btn-success btn-sm" onclick="openNewConversationModal()">
+                <i class="fa-solid fa-plus me-1"></i>{{ trans('new-conversation') }}
+            </button>
+            <div class="btn-group btn-group-sm">
+                <button id="btnFilterAll" type="button" class="btn btn-primary" onclick="setFilter('all')">
+                    {{ trans('all') }}
+                </button>
+                <button id="btnFilterUnread" type="button" class="btn btn-outline-danger" onclick="setFilter('unread')">
+                    <i class="fa-solid fa-circle me-1" style="font-size: 0.5rem;"></i>{{ trans('show-unread-only') }}
+                </button>
+                <button id="btnFilterRead" type="button" class="btn btn-outline-success" onclick="setFilter('read')">
+                    <i class="fa-solid fa-circle me-1" style="font-size: 0.5rem;"></i>{{ trans('show-read-only') }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="conversationListContainer">
+        {% if conversations is empty %}
+            <div class="alert alert-info" id="emptyState">
+                <i class="fa-solid fa-info-circle me-1"></i>
+                {{ trans('no-conversations') }}
+            </div>
+        {% else %}
+            <div class="list-group" id="conversationList">
+                {% for conv in conversations %}
+                    <a href="{{ conv.userMapId ? 'EditMoodleUserMap?code=' ~ conv.userMapId ~ '&activetab=UserChat' : '#' }}"
+                       class="list-group-item list-group-item-action conversation-item {{ conv.unreadCount > 0 ? 'list-group-item-warning' : '' }}"
+                       data-unread="{{ conv.unreadCount }}">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3 text-center" style="min-width: 20px;">
+                                {% if conv.unreadCount > 0 %}
+                                    <i class="fa-solid fa-circle text-danger" style="font-size: 0.7rem;" title="{{ trans('unread-messages') }}"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-circle text-success" style="font-size: 0.7rem;" title="{{ trans('all-read') }}"></i>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1 me-3" style="min-width: 0;">
+                                <div class="d-flex align-items-center mb-1">
+                                    <strong class="text-truncate">{{ conv.contactName }}</strong>
+                                    {% if conv.unreadCount > 0 %}
+                                        <span class="badge bg-danger rounded-pill ms-2">{{ conv.unreadCount }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-muted text-truncate" style="font-size: 0.85rem;">
+                                    {% if conv.lastMessageIsMe %}
+                                        <i class="fa-solid fa-reply me-1" style="font-size: 0.7rem;"></i>
+                                    {% endif %}
+                                    {{ conv.lastMessage | default(trans('no-messages-yet')) }}
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-server me-1"></i>{{ conv.instanceName }}
+                                    {% if conv.moodleFullname != conv.contactName %}
+                                        <span class="ms-2"><i class="fa-solid fa-graduation-cap me-1"></i>{{ conv.moodleFullname }}</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="text-end text-nowrap" style="min-width: 100px;">
+                                {% if conv.lastMessageTime > 0 %}
+                                    <small class="text-muted">{{ conv.lastMessageTime | date('d/m/Y') }}</small>
+                                    <br>
+                                    <small class="text-muted">{{ conv.lastMessageTime | date('H:i') }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="ms-2 text-muted">
+                                {% if conv.userMapId %}
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-user-slash" title="{{ trans('no-user-map-for-conversation') }}"></i>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{# New Conversation Modal #}
+<div class="modal fade" id="newConversationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa-solid fa-comment-dots me-2"></i>{{ trans('new-conversation') }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{{ trans('select-user') }}</label>
+                    <input type="text" id="newConvSearch" class="form-control mb-2"
+                           placeholder="{{ trans('search-user') }}" oninput="filterNewConvUsers()">
+                </div>
+                <div id="newConvLoading" class="text-center py-3">
+                    <i class="fa-solid fa-spinner fa-spin me-1"></i> {{ trans('loading') }}...
+                </div>
+                <div id="newConvEmpty" class="alert alert-info d-none">
+                    <i class="fa-solid fa-info-circle me-1"></i> {{ trans('no-available-users') }}
+                </div>
+                <div id="newConvList" class="list-group d-none" style="max-height: 350px; overflow-y: auto;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var currentFilter = 'all';
+    var refreshInterval = 10000;
+    var refreshTimer = null;
+    var availableUsers = [];
+
+    function formatDate(timestamp) {
+        var d = new Date(timestamp * 1000);
+        var pad = function(n) { return n < 10 ? '0' + n : n; };
+        return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+    }
+
+    function formatTime(timestamp) {
+        var d = new Date(timestamp * 1000);
+        var pad = function(n) { return n < 10 ? '0' + n : n; };
+        return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function renderConversation(conv) {
+        var isUnread = conv.unreadCount > 0;
+        var href = conv.userMapId ? 'EditMoodleUserMap?code=' + conv.userMapId + '&activetab=UserChat' : '#';
+        var display = shouldShow(conv) ? '' : ' style="display:none;"';
+
+        var html = '<a href="' + href + '" class="list-group-item list-group-item-action conversation-item ' +
+            (isUnread ? 'list-group-item-warning' : '') + '" data-unread="' + conv.unreadCount + '"' + display + '>';
+        html += '<div class="d-flex align-items-center">';
+
+        html += '<div class="me-3 text-center" style="min-width: 20px;">';
+        if (isUnread) {
+            html += '<i class="fa-solid fa-circle text-danger" style="font-size: 0.7rem;"></i>';
+        } else {
+            html += '<i class="fa-solid fa-circle text-success" style="font-size: 0.7rem;"></i>';
+        }
+        html += '</div>';
+
+        html += '<div class="flex-grow-1 me-3" style="min-width: 0;">';
+        html += '<div class="d-flex align-items-center mb-1">';
+        html += '<strong class="text-truncate">' + escapeHtml(conv.contactName) + '</strong>';
+        if (isUnread) {
+            html += ' <span class="badge bg-danger rounded-pill ms-2">' + conv.unreadCount + '</span>';
+        }
+        html += '</div>';
+        html += '<div class="text-muted text-truncate" style="font-size: 0.85rem;">';
+        if (conv.lastMessageIsMe) {
+            html += '<i class="fa-solid fa-reply me-1" style="font-size: 0.7rem;"></i>';
+        }
+        html += escapeHtml(conv.lastMessage || '{{ trans('no-messages-yet') | e('js') }}');
+        html += '</div>';
+        html += '<small class="text-muted">';
+        html += '<i class="fa-solid fa-server me-1"></i>' + escapeHtml(conv.instanceName);
+        if (conv.moodleFullname !== conv.contactName) {
+            html += ' <span class="ms-2"><i class="fa-solid fa-graduation-cap me-1"></i>' + escapeHtml(conv.moodleFullname) + '</span>';
+        }
+        html += '</small></div>';
+
+        html += '<div class="text-end text-nowrap" style="min-width: 100px;">';
+        if (conv.lastMessageTime > 0) {
+            html += '<small class="text-muted">' + formatDate(conv.lastMessageTime) + '</small><br>';
+            html += '<small class="text-muted">' + formatTime(conv.lastMessageTime) + '</small>';
+        }
+        html += '</div>';
+
+        html += '<div class="ms-2 text-muted">';
+        if (conv.userMapId) {
+            html += '<i class="fa-solid fa-chevron-right"></i>';
+        } else {
+            html += '<i class="fa-solid fa-user-slash"></i>';
+        }
+        html += '</div></div></a>';
+
+        return html;
+    }
+
+    function shouldShow(conv) {
+        if (currentFilter === 'unread') return conv.unreadCount > 0;
+        if (currentFilter === 'read') return conv.unreadCount === 0;
+        return true;
+    }
+
+    function applyFilter() {
+        var items = document.querySelectorAll('.conversation-item');
+        for (var i = 0; i < items.length; i++) {
+            var unread = parseInt(items[i].getAttribute('data-unread'));
+            if (currentFilter === 'unread' && unread === 0) {
+                items[i].style.display = 'none';
+            } else if (currentFilter === 'read' && unread > 0) {
+                items[i].style.display = 'none';
+            } else {
+                items[i].style.display = '';
+            }
+        }
+    }
+
+    function updateFilterButtons() {
+        var btnAll = document.getElementById('btnFilterAll');
+        var btnUnread = document.getElementById('btnFilterUnread');
+        var btnRead = document.getElementById('btnFilterRead');
+
+        btnAll.className = 'btn ' + (currentFilter === 'all' ? 'btn-primary' : 'btn-outline-primary');
+        btnUnread.className = 'btn ' + (currentFilter === 'unread' ? 'btn-danger' : 'btn-outline-danger');
+        btnRead.className = 'btn ' + (currentFilter === 'read' ? 'btn-success' : 'btn-outline-success');
+    }
+
+    window.setFilter = function(filter) {
+        currentFilter = filter;
+        updateFilterButtons();
+        applyFilter();
+    };
+
+    function refreshConversations() {
+        var indicator = document.getElementById('refreshIndicator');
+        if (indicator) indicator.classList.remove('d-none');
+
+        fetch('ListMoodleConversation?action=load-conversations', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (indicator) indicator.classList.add('d-none');
+            if (!data.conversations) return;
+
+            var totalBadge = document.getElementById('totalUnreadBadge');
+            var totalCount = document.getElementById('totalUnreadCount');
+            if (totalBadge && totalCount) {
+                if (data.totalUnread > 0) {
+                    totalCount.textContent = data.totalUnread;
+                    totalBadge.classList.remove('d-none');
+                } else {
+                    totalBadge.classList.add('d-none');
+                }
+            }
+
+            var container = document.getElementById('conversationListContainer');
+            if (!container) return;
+
+            if (data.conversations.length === 0) {
+                container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle me-1"></i> {{ trans('no-conversations') | e('js') }}</div>';
+                return;
+            }
+
+            var html = '<div class="list-group" id="conversationList">';
+            for (var i = 0; i < data.conversations.length; i++) {
+                html += renderConversation(data.conversations[i]);
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        })
+        .catch(function() {
+            if (indicator) indicator.classList.add('d-none');
+        });
+    }
+
+    function startRefresh() {
+        if (!refreshTimer) {
+            refreshTimer = setInterval(refreshConversations, refreshInterval);
+        }
+    }
+
+    function stopRefresh() {
+        if (refreshTimer) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+        }
+    }
+
+    startRefresh();
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopRefresh();
+        } else {
+            refreshConversations();
+            startRefresh();
+        }
+    });
+
+    // New Conversation Modal
+    window.openNewConversationModal = function() {
+        var modal = new bootstrap.Modal(document.getElementById('newConversationModal'));
+        modal.show();
+
+        document.getElementById('newConvLoading').classList.remove('d-none');
+        document.getElementById('newConvList').classList.add('d-none');
+        document.getElementById('newConvEmpty').classList.add('d-none');
+        document.getElementById('newConvSearch').value = '';
+
+        fetch('ListMoodleConversation?action=get-available-users', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('newConvLoading').classList.add('d-none');
+            availableUsers = data.users || [];
+
+            if (availableUsers.length === 0) {
+                document.getElementById('newConvEmpty').classList.remove('d-none');
+                return;
+            }
+
+            renderAvailableUsers(availableUsers);
+        })
+        .catch(function() {
+            document.getElementById('newConvLoading').classList.add('d-none');
+            document.getElementById('newConvEmpty').classList.remove('d-none');
+        });
+    };
+
+    function renderAvailableUsers(users) {
+        var list = document.getElementById('newConvList');
+        var html = '';
+        for (var i = 0; i < users.length; i++) {
+            var u = users[i];
+            html += '<a href="EditMoodleUserMap?code=' + u.userMapId + '&activetab=UserChat" class="list-group-item list-group-item-action new-conv-user-item">';
+            html += '<div class="d-flex align-items-center">';
+            html += '<div class="me-3"><i class="fa-solid fa-user-circle fa-2x text-muted"></i></div>';
+            html += '<div class="flex-grow-1">';
+            html += '<strong>' + escapeHtml(u.contactName) + '</strong>';
+            if (u.moodleUsername) {
+                html += ' <small class="text-muted">(@' + escapeHtml(u.moodleUsername) + ')</small>';
+            }
+            html += '<br><small class="text-muted"><i class="fa-solid fa-server me-1"></i>' + escapeHtml(u.instanceName) + '</small>';
+            html += '</div>';
+            html += '<div class="text-muted"><i class="fa-solid fa-comment-dots"></i></div>';
+            html += '</div></a>';
+        }
+        list.innerHTML = html;
+        list.classList.remove('d-none');
+    }
+
+    window.filterNewConvUsers = function() {
+        var search = document.getElementById('newConvSearch').value.toLowerCase();
+        if (!search) {
+            renderAvailableUsers(availableUsers);
+            return;
+        }
+        var filtered = availableUsers.filter(function(u) {
+            return u.contactName.toLowerCase().indexOf(search) !== -1
+                || (u.moodleUsername && u.moodleUsername.toLowerCase().indexOf(search) !== -1);
+        });
+        if (filtered.length === 0) {
+            document.getElementById('newConvList').classList.add('d-none');
+            document.getElementById('newConvEmpty').classList.remove('d-none');
+        } else {
+            document.getElementById('newConvEmpty').classList.add('d-none');
+            renderAvailableUsers(filtered);
+        }
+    };
+
+    // Fix "Todos" button to point to this page instead of ListMoodleInstance
+    function fixListButton() {
+        var links = document.querySelectorAll('a[href="ListMoodleInstance"]');
+        for (var i = 0; i < links.length; i++) {
+            links[i].href = 'ListMoodleConversation';
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fixListButton);
+    } else {
+        fixListButton();
+    }
+})();
+</script>

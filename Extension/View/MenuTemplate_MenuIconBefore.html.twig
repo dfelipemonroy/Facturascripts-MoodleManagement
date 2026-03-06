@@ -1,0 +1,62 @@
+<li class="nav-item" title="{{ trans('moodle-conversations') }}" id="moodleChatNavItem">
+    <a class="nav-link" href="ListMoodleConversation">
+        <i class="fa-solid fa-comments" aria-hidden="true"></i>
+        <span id="moodleChatBadge" class="badge bg-danger rounded-pill d-none" style="position: relative; top: -8px; left: -5px; font-size: 0.6rem;"></span>
+    </a>
+</li>
+<script>
+(function() {
+    // Reposition chat icon after Dashboard icon (NeoTheme places it before MegaSearch)
+    function repositionChatIcon() {
+        var chatItem = document.getElementById('moodleChatNavItem');
+        if (!chatItem) return;
+        // Find the Dashboard link in the navbar
+        var dashboardLink = document.querySelector('a.nav-link[href="Dashboard"]');
+        if (dashboardLink) {
+            var dashboardLi = dashboardLink.closest('li.nav-item');
+            if (dashboardLi && dashboardLi.parentNode) {
+                dashboardLi.parentNode.insertBefore(chatItem, dashboardLi.nextSibling);
+                return;
+            }
+        }
+        // Fallback: place after MegaSearch
+        var searchLink = document.getElementById('menuIconSearch');
+        if (searchLink) {
+            var searchLi = searchLink.closest('li.nav-item');
+            if (searchLi && searchLi.parentNode) {
+                searchLi.parentNode.insertBefore(chatItem, searchLi.nextSibling);
+            }
+        }
+    }
+
+    function fetchUnread() {
+        fetch('ListMoodleConversation?action=get-unread-count', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var badge = document.getElementById('moodleChatBadge');
+            if (!badge) return;
+            if (data.unread && data.unread > 0) {
+                badge.textContent = data.unread > 99 ? '99+' : data.unread;
+                badge.classList.remove('d-none');
+            } else {
+                badge.classList.add('d-none');
+            }
+        })
+        .catch(function() {});
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            repositionChatIcon();
+            fetchUnread();
+        });
+    } else {
+        repositionChatIcon();
+        fetchUnread();
+    }
+
+    setInterval(fetchUnread, 30000);
+})();
+</script>

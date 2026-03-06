@@ -118,6 +118,7 @@ class MoodleClient
         $instance->site_name = $siteInfo['sitename'] ?? '';
         $instance->lang = $siteInfo['lang'] ?? '';
         $instance->service_username = $siteInfo['username'] ?? '';
+        $instance->service_userid = $siteInfo['userid'] ?? 0;
         $instance->available_functions = isset($siteInfo['functions']) ? count($siteInfo['functions']) : 0;
         $instance->last_check = date('Y-m-d H:i:s');
         $instance->last_error = '';
@@ -1177,5 +1178,322 @@ class MoodleClient
     public static function setSeparateGroups(MoodleInstance $instance, int $courseId, array $cmids): array
     {
         return self::updateCourseAction($instance, 'cm_separategroups', $courseId, $cmids);
+    }
+
+    // ========== Academic Progress / Completion / Grades ==========
+
+    /**
+     * Get course completion status for a user.
+     */
+    public static function getCourseCompletionStatus(MoodleInstance $instance, int $courseId, int $userId): array
+    {
+        return self::callApi($instance, 'core_completion_get_course_completion_status', [
+            'courseid' => $courseId,
+            'userid' => $userId,
+        ]);
+    }
+
+    /**
+     * Get activities completion status for a user in a course.
+     */
+    public static function getActivitiesCompletionStatus(MoodleInstance $instance, int $courseId, int $userId): array
+    {
+        return self::callApi($instance, 'core_completion_get_activities_completion_status', [
+            'courseid' => $courseId,
+            'userid' => $userId,
+        ]);
+    }
+
+    /**
+     * Get grade items for a user (all courses or specific course).
+     */
+    public static function getUserGradeItems(MoodleInstance $instance, int $userId, int $courseId = 0): array
+    {
+        $params = ['userid' => $userId];
+        if ($courseId > 0) {
+            $params['courseid'] = $courseId;
+        }
+        return self::callApi($instance, 'gradereport_user_get_grade_items', $params);
+    }
+
+    /**
+     * Get academic progress summary for a user across all enrolled courses.
+     * Returns array of courses with completion %, grade, and status.
+     */
+    public static function getAcademicProgress(MoodleInstance $instance, int $userId): array
+    {
+        $courses = self::getUserCourses($instance, $userId);
+        if (isset($courses['exception']) || empty($courses)) {
+            return $courses;
+        }
+
+        $progress = [];
+        foreach ($courses as $course) {
+            $courseId = $course['id'] ?? 0;
+            if (empty($courseId)) {
+                continue;
+            }
+
+            $entry = [
+                'courseid' => $courseId,
+                'fullname' => $course['fullname'] ?? '',
+                'shortname' => $course['shortname'] ?? '',
+                'completion_percentage' => 0,
+                'completed_activities' => 0,
+                'total_activities' => 0,
+                'course_completed' => false,
+                'grade' => null,
+                'grade_max' => null,
+                'last_access' => $course['lastaccess'] ?? 0,
+            ];
+
+            // Get activity completion
+            $activities = self::getActivitiesCompletionStatus($instance, $courseId, $userId);
+            if (!isset($activities['exception']) && isset($activities['statuses'])) {
+                $total = count($activities['statuses']);
+                $completed = 0;
+                foreach ($activities['statuses'] as $status) {
+                    if (($status['state'] ?? 0) > 0) {
+                        $completed++;
+                    }
+                }
+                $entry['total_activities'] = $total;
+                $entry['completed_activities'] = $completed;
+                $entry['completion_percentage'] = $total > 0 ? round(($completed / $total) * 100) : 0;
+            }
+
+            // Get course completion status
+            $completion = self::getCourseCompletionStatus($instance, $courseId, $userId);
+            if (!isset($completion['exception']) && isset($completion['completionstatus'])) {
+                $completions = $completion['completionstatus']['completions'] ?? [];
+                $allComplete = !empty($completions);
+                foreach ($completions as $c) {
+                    if (empty($c['complete'])) {
+                        $allComplete = false;
+                        break;
+                    }
+                }
+                $entry['course_completed'] = $allComplete;
+            }
+
+            // Get grade
+            $grades = self::getUserGradeItems($instance, $userId, $courseId);
+            if (!isset($grades['exception']) && isset($grades['usergrades'])) {
+                foreach ($grades['usergrades'] as $userGrade) {
+                    $gradeItems = $userGrade['gradeitems'] ?? [];
+                    foreach ($gradeItems as $item) {
+                        if (($item['itemtype'] ?? '') === 'course') {
+                            $entry['grade'] = $item['gradeformatted'] ?? $item['graderaw'] ?? null;
+                            $entry['grade_max'] = $item['grademax'] ?? null;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $progress[] = $entry;
+        }
+
+        return $progress;
+    }
+
+    // ========== Badges / Certificates ==========
+
+    /**
+     * Get badges issued to a user.
+     * WS: core_badges_get_user_badges
+     */
+    public static function getUserBadges(MoodleInstance $instance, int $userId, int $courseId = 0): array
+    {
+        $params = ['userid' => $userId];
+        if ($courseId > 0) {
+            $params['courseid'] = $courseId;
+        }
+        return self::callApi($instance, 'core_badges_get_user_badges', $params);
+    }
+
+    // ── Group Management ──
+
+    public static function getCourseGroups(MoodleInstance $instance, int $courseId): array
+    {
+        return self::callApi($instance, 'core_group_get_course_groups', [
+            'courseid' => $courseId,
+        ]);
+    }
+
+    public static function createGroups(MoodleInstance $instance, array $groups): array
+    {
+        $params = [];
+        foreach ($groups as $i => $group) {
+            foreach ($group as $key => $value) {
+                $params["groups[$i][$key]"] = $value;
+            }
+        }
+        return self::callApi($instance, 'core_group_create_groups', $params);
+    }
+
+    public static function updateGroups(MoodleInstance $instance, array $groups): array
+    {
+        $params = [];
+        foreach ($groups as $i => $group) {
+            foreach ($group as $key => $value) {
+                $params["groups[$i][$key]"] = $value;
+            }
+        }
+        return self::callApi($instance, 'core_group_update_groups', $params);
+    }
+
+    public static function deleteGroups(MoodleInstance $instance, array $groupIds): array
+    {
+        $params = [];
+        foreach ($groupIds as $i => $id) {
+            $params["groupids[$i]"] = $id;
+        }
+        return self::callApi($instance, 'core_group_delete_groups', $params);
+    }
+
+    public static function getGroupMembers(MoodleInstance $instance, array $groupIds): array
+    {
+        $params = [];
+        foreach ($groupIds as $i => $id) {
+            $params["groupids[$i]"] = $id;
+        }
+        return self::callApi($instance, 'core_group_get_group_members', $params);
+    }
+
+    public static function addGroupMembers(MoodleInstance $instance, array $members): array
+    {
+        $params = [];
+        foreach ($members as $i => $member) {
+            $params["members[$i][groupid]"] = $member['groupid'];
+            $params["members[$i][userid]"] = $member['userid'];
+        }
+        return self::callApi($instance, 'core_group_add_group_members', $params);
+    }
+
+    public static function deleteGroupMembers(MoodleInstance $instance, array $members): array
+    {
+        $params = [];
+        foreach ($members as $i => $member) {
+            $params["members[$i][groupid]"] = $member['groupid'];
+            $params["members[$i][userid]"] = $member['userid'];
+        }
+        return self::callApi($instance, 'core_group_delete_group_members', $params);
+    }
+
+    // ── Messaging ──
+
+    /**
+     * Send instant messages to Moodle users.
+     *
+     * @param MoodleInstance $instance
+     * @param array $messages Array of ['touserid' => int, 'text' => string, 'textformat' => int (1=HTML)]
+     * @return array
+     */
+    public static function sendInstantMessages(MoodleInstance $instance, array $messages): array
+    {
+        $params = [];
+        foreach ($messages as $i => $msg) {
+            $params["messages[$i][touserid]"] = $msg['touserid'];
+            $params["messages[$i][text]"] = $msg['text'];
+            $params["messages[$i][textformat]"] = $msg['textformat'] ?? 1;
+        }
+        return self::callApi($instance, 'core_message_send_instant_messages', $params);
+    }
+
+    /**
+     * Get the conversation between two users.
+     * Returns conversation object with id, members, messages, etc.
+     */
+    public static function getConversationBetweenUsers(MoodleInstance $instance, int $userid1, int $userid2, bool $includeMessages = true, int $limitMessages = 50): array
+    {
+        $params = [
+            'userid' => $userid1,
+            'otheruserid' => $userid2,
+            'includecontactrequests' => 0,
+            'includeprivacyinfo' => 0,
+        ];
+
+        $result = self::callApi($instance, 'core_message_get_conversation_between_users', $params);
+
+        if (isset($result['exception']) || !isset($result['id'])) {
+            return $result;
+        }
+
+        if ($includeMessages) {
+            $messages = self::getConversationMessages($instance, (int)$result['id'], $userid1, 0, $limitMessages, true);
+            if (!isset($messages['exception'])) {
+                $result['messages'] = $messages['messages'] ?? [];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get messages from a conversation.
+     */
+    public static function getConversationMessages(MoodleInstance $instance, int $conversationId, int $currentUserId, int $limitFrom = 0, int $limitNum = 50, bool $newest = true): array
+    {
+        return self::callApi($instance, 'core_message_get_conversation_messages', [
+            'currentuserid' => $currentUserId,
+            'convid' => $conversationId,
+            'limitfrom' => $limitFrom,
+            'limitnum' => $limitNum,
+            'newest' => $newest ? 1 : 0,
+        ]);
+    }
+
+    /**
+     * Send a message within an existing conversation.
+     */
+    public static function sendMessageToConversation(MoodleInstance $instance, int $conversationId, string $text, int $textFormat = 1): array
+    {
+        $params = [
+            'conversationid' => $conversationId,
+            'messages[0][text]' => $text,
+            'messages[0][textformat]' => $textFormat,
+        ];
+        return self::callApi($instance, 'core_message_send_messages_to_conversation', $params);
+    }
+
+    /**
+     * Get conversations for a user (typically the WS service user).
+     * Returns conversations with members, last message, and unread count.
+     */
+    public static function getConversations(MoodleInstance $instance, int $userid, int $type = 1, int $limitFrom = 0, int $limitNum = 50): array
+    {
+        return self::callApi($instance, 'core_message_get_conversations', [
+            'userid' => $userid,
+            'type' => $type,
+            'limitfrom' => $limitFrom,
+            'limitnum' => $limitNum,
+        ]);
+    }
+
+    /**
+     * Get unread conversation count for a user.
+     */
+    public static function markAllConversationMessagesAsRead(MoodleInstance $instance, int $userid, int $conversationid): array
+    {
+        return self::callApi($instance, 'core_message_mark_all_conversation_messages_as_read', [
+            'userid' => $userid,
+            'conversationid' => $conversationid,
+        ]);
+    }
+
+    public static function getUnreadConversationsCount(MoodleInstance $instance, int $userid): int
+    {
+        // This WS function returns a bare integer, not a JSON object.
+        // callApi returns it as-is (int) due to json_decode behavior.
+        $result = self::callApi($instance, 'core_message_get_unread_conversations_count', [
+            'useridto' => $userid,
+        ]);
+
+        if (is_array($result) && isset($result['exception'])) {
+            return 0;
+        }
+
+        return is_numeric($result) ? (int)$result : 0;
     }
 }

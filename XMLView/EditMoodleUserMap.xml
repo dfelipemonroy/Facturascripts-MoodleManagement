@@ -45,10 +45,19 @@
             </column>
         </group>
     </columns>
+    <modals>
+        <group name="send-message" title="send-message" icon="fa-solid fa-paper-plane">
+            <column name="message-text" numcolumns="12" order="100">
+                <widget type="textarea" fieldname="message_text" required="true" rows="5"/>
+            </column>
+        </group>
+    </modals>
     <rows>
         <row type="actions">
             <button type="action" label="sync-to-moodle" action="sync-to-moodle" icon="fa-solid fa-arrow-right" color="info"/>
             <button type="action" label="sync-from-moodle" action="sync-from-moodle" icon="fa-solid fa-arrow-left" color="info"/>
+            <button type="action" label="sync-badges" action="sync-badges" icon="fa-solid fa-award" color="warning"/>
+            <button type="modal" label="send-message" action="send-message" icon="fa-solid fa-paper-plane" color="primary"/>
         </row>
     </rows>
 </view>

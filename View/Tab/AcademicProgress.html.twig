@@ -1,0 +1,146 @@
+{% set firstView = fsc.views | first %}
+{% set model = firstView.model %}
+{% set progress = fsc.academicProgress %}
+{% set progressError = fsc.academicProgressError %}
+
+<div class="container-fluid mt-3 mb-3">
+    {% if progressError is not empty %}
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            {{ progressError }}
+        </div>
+    {% elseif progress is empty %}
+        <div class="alert alert-info">
+            <i class="fa-solid fa-info-circle me-1"></i>
+            {{ trans('no-academic-progress') }}
+        </div>
+    {% else %}
+        {# Summary cards #}
+        {% set totalCourses = progress | length %}
+        {% set completedCourses = 0 %}
+        {% set avgCompletion = 0 %}
+        {% for p in progress %}
+            {% if p.course_completed %}
+                {% set completedCourses = completedCourses + 1 %}
+            {% endif %}
+            {% set avgCompletion = avgCompletion + p.completion_percentage %}
+        {% endfor %}
+        {% set avgCompletion = totalCourses > 0 ? (avgCompletion / totalCourses) | round : 0 %}
+
+        <div class="row mb-3">
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card text-center">
+                    <div class="card-body py-2">
+                        <h4 class="mb-0">{{ totalCourses }}</h4>
+                        <small class="text-muted">{{ trans('enrolled-courses') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card text-center">
+                    <div class="card-body py-2">
+                        <h4 class="mb-0">{{ completedCourses }}</h4>
+                        <small class="text-muted">{{ trans('completed-courses') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card text-center">
+                    <div class="card-body py-2">
+                        <h4 class="mb-0">{{ avgCompletion }}%</h4>
+                        <small class="text-muted">{{ trans('avg-completion') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card text-center">
+                    <div class="card-body py-2">
+                        <h4 class="mb-0">
+                            {% set withGrade = 0 %}
+                            {% for p in progress %}
+                                {% if p.grade is not null %}
+                                    {% set withGrade = withGrade + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ withGrade }}
+                        </h4>
+                        <small class="text-muted">{{ trans('graded-courses') }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Progress table #}
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ trans('course') }}</th>
+                        <th class="text-center" style="width: 200px;">{{ trans('progress') }}</th>
+                        <th class="text-center">{{ trans('activities') }}</th>
+                        <th class="text-center">{{ trans('grade') }}</th>
+                        <th class="text-center">{{ trans('status') }}</th>
+                        <th class="text-center">{{ trans('last-access') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in progress %}
+                        <tr>
+                            <td>
+                                <strong>{{ p.fullname }}</strong>
+                                <br><small class="text-muted">{{ p.shortname }}</small>
+                            </td>
+                            <td class="text-center align-middle">
+                                <div class="progress" style="height: 20px;">
+                                    {% if p.course_completed %}
+                                        {% set barClass = 'bg-success' %}
+                                    {% elseif p.completion_percentage >= 50 %}
+                                        {% set barClass = 'bg-info' %}
+                                    {% elseif p.completion_percentage > 0 %}
+                                        {% set barClass = 'bg-warning' %}
+                                    {% else %}
+                                        {% set barClass = 'bg-secondary' %}
+                                    {% endif %}
+                                    <div class="progress-bar {{ barClass }}" role="progressbar"
+                                         style="width: {{ p.completion_percentage }}%"
+                                         aria-valuenow="{{ p.completion_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                        {{ p.completion_percentage }}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center align-middle">
+                                {{ p.completed_activities }} / {{ p.total_activities }}
+                            </td>
+                            <td class="text-center align-middle">
+                                {% if p.grade is not null %}
+                                    <strong>{{ p.grade }}</strong>
+                                    {% if p.grade_max is not null %}
+                                        <small class="text-muted">/ {{ p.grade_max }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center align-middle">
+                                {% if p.course_completed %}
+                                    <span class="badge bg-success">{{ trans('completed') }}</span>
+                                {% elseif p.completion_percentage > 0 %}
+                                    <span class="badge bg-info">{{ trans('in-progress') }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ trans('not-started') }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center align-middle">
+                                {% if p.last_access > 0 %}
+                                    {{ p.last_access | date('d/m/Y H:i') }}
+                                {% else %}
+                                    <span class="text-muted">{{ trans('never') }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>

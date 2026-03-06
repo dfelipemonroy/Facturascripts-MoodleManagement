@@ -1,0 +1,71 @@
+{% set model = fsc.getModel() %}
+{% set enrolledUsers = fsc.enrolledUsers %}
+
+<div class="container-fluid mt-3 mb-3">
+    {% if model.moodle_courseid is empty %}
+        <div class="alert alert-info">
+            <i class="fa-solid fa-info-circle me-1"></i>
+            {{ trans('no-course-linked') }}
+        </div>
+    {% else %}
+        <form method="post">
+            <input type="hidden" name="action" value="send-course-message"/>
+            <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
+            <input type="hidden" name="activetab" value="CourseMessaging"/>
+
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <label class="form-label fw-bold">
+                        <i class="fa-solid fa-users me-1"></i>{{ trans('recipients') }}
+                    </label>
+                    <select name="recipient_mode" class="form-select" id="recipientMode" onchange="toggleRecipientSelect()">
+                        <option value="all">{{ trans('all-enrolled-users') }} ({{ enrolledUsers | length }})</option>
+                        <option value="selected">{{ trans('selected-users') }}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3 d-none" id="userSelectContainer">
+                <div class="col-md-8">
+                    <label class="form-label">{{ trans('select-recipients') }}</label>
+                    <select name="recipient_userids[]" class="form-select" multiple size="6">
+                        {% for user in enrolledUsers %}
+                            <option value="{{ user.id }}">{{ user.fullname }} ({{ user.username }})</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">{{ trans('hold-ctrl-to-select-multiple') }}</small>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <label class="form-label fw-bold">
+                        <i class="fa-solid fa-pencil me-1"></i>{{ trans('message-text') }}
+                    </label>
+                    <textarea name="message_text" class="form-control" rows="5" required placeholder="{{ trans('type-your-message') }}"></textarea>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <button type="submit" class="btn btn-primary"
+                            onclick="return confirm('{{ trans('confirm-send-message') }}');">
+                        <i class="fa-solid fa-paper-plane me-1"></i>{{ trans('send-message') }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    {% endif %}
+</div>
+
+<script>
+function toggleRecipientSelect() {
+    var mode = document.getElementById('recipientMode').value;
+    var container = document.getElementById('userSelectContainer');
+    if (mode === 'selected') {
+        container.classList.remove('d-none');
+    } else {
+        container.classList.add('d-none');
+    }
+}
+</script>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <column name="id" display="none" order="100">
+            <widget type="text" fieldname="id"/>
+        </column>
+        <column name="badge-name" order="110">
+            <widget type="text" fieldname="badge_name" onclick="EditMoodleCertificate"/>
+        </column>
+        <column name="course" order="120">
+            <widget type="text" fieldname="course_name"/>
+        </column>
+        <column name="date-issued" order="130">
+            <widget type="datetime" fieldname="date_issued"/>
+        </column>
+        <column name="date-expire" order="140">
+            <widget type="datetime" fieldname="date_expire"/>
+        </column>
+        <column name="unique-hash" order="150">
+            <widget type="text" fieldname="unique_hash"/>
+        </column>
+    </columns>
+</view>

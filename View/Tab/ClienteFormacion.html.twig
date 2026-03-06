@@ -1,0 +1,120 @@
+{% set data = fsc.views['ClienteFormacion'].settings.trainingData | default({}) %}
+
+<div class="container-fluid mt-3 mb-4">
+    {% if data.totalContacts | default(0) == 0 %}
+        <div class="alert alert-info">
+            <i class="fa-solid fa-info-circle me-1"></i> {{ trans('no-training-data') }}
+        </div>
+    {% else %}
+        {# Summary cards #}
+        <div class="row mb-4">
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body py-3 text-center">
+                        <h3 class="mb-0 text-primary">{{ data.enrolledContacts | default(0) }} / {{ data.totalContacts | default(0) }}</h3>
+                        <small class="text-muted">{{ trans('contacts-enrolled') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body py-3 text-center">
+                        <h3 class="mb-0 text-success">{{ data.enrolledCount | default(0) }}</h3>
+                        <small class="text-muted">{{ trans('enrolled') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body py-3 text-center">
+                        <h3 class="mb-0 text-warning">{{ data.pendingCount | default(0) }}</h3>
+                        <small class="text-muted">{{ trans('pending') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card shadow-sm border-0 h-100 border-start border-primary border-3">
+                    <div class="card-body py-3 text-center">
+                        <h3 class="mb-0 text-primary">{{ money(data.totalInvoiced | default(0)) }}</h3>
+                        <small class="text-muted">{{ trans('total-invoiced') }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Course breakdown table #}
+        {% if data.courseBreakdown | default([]) | length > 0 %}
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0 pb-0">
+                    <h6 class="mb-0"><i class="fa-solid fa-graduation-cap me-1 text-muted"></i> {{ trans('courses-breakdown') }}</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>{{ trans('course') }}</th>
+                                    <th class="text-center">{{ trans('enrolled') }}</th>
+                                    <th class="text-center">{{ trans('pending') }}</th>
+                                    <th class="text-center">{{ trans('suspended') }}</th>
+                                    <th class="text-center">{{ trans('unenrolled') }}</th>
+                                    <th class="text-center">{{ trans('total') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in data.courseBreakdown %}
+                                    <tr>
+                                        <td>{{ course.name }}</td>
+                                        <td class="text-center">
+                                            {% if course.enrolled > 0 %}
+                                                <span class="badge bg-success">{{ course.enrolled }}</span>
+                                            {% else %}
+                                                <span class="text-muted">0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if course.pending > 0 %}
+                                                <span class="badge bg-warning text-dark">{{ course.pending }}</span>
+                                            {% else %}
+                                                <span class="text-muted">0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if course.suspended > 0 %}
+                                                <span class="badge bg-secondary">{{ course.suspended }}</span>
+                                            {% else %}
+                                                <span class="text-muted">0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if course.unenrolled > 0 %}
+                                                <span class="badge bg-danger">{{ course.unenrolled }}</span>
+                                            {% else %}
+                                                <span class="text-muted">0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center fw-bold">{{ course.total }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr class="fw-bold">
+                                    <td>{{ trans('total') }}</td>
+                                    <td class="text-center">{{ data.enrolledCount | default(0) }}</td>
+                                    <td class="text-center">{{ data.pendingCount | default(0) }}</td>
+                                    <td class="text-center">{{ data.suspendedCount | default(0) }}</td>
+                                    <td class="text-center">{{ data.unenrolledCount | default(0) }}</td>
+                                    <td class="text-center">{{ data.totalEnrolments | default(0) }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-secondary">
+                <i class="fa-solid fa-info-circle me-1"></i> {{ trans('no-enrolments-for-client') }}
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

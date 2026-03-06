@@ -29,6 +29,7 @@ class Init extends InitClass
     public function init(): void
     {
         $this->loadExtension(new Extension\Controller\EditContacto());
+        $this->loadExtension(new Extension\Controller\EditCliente());
         $this->loadExtension(new Extension\Controller\EditProducto());
 
         WorkQueue::addWorker('EnrolmentWorker', 'Model.FacturaCliente.Update');
@@ -36,6 +37,7 @@ class Init extends InitClass
         WorkQueue::addWorker('PreEnrolmentWorker', 'Model.PedidoCliente.Update');
         WorkQueue::addWorker('ContactSyncWorker', 'Model.Contacto.Update');
         WorkQueue::addWorker('ContactDeleteWorker', 'Model.Contacto.Delete');
+        WorkQueue::addWorker('BadgeSyncWorker', 'Model.MoodleUserMap.Save');
     }
 
     public function uninstall(): void
