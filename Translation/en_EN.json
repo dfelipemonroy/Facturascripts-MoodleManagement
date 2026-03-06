@@ -295,5 +295,17 @@
     "more-actions": "More actions",
     "move-up": "Move up",
     "move-down": "Move down",
-    "automatic": "Automatic"
+    "automatic": "Automatic",
+    "contact-sync-failed": "Contact sync failed for %contact%: %error%",
+    "contact-delete-suspend-failed": "Failed to suspend Moodle user %userid%: %error%",
+    "contact-delete-suspended": "Moodle user %userid% suspended on instance %instance% (contact deleted).",
+    "user-not-found-in-moodle": "User no longer exists in Moodle.",
+    "reconcile-user-missing": "Reconciliation: Moodle user %userid% not found on instance %instance%.",
+    "reconcile-enrolment-missing": "Reconciliation: enrolment for user %userid% in course %courseid% not found in Moodle.",
+    "enrolment-not-found-in-moodle": "Enrolment no longer exists in Moodle.",
+    "cleanup-orphaned-user-maps": "Cleanup: removed %count% orphaned user mappings.",
+    "cleanup-orphaned-enrolments": "Cleanup: removed %count% orphaned enrolments.",
+    "enrolment-expired": "Enrolment expired.",
+    "enrolment-expired-auto": "Enrolment expired for user %userid% in course %courseid%.",
+    "enrolment-expiring-soon": "Enrolment for user %userid% in course %courseid% expires in %days% day(s)."
 }

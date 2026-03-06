@@ -19,6 +19,7 @@
 
 namespace FacturaScripts\Plugins\MoodleManagement;
 
+use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\Template\InitClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\WorkQueue;
@@ -33,6 +34,8 @@ class Init extends InitClass
         WorkQueue::addWorker('EnrolmentWorker', 'Model.FacturaCliente.Update');
         WorkQueue::addWorker('PreEnrolmentWorker', 'Model.PresupuestoCliente.Update');
         WorkQueue::addWorker('PreEnrolmentWorker', 'Model.PedidoCliente.Update');
+        WorkQueue::addWorker('ContactSyncWorker', 'Model.Contacto.Update');
+        WorkQueue::addWorker('ContactDeleteWorker', 'Model.Contacto.Delete');
     }
 
     public function uninstall(): void
@@ -50,6 +53,6 @@ class Init extends InitClass
             ? "CREATE OR REPLACE VIEW moodle_course_categories_view AS SELECT moodle_categoryid, name || ' (' || moodle_categoryid || ')' AS display_name FROM moodle_course_categories WHERE moodle_categoryid IS NOT NULL"
             : "CREATE OR REPLACE VIEW moodle_course_categories_view AS SELECT moodle_categoryid, CONCAT(name, ' (', moodle_categoryid, ')') AS display_name FROM moodle_course_categories WHERE moodle_categoryid IS NOT NULL";
 
-        Tools::database()->exec($db);
+        (new DataBase())->exec($db);
     }
 }

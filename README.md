@@ -1,4 +1,4 @@
-# MoodleManagement v0.9
+# MoodleManagement v1.0
 
 Plugin para FacturaScripts que permite gestionar plataformas Moodle directamente desde el ERP. Conecta tu sistema de facturación con tu LMS mediante la API REST de Moodle.
 
@@ -51,6 +51,17 @@ Plugin para FacturaScripts que permite gestionar plataformas Moodle directamente
 ### Roles
 - Mapeo de los 8 roles estándar de Moodle por instancia
 - Importación automática de roles estándar
+
+### Automatización de Procesos
+- **Matrícula automática**: al pagar una factura con productos vinculados a cursos, el alumno se matricula automáticamente en Moodle
+- **Pre-matrícula**: al crear presupuestos o pedidos, se generan matrículas pendientes que se activan al facturar
+- **Sincronización de contactos**: al modificar un contacto en FS, los datos se sincronizan automáticamente con Moodle
+- **Suspensión automática**: al eliminar un contacto en FS, se suspende su cuenta y matrículas en Moodle
+- **Health check** (cada hora): monitoreo automático del estado de todas las instancias Moodle
+- **Sincronización incremental** (cada 6 horas): sincronización de usuarios y cursos con resolución de conflictos
+- **Reconciliación** (diaria): verificación de integridad de mapeos de usuarios y matrículas contra Moodle
+- **Limpieza** (diaria): eliminación automática de mapeos huérfanos (contactos eliminados)
+- **Control de expiración** (cada 6 horas): detección de matrículas por vencer (7 días) y expiración automática
 
 ## Requisitos
 
@@ -215,11 +226,11 @@ LGPL v3 - GNU Lesser General Public License
 
 ---
 
-# MoodleManagement v0.9
+# MoodleManagement v1.0
 
 FacturaScripts plugin for managing Moodle platforms directly from your ERP. Connect your billing system with your LMS through the Moodle REST API.
 
-*[Versión en español arriba](#moodlemanagement-v09)*
+*[Versión en español arriba](#moodlemanagement-v10)*
 
 ## Features
 
@@ -268,6 +279,17 @@ FacturaScripts plugin for managing Moodle platforms directly from your ERP. Conn
 ### Roles
 - Mapping of the 8 standard Moodle roles per instance
 - Automatic standard role import
+
+### Process Automation
+- **Automatic enrolment**: when an invoice with course-linked products is paid, the student is automatically enrolled in Moodle
+- **Pre-enrolment**: when creating quotes or orders, pending enrolments are generated and activated upon invoicing
+- **Contact synchronization**: when a contact is modified in FS, data is automatically synced to Moodle
+- **Automatic suspension**: when a contact is deleted in FS, their Moodle account and enrolments are suspended
+- **Health check** (hourly): automatic monitoring of all Moodle instance statuses
+- **Incremental sync** (every 6 hours): user and course synchronization with conflict resolution
+- **Reconciliation** (daily): integrity verification of user and enrolment mappings against Moodle
+- **Cleanup** (daily): automatic removal of orphaned mappings (deleted contacts)
+- **Expiry control** (every 6 hours): detection of expiring enrolments (7 days) and automatic expiration
 
 ## Requirements
 

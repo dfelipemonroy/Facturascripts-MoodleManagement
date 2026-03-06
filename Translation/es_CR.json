@@ -295,5 +295,17 @@
     "more-actions": "Más acciones",
     "move-up": "Mover arriba",
     "move-down": "Mover abajo",
-    "automatic": "Automático"
+    "automatic": "Automático",
+    "contact-sync-failed": "Error sincronizando contacto %contact%: %error%",
+    "contact-delete-suspend-failed": "Error al suspender usuario Moodle %userid%: %error%",
+    "contact-delete-suspended": "Usuario Moodle %userid% suspendido en instancia %instance% (contacto eliminado).",
+    "user-not-found-in-moodle": "El usuario ya no existe en Moodle.",
+    "reconcile-user-missing": "Reconciliación: usuario Moodle %userid% no encontrado en instancia %instance%.",
+    "reconcile-enrolment-missing": "Reconciliación: matrícula del usuario %userid% en curso %courseid% no encontrada en Moodle.",
+    "enrolment-not-found-in-moodle": "La matrícula ya no existe en Moodle.",
+    "cleanup-orphaned-user-maps": "Limpieza: eliminados %count% mapeos de usuario huérfanos.",
+    "cleanup-orphaned-enrolments": "Limpieza: eliminadas %count% matrículas huérfanas.",
+    "enrolment-expired": "Matrícula expirada.",
+    "enrolment-expired-auto": "Matrícula expirada para usuario %userid% en curso %courseid%.",
+    "enrolment-expiring-soon": "La matrícula del usuario %userid% en curso %courseid% expira en %days% día(s)."
 }
