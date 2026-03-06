@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <group name="category-data" title="category-data" icon="fa-solid fa-folder-tree" numcolumns="12">
+            <column name="name" numcolumns="6" order="100">
+                <widget type="text" fieldname="name" required="true"/>
+            </column>
+            <column name="moodle-instance" numcolumns="3" order="110">
+                <widget type="select" fieldname="idinstance" required="true">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="moodle-category-id" numcolumns="3" order="120">
+                <widget type="number" fieldname="moodle_categoryid" readonly="true"/>
+            </column>
+            <column name="parent-category" numcolumns="3" order="130">
+                <widget type="select" fieldname="parent_categoryid">
+                    <values source="MoodleCourseCategory" fieldcode="moodle_categoryid" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="description" numcolumns="9" order="140">
+                <widget type="textarea" fieldname="description"/>
+            </column>
+        </group>
+        <group name="mapping" title="mapping" icon="fa-solid fa-link" numcolumns="12">
+            <column name="family" numcolumns="4" order="200">
+                <widget type="select" fieldname="codfamilia">
+                    <values source="familias" fieldcode="codfamilia" fieldtitle="descripcion"/>
+                </widget>
+            </column>
+            <column name="visible" numcolumns="2" order="210">
+                <widget type="checkbox" fieldname="visible"/>
+            </column>
+            <column name="sync-active" numcolumns="2" order="215">
+                <widget type="checkbox" fieldname="sync_active"/>
+            </column>
+            <column name="source" numcolumns="2" order="220">
+                <widget type="select" fieldname="source" translate="true">
+                    <values title="fs_managed">fs_managed</values>
+                    <values title="moodle_managed">moodle_managed</values>
+                    <values title="synced">synced</values>
+                </widget>
+            </column>
+            <column name="last-sync" numcolumns="3" order="230">
+                <widget type="datetime" fieldname="last_sync" readonly="true"/>
+            </column>
+        </group>
+    </columns>
+    <rows>
+        <row type="actions">
+            <button type="action" label="sync-category" action="sync-category" icon="fa-solid fa-arrows-rotate" color="info"/>
+            <button type="action" label="push-category-to-moodle" action="push-category-to-moodle" icon="fa-solid fa-upload" color="warning"/>
+            <button type="action" label="create-familia" action="create-familia" icon="fa-solid fa-sitemap" color="success"/>
+        </row>
+    </rows>
+</view>

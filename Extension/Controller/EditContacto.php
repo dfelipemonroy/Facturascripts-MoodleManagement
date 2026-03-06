@@ -30,6 +30,10 @@ class EditContacto
             $this->addListView('ListMoodleUserMap', 'MoodleUserMap', 'moodle-users', 'fa-solid fa-graduation-cap')
                 ->addOrderBy(['last_sync'], 'last-sync', 2)
                 ->addSearchFields(['moodle_username']);
+
+            $this->addListView('ListMoodleEnrolment', 'MoodleEnrolment', 'moodle-enrolments', 'fa-solid fa-user-graduate')
+                ->addOrderBy(['enrolment_date'], 'enrolment-date', 2)
+                ->addSearchFields(['moodle_courseid', 'notes']);
         };
     }
 
@@ -37,6 +41,10 @@ class EditContacto
     {
         return function ($viewName, $view) {
             if ($viewName === 'ListMoodleUserMap') {
+                $idcontacto = $this->getViewModelValue($this->getMainViewName(), 'idcontacto');
+                $where = [new DataBaseWhere('idcontacto', $idcontacto)];
+                $view->loadData('', $where);
+            } elseif ($viewName === 'ListMoodleEnrolment') {
                 $idcontacto = $this->getViewModelValue($this->getMainViewName(), 'idcontacto');
                 $where = [new DataBaseWhere('idcontacto', $idcontacto)];
                 $view->loadData('', $where);

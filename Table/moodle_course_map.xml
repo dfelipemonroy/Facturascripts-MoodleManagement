@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<table>
+    <column>
+        <name>id</name>
+        <type>serial</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>idinstance</name>
+        <type>integer</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>moodle_courseid</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>idproducto</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>shortname</name>
+        <type>character varying(200)</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>fullname</name>
+        <type>character varying(300)</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>summary</name>
+        <type>text</type>
+    </column>
+    <column>
+        <name>moodle_categoryid</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>format</name>
+        <type>character varying(50)</type>
+    </column>
+    <column>
+        <name>startdate</name>
+        <type>integer</type>
+        <default>0</default>
+    </column>
+    <column>
+        <name>enddate</name>
+        <type>integer</type>
+        <default>0</default>
+    </column>
+    <column>
+        <name>visible</name>
+        <type>boolean</type>
+        <default>true</default>
+    </column>
+    <column>
+        <name>enrolled_count</name>
+        <type>integer</type>
+        <default>0</default>
+    </column>
+    <column>
+        <name>price</name>
+        <type>double precision</type>
+        <default>0</default>
+    </column>
+    <column>
+        <name>currency</name>
+        <type>character varying(3)</type>
+    </column>
+    <column>
+        <name>sync_active</name>
+        <type>boolean</type>
+        <default>true</default>
+    </column>
+    <column>
+        <name>source</name>
+        <type>character varying(20)</type>
+    </column>
+    <column>
+        <name>last_sync</name>
+        <type>timestamp</type>
+    </column>
+    <column>
+        <name>last_error</name>
+        <type>text</type>
+    </column>
+    <column>
+        <name>idfile_cover</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>creation_date</name>
+        <type>timestamp</type>
+    </column>
+    <constraint>
+        <name>moodle_course_map_pkey</name>
+        <type>PRIMARY KEY (id)</type>
+    </constraint>
+    <constraint>
+        <name>moodle_course_map_fk_instance</name>
+        <type>FOREIGN KEY (idinstance) REFERENCES moodle_instances (id) ON DELETE CASCADE ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_course_map_fk_producto</name>
+        <type>FOREIGN KEY (idproducto) REFERENCES productos (idproducto) ON DELETE SET NULL ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_course_map_unique</name>
+        <type>UNIQUE (idinstance, moodle_courseid)</type>
+    </constraint>
+</table>

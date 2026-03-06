@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <column name="cover-image" display="center" order="90">
+            <widget type="courseimage" fieldname="idfile_cover"/>
+        </column>
+        <column name="shortname" numcolumns="2" order="100">
+            <widget type="text" fieldname="shortname"/>
+        </column>
+        <column name="fullname" numcolumns="3" order="110">
+            <widget type="text" fieldname="fullname"/>
+        </column>
+        <column name="moodle-instance" order="120">
+            <widget type="select" fieldname="idinstance" required="true">
+                <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+            </widget>
+        </column>
+        <column name="moodle-category" order="125">
+            <widget type="select" fieldname="moodle_categoryid">
+                <values source="MoodleCourseCategory" fieldcode="moodle_categoryid" fieldtitle="name"/>
+            </widget>
+        </column>
+        <column name="price" display="right" order="130">
+            <widget type="number" fieldname="price" decimal="2"/>
+        </column>
+        <column name="enrolled-count" display="right" order="140">
+            <widget type="number" fieldname="enrolled_count" readonly="true"/>
+        </column>
+        <column name="visible" display="center" order="150">
+            <widget type="checkbox" fieldname="visible"/>
+        </column>
+        <column name="sync-active" display="center" order="155">
+            <widget type="checkbox" fieldname="sync_active"/>
+        </column>
+        <column name="source" order="160">
+            <widget type="select" fieldname="source" translate="true">
+                <values title="fs_managed">fs_managed</values>
+                <values title="moodle_managed">moodle_managed</values>
+                <values title="synced">synced</values>
+            </widget>
+        </column>
+        <column name="last-sync" order="170">
+            <widget type="datetime" fieldname="last_sync"/>
+        </column>
+    </columns>
+    <modals>
+        <group name="import-courses-from-moodle" title="import-courses-from-moodle" icon="fa-solid fa-download">
+            <column name="moodle-instance" numcolumns="12" description="select-moodle-instance-import-courses">
+                <widget type="select" fieldname="idinstance" required="true">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+        </group>
+    </modals>
+</view>

@@ -1,0 +1,73 @@
+{% set methods = fsc.enrolmentMethods %}
+{% set error = fsc.enrolmentMethodsError %}
+
+<div class="container-fluid mt-3 mb-3">
+    {% if error is not empty %}
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            {{ error }}
+        </div>
+    {% elseif methods is empty %}
+        <div class="alert alert-info">
+            <i class="fa-solid fa-info-circle me-1"></i>
+            {{ trans('no-enrolment-methods') }}
+        </div>
+    {% else %}
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{{ trans('type') }}</th>
+                    <th>{{ trans('name') }}</th>
+                    <th>{{ trans('status') }}</th>
+                    <th>{{ trans('enrolment-key') }}</th>
+                    <th>ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for method in methods %}
+                    <tr>
+                        <td>
+                            {% set methodIcons = {
+                                'manual': 'fa-solid fa-hand-pointer',
+                                'self': 'fa-solid fa-user-plus',
+                                'guest': 'fa-solid fa-user-secret',
+                                'fee': 'fa-solid fa-credit-card',
+                                'cohort': 'fa-solid fa-people-group',
+                                'meta': 'fa-solid fa-link',
+                                'lti': 'fa-solid fa-arrow-up-right-from-square',
+                                'database': 'fa-solid fa-database',
+                                'flatfile': 'fa-solid fa-file-csv'
+                            } %}
+                            <i class="{{ methodIcons[method.type] | default('fa-solid fa-plug') }} me-1"></i>
+                            {{ method.type | default('—') }}
+                        </td>
+                        <td>{{ method.name | default('—') }}</td>
+                        <td>
+                            {% if method.status is defined %}
+                                {% if method.status == 0 %}
+                                    <span class="badge bg-success">{{ trans('active') }}</span>
+                                {% elseif method.status == 1 %}
+                                    <span class="badge bg-secondary">{{ trans('inactive') }}</span>
+                                {% else %}
+                                    <span class="badge bg-warning">{{ method.status }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if method.wsfunction is defined and method.wsfunction == 'enrol_self_enrol_user' %}
+                                {% if method.customchar1 is defined and method.customchar1 is not empty %}
+                                    <code>{{ method.customchar1 }}</code>
+                                {% else %}
+                                    <span class="text-muted">{{ trans('no-password') }}</span>
+                                {% endif %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ method.id | default('—') }}</small></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>

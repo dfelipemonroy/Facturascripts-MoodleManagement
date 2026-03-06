@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <group name="enrolment-data" title="enrolment-data" icon="fa-solid fa-user-graduate" numcolumns="12">
+            <column name="contact" numcolumns="4" order="100">
+                <widget type="autocomplete" fieldname="idcontacto" onclick="EditContacto">
+                    <values source="contactos" fieldcode="idcontacto" fieldtitle="descripcion"/>
+                </widget>
+            </column>
+            <column name="moodle-userid" numcolumns="2" order="110">
+                <widget type="number" fieldname="moodle_userid" required="true"/>
+            </column>
+            <column name="moodle-instance" numcolumns="3" order="120">
+                <widget type="select" fieldname="idinstance" required="true">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="moodle-course" numcolumns="3" order="130">
+                <widget type="autocomplete" fieldname="idcourse_map" onclick="EditMoodleCourseMap">
+                    <values source="moodle_course_map" fieldcode="id" fieldtitle="shortname"/>
+                </widget>
+            </column>
+            <column name="moodle-courseid" numcolumns="2" order="140">
+                <widget type="number" fieldname="moodle_courseid" required="true"/>
+            </column>
+            <column name="status" numcolumns="3" order="150">
+                <widget type="select" fieldname="status" translate="true">
+                    <values title="pending">pending</values>
+                    <values title="enrolled">enrolled</values>
+                    <values title="suspended">suspended</values>
+                    <values title="unenrolled">unenrolled</values>
+                </widget>
+            </column>
+            <column name="enrolment-method" numcolumns="3" order="160">
+                <widget type="select" fieldname="enrolment_method" translate="true">
+                    <values title="manual">manual</values>
+                    <values title="self">self</values>
+                    <values title="fee">fee</values>
+                    <values title="cohort">cohort</values>
+                    <values title="meta">meta</values>
+                </widget>
+            </column>
+            <column name="roleid" numcolumns="2" order="170">
+                <widget type="select" fieldname="roleid" translate="true">
+                    <values title="role-manager">1</values>
+                    <values title="role-coursecreator">2</values>
+                    <values title="role-editingteacher">3</values>
+                    <values title="role-teacher">4</values>
+                    <values title="role-student">5</values>
+                    <values title="role-guest">6</values>
+                </widget>
+            </column>
+            <column name="enrolment-key" numcolumns="2" order="175">
+                <widget type="text" fieldname="enrolment_key"/>
+            </column>
+        </group>
+        <group name="enrolment-dates" title="dates" icon="fa-solid fa-calendar" numcolumns="6">
+            <column name="enrolment-date" numcolumns="4" order="200">
+                <widget type="datetime" fieldname="enrolment_date" readonly="true"/>
+            </column>
+            <column name="timestart" numcolumns="4" order="210">
+                <widget type="number" fieldname="timestart"/>
+            </column>
+            <column name="timeend" numcolumns="4" order="220">
+                <widget type="number" fieldname="timeend"/>
+            </column>
+        </group>
+        <group name="document-links" title="documents" icon="fa-solid fa-file-invoice" numcolumns="6">
+            <column name="invoice" numcolumns="4" order="300">
+                <widget type="number" fieldname="idfactura" onclick="EditFacturaCliente"/>
+            </column>
+            <column name="order" numcolumns="4" order="310">
+                <widget type="number" fieldname="idpedido" onclick="EditPedidoCliente"/>
+            </column>
+            <column name="estimation" numcolumns="4" order="320">
+                <widget type="number" fieldname="idpresupuesto" onclick="EditPresupuestoCliente"/>
+            </column>
+        </group>
+        <group name="sync-info" title="sync-info" icon="fa-solid fa-arrows-rotate" numcolumns="12">
+            <column name="last-sync" numcolumns="3" order="400">
+                <widget type="datetime" fieldname="last_sync" readonly="true"/>
+            </column>
+            <column name="last-error" numcolumns="5" order="410">
+                <widget type="textarea" fieldname="last_error" readonly="true"/>
+            </column>
+            <column name="notes" numcolumns="4" order="420">
+                <widget type="textarea" fieldname="notes"/>
+            </column>
+        </group>
+    </columns>
+    <rows>
+        <row type="actions">
+            <button type="action" label="enrol-user" action="enrol-user" icon="fa-solid fa-user-plus" color="success"/>
+            <button type="action" label="suspend-enrolment" action="suspend-user" icon="fa-solid fa-user-slash" color="warning"/>
+            <button type="action" label="reactivate-enrolment" action="reactivate-user" icon="fa-solid fa-user-check" color="info"/>
+            <button type="action" label="unenrol-user" action="unenrol-user" icon="fa-solid fa-user-minus" color="danger"/>
+        </row>
+    </rows>
+</view>

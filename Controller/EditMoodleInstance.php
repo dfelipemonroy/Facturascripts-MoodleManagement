@@ -51,11 +51,19 @@ class EditMoodleInstance extends EditController
         $this->addListView('ListMoodleCohort', 'MoodleCohort', 'moodle-cohorts', 'fa-solid fa-people-group')
             ->addOrderBy(['name'], 'name', 1)
             ->addSearchFields(['name', 'idnumber']);
+
+        $this->addListView('ListMoodleCourseMap', 'MoodleCourseMap', 'moodle-courses', 'fa-solid fa-book')
+            ->addOrderBy(['fullname'], 'name', 1)
+            ->addSearchFields(['shortname', 'fullname']);
+
+        $this->addListView('ListMoodleCourseCategory', 'MoodleCourseCategory', 'moodle-course-categories', 'fa-solid fa-folder-tree')
+            ->addOrderBy(['name'], 'name', 1)
+            ->addSearchFields(['name']);
     }
 
     protected function loadData($viewName, $view)
     {
-        if ($viewName === 'ListMoodleUserMap' || $viewName === 'ListMoodleCohort') {
+        if (in_array($viewName, ['ListMoodleUserMap', 'ListMoodleCohort', 'ListMoodleCourseMap', 'ListMoodleCourseCategory'])) {
             $idinstance = $this->getViewModelValue($this->getMainViewName(), 'id');
             $where = [new DataBaseWhere('idinstance', $idinstance)];
             $view->loadData('', $where);

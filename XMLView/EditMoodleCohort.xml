@@ -10,11 +10,11 @@
                     <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
                 </widget>
             </column>
-            <column name="idnumber" numcolumns="2" order="120">
+            <column name="cohort-idnumber" numcolumns="2" order="120">
                 <widget type="text" fieldname="idnumber"/>
             </column>
             <column name="moodle-cohortid" numcolumns="2" order="125">
-                <widget type="number" fieldname="moodle_cohortid" readonly="true"/>
+                <widget type="number" fieldname="moodle_cohortid" readonly="true" decimal="0"/>
             </column>
             <column name="description" numcolumns="12" order="130">
                 <widget type="textarea" fieldname="description"/>
@@ -33,18 +33,42 @@
                     <values source="gruposclientes" fieldcode="codgrupo" fieldtitle="nombre"/>
                 </widget>
             </column>
+            <column name="sync-active" numcolumns="1" order="115">
+                <widget type="checkbox" fieldname="sync_active"/>
+            </column>
             <column name="member-count" numcolumns="2" order="120">
-                <widget type="number" fieldname="member_count" readonly="true"/>
+                <widget type="number" fieldname="member_count" readonly="true" decimal="0"/>
             </column>
             <column name="last-sync" numcolumns="3" order="130">
                 <widget type="datetime" fieldname="last_sync" readonly="true"/>
             </column>
         </group>
     </columns>
+    <modals>
+        <group name="enrol-cohort-to-course" title="enrol-cohort-to-course" icon="fa-solid fa-user-graduate">
+            <column name="course" numcolumns="12" order="100">
+                <widget type="autocomplete" fieldname="enrol_coursemap_id" required="true">
+                    <values source="moodle_course_map" fieldcode="id" fieldtitle="shortname"/>
+                </widget>
+            </column>
+            <column name="roleid" numcolumns="6" order="110">
+                <widget type="select" fieldname="enrol_roleid" translate="true">
+                    <values title="role-manager">1</values>
+                    <values title="role-coursecreator">2</values>
+                    <values title="role-editingteacher">3</values>
+                    <values title="role-teacher">4</values>
+                    <values title="role-student">5</values>
+                    <values title="role-guest">6</values>
+                </widget>
+            </column>
+        </group>
+    </modals>
     <rows>
         <row type="actions">
             <button type="action" label="sync-cohort" action="sync-cohort" icon="fa-solid fa-arrows-rotate" color="info"/>
+            <button type="action" label="sync-cohort-members" action="sync-cohort-members" icon="fa-solid fa-users" color="info"/>
             <button type="action" label="push-to-moodle" action="push-cohort-to-moodle" icon="fa-solid fa-arrow-right" color="warning"/>
+            <button type="modal" label="enrol-cohort-to-course" action="enrol-cohort-to-course" icon="fa-solid fa-user-graduate" color="success"/>
         </row>
     </rows>
 </view>

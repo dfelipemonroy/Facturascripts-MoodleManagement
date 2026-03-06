@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<table>
+    <column>
+        <name>id</name>
+        <type>serial</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>idinstance</name>
+        <type>integer</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>idcontacto</name>
+        <type>integer</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>moodle_userid</name>
+        <type>integer</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>moodle_courseid</name>
+        <type>integer</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>idcourse_map</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>idfactura</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>idpedido</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>idpresupuesto</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>roleid</name>
+        <type>integer</type>
+        <default>5</default>
+    </column>
+    <column>
+        <name>status</name>
+        <type>character varying(20)</type>
+    </column>
+    <column>
+        <name>enrolment_method</name>
+        <type>character varying(20)</type>
+    </column>
+    <column>
+        <name>timestart</name>
+        <type>integer</type>
+        <default>0</default>
+    </column>
+    <column>
+        <name>timeend</name>
+        <type>integer</type>
+        <default>0</default>
+    </column>
+    <column>
+        <name>enrolment_key</name>
+        <type>character varying(100)</type>
+    </column>
+    <column>
+        <name>enrolment_date</name>
+        <type>timestamp</type>
+    </column>
+    <column>
+        <name>last_sync</name>
+        <type>timestamp</type>
+    </column>
+    <column>
+        <name>last_error</name>
+        <type>text</type>
+    </column>
+    <column>
+        <name>notes</name>
+        <type>text</type>
+    </column>
+    <constraint>
+        <name>moodle_enrolments_pkey</name>
+        <type>PRIMARY KEY (id)</type>
+    </constraint>
+    <constraint>
+        <name>moodle_enrolments_fk_instance</name>
+        <type>FOREIGN KEY (idinstance) REFERENCES moodle_instances (id) ON DELETE CASCADE ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_enrolments_fk_contacto</name>
+        <type>FOREIGN KEY (idcontacto) REFERENCES contactos (idcontacto) ON DELETE CASCADE ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_enrolments_fk_course_map</name>
+        <type>FOREIGN KEY (idcourse_map) REFERENCES moodle_course_map (id) ON DELETE SET NULL ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_enrolments_fk_factura</name>
+        <type>FOREIGN KEY (idfactura) REFERENCES facturascli (idfactura) ON DELETE SET NULL ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_enrolments_fk_pedido</name>
+        <type>FOREIGN KEY (idpedido) REFERENCES pedidoscli (idpedido) ON DELETE SET NULL ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_enrolments_fk_presupuesto</name>
+        <type>FOREIGN KEY (idpresupuesto) REFERENCES presupuestoscli (idpresupuesto) ON DELETE SET NULL ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_enrolments_unique</name>
+        <type>UNIQUE (idinstance, moodle_userid, moodle_courseid)</type>
+    </constraint>
+</table>

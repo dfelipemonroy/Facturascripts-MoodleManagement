@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <group name="course-data" title="course-data" icon="fa-solid fa-book" numcolumns="12">
+            <column name="fullname" numcolumns="6" order="100">
+                <widget type="text" fieldname="fullname" required="true"/>
+            </column>
+            <column name="shortname" numcolumns="3" order="110">
+                <widget type="text" fieldname="shortname" required="true"/>
+            </column>
+            <column name="moodle-instance" numcolumns="3" order="120">
+                <widget type="select" fieldname="idinstance" required="true">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="moodle-courseid" numcolumns="2" order="130">
+                <widget type="number" fieldname="moodle_courseid" readonly="true"/>
+            </column>
+            <column name="moodle-category-id" numcolumns="2" order="140">
+                <widget type="number" fieldname="moodle_categoryid"/>
+            </column>
+            <column name="course-format" numcolumns="2" order="150">
+                <widget type="select" fieldname="format" translate="true">
+                    <values title="topics">topics</values>
+                    <values title="weeks">weeks</values>
+                    <values title="social">social</values>
+                    <values title="singleactivity">singleactivity</values>
+                </widget>
+            </column>
+            <column name="visible" numcolumns="2" order="155">
+                <widget type="checkbox" fieldname="visible"/>
+            </column>
+            <column name="cover-image" numcolumns="4" order="158">
+                <widget type="courseimage" fieldname="idfile_cover"/>
+            </column>
+            <column name="summary" numcolumns="12" order="160">
+                <widget type="textarea" fieldname="summary"/>
+            </column>
+        </group>
+        <group name="course-dates" title="course-dates" icon="fa-solid fa-calendar" numcolumns="6">
+            <column name="course-startdate" numcolumns="6" order="200">
+                <widget type="number" fieldname="startdate"/>
+            </column>
+            <column name="course-enddate" numcolumns="6" order="210">
+                <widget type="number" fieldname="enddate"/>
+            </column>
+        </group>
+        <group name="course-pricing" title="course-pricing" icon="fa-solid fa-tag" numcolumns="6">
+            <column name="price" numcolumns="4" order="300">
+                <widget type="number" fieldname="price" decimal="2"/>
+            </column>
+            <column name="currency" numcolumns="4" order="310">
+                <widget type="select" fieldname="currency">
+                    <values title="EUR">EUR</values>
+                    <values title="USD">USD</values>
+                    <values title="GBP">GBP</values>
+                </widget>
+            </column>
+            <column name="product" numcolumns="4" order="320">
+                <widget type="autocomplete" fieldname="idproducto">
+                    <values source="productos" fieldcode="idproducto" fieldtitle="descripcion"/>
+                </widget>
+            </column>
+        </group>
+        <group name="sync-info" title="sync-info" icon="fa-solid fa-arrows-rotate" numcolumns="12">
+            <column name="source" numcolumns="3" order="400">
+                <widget type="select" fieldname="source" translate="true">
+                    <values title="fs_managed">fs_managed</values>
+                    <values title="moodle_managed">moodle_managed</values>
+                    <values title="synced">synced</values>
+                </widget>
+            </column>
+            <column name="sync-active" numcolumns="2" order="405">
+                <widget type="checkbox" fieldname="sync_active"/>
+            </column>
+            <column name="enrolled-count" numcolumns="2" order="410">
+                <widget type="number" fieldname="enrolled_count" readonly="true"/>
+            </column>
+            <column name="last-sync" numcolumns="3" order="420">
+                <widget type="datetime" fieldname="last_sync" readonly="true"/>
+            </column>
+            <column name="last-error" numcolumns="4" order="430">
+                <widget type="textarea" fieldname="last_error" readonly="true"/>
+            </column>
+        </group>
+    </columns>
+    <modals>
+        <group name="duplicate-course" title="duplicate-course" icon="fa-solid fa-copy">
+            <column name="new-fullname" numcolumns="12" order="100">
+                <widget type="text" fieldname="new_fullname" required="true"/>
+            </column>
+            <column name="new-shortname" numcolumns="6" order="110">
+                <widget type="text" fieldname="new_shortname" required="true"/>
+            </column>
+            <column name="moodle-category-id" numcolumns="6" order="120">
+                <widget type="number" fieldname="new_categoryid"/>
+            </column>
+        </group>
+        <group name="add-meta-enrolment" title="add-meta-enrolment" icon="fa-solid fa-link">
+            <column name="linked-course" numcolumns="12" order="100">
+                <widget type="autocomplete" fieldname="meta_linked_coursemap_id" required="true">
+                    <values source="moodle_course_map" fieldcode="id" fieldtitle="shortname"/>
+                </widget>
+            </column>
+        </group>
+    </modals>
+    <rows>
+        <row type="actions">
+            <button type="action" label="sync-course" action="sync-course" icon="fa-solid fa-arrows-rotate" color="info"/>
+            <button type="action" label="push-course-to-moodle" action="push-course-to-moodle" icon="fa-solid fa-upload" color="warning"/>
+            <button type="action" label="create-product" action="create-product" icon="fa-solid fa-box" color="success"/>
+            <button type="action" label="sync-course-image" action="sync-course-image" icon="fa-solid fa-download" color="primary"/>
+            <button type="modal" label="duplicate-course" action="duplicate-course" icon="fa-solid fa-copy" color="secondary"/>
+            <button type="modal" label="add-meta-enrolment" action="add-meta-enrolment" icon="fa-solid fa-link" color="info"/>
+        </row>
+    </rows>
+</view>

@@ -20,6 +20,7 @@
 namespace FacturaScripts\Plugins\MoodleManagement\Lib;
 
 use FacturaScripts\Core\Model\Contacto;
+use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 
 class MoodleClient
@@ -74,15 +75,28 @@ class MoodleClient
             ];
         }
 
+        // some Moodle WS functions return "null" or empty string on success
+        if ($response === '' || $response === 'null') {
+            return [];
+        }
+
         $decoded = json_decode($response, true);
-        if ($decoded === null) {
+        if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
             return [
                 'exception' => 'json_error',
                 'message' => 'Invalid JSON response from Moodle',
             ];
         }
 
-        return $decoded;
+        // some WS functions (e.g. core_courseformat_update_course) return a
+        // JSON-encoded string, which results in a double-encoded response;
+        // detect and decode the inner layer
+        if (is_string($decoded)) {
+            $inner = json_decode($decoded, true);
+            return is_array($inner) ? $inner : [];
+        }
+
+        return $decoded ?? [];
     }
 
     /**
@@ -291,6 +305,194 @@ class MoodleClient
         return self::callApi($instance, 'core_cohort_get_cohort_members', $params);
     }
 
+    // ---- Course methods ----
+
+    /**
+     * Get all courses, or specific courses by ID.
+     */
+    public static function getCourses(MoodleInstance $instance, array $courseIds = []): array
+    {
+        $params = [];
+        foreach ($courseIds as $i => $id) {
+            $params["options[ids][$i]"] = $id;
+        }
+        return self::callApi($instance, 'core_course_get_courses', $params);
+    }
+
+    /**
+     * Get courses by field (id, shortname, idnumber, category).
+     */
+    public static function getCoursesByField(MoodleInstance $instance, string $field = '', string $value = ''): array
+    {
+        $params = [];
+        if (!empty($field)) {
+            $params['field'] = $field;
+            $params['value'] = $value;
+        }
+        return self::callApi($instance, 'core_course_get_courses_by_field', $params);
+    }
+
+    /**
+     * Search courses by text.
+     */
+    public static function searchCourses(MoodleInstance $instance, string $query, int $page = 0, int $perPage = 50): array
+    {
+        return self::callApi($instance, 'core_course_search_courses', [
+            'criterianame' => 'search',
+            'criteriavalue' => $query,
+            'page' => $page,
+            'perpage' => $perPage,
+        ]);
+    }
+
+    /**
+     * Create a course in Moodle.
+     */
+    public static function createCourse(MoodleInstance $instance, array $courseData): array
+    {
+        $params = [];
+        foreach ($courseData as $key => $value) {
+            $params["courses[0][$key]"] = $value;
+        }
+        return self::callApi($instance, 'core_course_create_courses', $params);
+    }
+
+    /**
+     * Update a course in Moodle.
+     */
+    public static function updateCourse(MoodleInstance $instance, int $courseId, array $courseData): array
+    {
+        $params = ["courses[0][id]" => $courseId];
+        foreach ($courseData as $key => $value) {
+            $params["courses[0][$key]"] = $value;
+        }
+        return self::callApi($instance, 'core_course_update_courses', $params);
+    }
+
+    /**
+     * Delete courses from Moodle.
+     */
+    public static function deleteCourses(MoodleInstance $instance, array $courseIds): array
+    {
+        $params = [];
+        foreach ($courseIds as $i => $id) {
+            $params["courseids[$i]"] = $id;
+        }
+        return self::callApi($instance, 'core_course_delete_courses', $params);
+    }
+
+    /**
+     * Duplicate a course in Moodle.
+     */
+    public static function duplicateCourse(MoodleInstance $instance, int $courseId, string $fullname, string $shortname, int $categoryId, bool $visible = true): array
+    {
+        return self::callApi($instance, 'core_course_duplicate_course', [
+            'courseid' => $courseId,
+            'fullname' => $fullname,
+            'shortname' => $shortname,
+            'categoryid' => $categoryId,
+            'visible' => $visible ? 1 : 0,
+        ]);
+    }
+
+    /**
+     * Get course contents (sections and modules).
+     */
+    public static function getCourseContents(MoodleInstance $instance, int $courseId): array
+    {
+        return self::callApi($instance, 'core_course_get_contents', [
+            'courseid' => $courseId,
+        ]);
+    }
+
+    // ---- Course Category methods ----
+
+    /**
+     * Get course categories from Moodle.
+     */
+    public static function getCategories(MoodleInstance $instance, array $criteria = [], bool $addSubcategories = true): array
+    {
+        $params = ['addsubcategories' => $addSubcategories ? 1 : 0];
+        foreach ($criteria as $i => $c) {
+            $params["criteria[$i][key]"] = $c['key'];
+            $params["criteria[$i][value]"] = $c['value'];
+        }
+        return self::callApi($instance, 'core_course_get_categories', $params);
+    }
+
+    /**
+     * Create a category in Moodle.
+     */
+    public static function createCategory(MoodleInstance $instance, array $categoryData): array
+    {
+        $params = [];
+        foreach ($categoryData as $key => $value) {
+            $params["categories[0][$key]"] = $value;
+        }
+        return self::callApi($instance, 'core_course_create_categories', $params);
+    }
+
+    /**
+     * Update a category in Moodle.
+     */
+    public static function updateCategory(MoodleInstance $instance, int $categoryId, array $categoryData): array
+    {
+        $params = ["categories[0][id]" => $categoryId];
+        foreach ($categoryData as $key => $value) {
+            $params["categories[0][$key]"] = $value;
+        }
+        return self::callApi($instance, 'core_course_update_categories', $params);
+    }
+
+    /**
+     * Delete categories from Moodle.
+     */
+    public static function deleteCategories(MoodleInstance $instance, array $categoryIds): array
+    {
+        $params = [];
+        foreach ($categoryIds as $i => $id) {
+            $params["categories[$i][id]"] = $id;
+            $params["categories[$i][newparent]"] = 0;
+        }
+        return self::callApi($instance, 'core_course_delete_categories', $params);
+    }
+
+    // ---- Course field mapping methods ----
+
+    /**
+     * Apply Moodle course data to a MoodleCourseMap model.
+     */
+    public static function moodleCourseToMap(\FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap $map, array $moodleCourse): void
+    {
+        $map->moodle_courseid = $moodleCourse['id'] ?? $map->moodle_courseid;
+        $map->shortname = $moodleCourse['shortname'] ?? '';
+        $map->fullname = $moodleCourse['fullname'] ?? '';
+        $map->summary = strip_tags($moodleCourse['summary'] ?? '');
+        $map->moodle_categoryid = $moodleCourse['categoryid'] ?? 0;
+        $map->format = $moodleCourse['format'] ?? 'topics';
+        $map->startdate = $moodleCourse['startdate'] ?? 0;
+        $map->enddate = $moodleCourse['enddate'] ?? 0;
+        $map->visible = (bool)($moodleCourse['visible'] ?? true);
+        $map->enrolled_count = $moodleCourse['enrolledusercount'] ?? $map->enrolled_count ?? 0;
+    }
+
+    /**
+     * Build Moodle course data array from a MoodleCourseMap model.
+     */
+    public static function mapToMoodleCourse(\FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap $map): array
+    {
+        return [
+            'fullname' => $map->fullname,
+            'shortname' => $map->shortname,
+            'summary' => $map->summary,
+            'categoryid' => $map->moodle_categoryid ?: 1,
+            'format' => $map->format ?: 'topics',
+            'startdate' => $map->startdate ?: 0,
+            'enddate' => $map->enddate ?: 0,
+            'visible' => $map->visible ? 1 : 0,
+        ];
+    }
+
     /**
      * Generate a Moodle username from a FS contact.
      * Uses email (before @) as base, falls back to nombre.apellidos.
@@ -438,5 +640,542 @@ class MoodleClient
             default:
                 return 'conflict';
         }
+    }
+
+    /**
+     * Get course overview files from Moodle.
+     * Uses getCoursesByField which returns overviewfiles (getCourses does not).
+     */
+    public static function getOverviewFiles(MoodleInstance $instance, int $courseId): array
+    {
+        $result = self::getCoursesByField($instance, 'id', (string)$courseId);
+        $courses = $result['courses'] ?? [];
+        if (!empty($courses[0]['overviewfiles'])) {
+            return $courses[0]['overviewfiles'];
+        }
+        return [];
+    }
+
+    /**
+     * Download a file from Moodle (appending WS token to URL).
+     * Returns the local filename on success, or empty string on failure.
+     */
+    public static function downloadFile(MoodleInstance $instance, string $fileUrl): string
+    {
+        $separator = strpos($fileUrl, '?') !== false ? '&' : '?';
+        $url = $fileUrl . $separator . 'token=' . $instance->token;
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+
+        $content = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        curl_close($ch);
+
+        if ($content === false || $httpCode !== 200) {
+            return '';
+        }
+
+        if (false === strpos($contentType ?? '', 'image/')) {
+            return '';
+        }
+
+        $urlPath = parse_url($fileUrl, PHP_URL_PATH);
+        $filename = basename($urlPath);
+        if (empty($filename)) {
+            $filename = 'moodle_course_image.jpg';
+        }
+
+        $folder = Tools::folder('MyFiles');
+        $localPath = $folder . '/' . $filename;
+        file_put_contents($localPath, $content);
+
+        return $filename;
+    }
+
+    // ── Enrolment methods ────────────────────────────────────────────────
+
+    /**
+     * Enrol users into courses via manual enrolment plugin.
+     *
+     * @param MoodleInstance $instance
+     * @param array $enrolments Each element: ['userid'=>int, 'courseid'=>int, 'roleid'=>int, 'timestart'=>int, 'timeend'=>int, 'suspend'=>int]
+     * @return array Empty on success, or error array
+     */
+    public static function enrolUsers(MoodleInstance $instance, array $enrolments): array
+    {
+        $params = [];
+        foreach ($enrolments as $i => $enrol) {
+            $params["enrolments[$i][roleid]"] = $enrol['roleid'] ?? 5;
+            $params["enrolments[$i][userid]"] = $enrol['userid'];
+            $params["enrolments[$i][courseid]"] = $enrol['courseid'];
+            if (isset($enrol['timestart'])) {
+                $params["enrolments[$i][timestart]"] = $enrol['timestart'];
+            }
+            if (isset($enrol['timeend'])) {
+                $params["enrolments[$i][timeend]"] = $enrol['timeend'];
+            }
+            if (isset($enrol['suspend'])) {
+                $params["enrolments[$i][suspend]"] = $enrol['suspend'];
+            }
+        }
+        return self::callApi($instance, 'enrol_manual_enrol_users', $params);
+    }
+
+    /**
+     * Unenrol users from courses via manual enrolment plugin.
+     *
+     * @param MoodleInstance $instance
+     * @param array $enrolments Each element: ['userid'=>int, 'courseid'=>int]
+     * @return array Empty on success, or error array
+     */
+    public static function unenrolUsers(MoodleInstance $instance, array $enrolments): array
+    {
+        $params = [];
+        foreach ($enrolments as $i => $enrol) {
+            $params["enrolments[$i][userid]"] = $enrol['userid'];
+            $params["enrolments[$i][courseid]"] = $enrol['courseid'];
+        }
+        return self::callApi($instance, 'enrol_manual_unenrol_users', $params);
+    }
+
+    /**
+     * Get users enrolled in a course.
+     *
+     * @param MoodleInstance $instance
+     * @param int $courseId
+     * @param bool $onlyActive If true, filter to only active enrolments
+     * @return array List of enrolled users or error array
+     */
+    public static function getEnrolledUsers(MoodleInstance $instance, int $courseId, bool $onlyActive = true): array
+    {
+        $params = ['courseid' => $courseId];
+        if ($onlyActive) {
+            $params['options[0][name]'] = 'onlyactive';
+            $params['options[0][value]'] = '1';
+        }
+        return self::callApi($instance, 'core_enrol_get_enrolled_users', $params);
+    }
+
+    /**
+     * Get courses a user is enrolled in.
+     *
+     * @param MoodleInstance $instance
+     * @param int $userId Moodle user ID
+     * @return array List of courses or error array
+     */
+    public static function getUserCourses(MoodleInstance $instance, int $userId): array
+    {
+        return self::callApi($instance, 'core_enrol_get_users_courses', [
+            'userid' => $userId,
+        ]);
+    }
+
+    /**
+     * Get enrolment methods available for a course.
+     *
+     * @param MoodleInstance $instance
+     * @param int $courseId
+     * @return array List of enrolment method instances or error array
+     */
+    public static function getCourseEnrolmentMethods(MoodleInstance $instance, int $courseId): array
+    {
+        return self::callApi($instance, 'core_enrol_get_course_enrolment_methods', [
+            'courseid' => $courseId,
+        ]);
+    }
+
+    /**
+     * Self-enrol the authenticated user in a course.
+     *
+     * @param MoodleInstance $instance
+     * @param int $courseId
+     * @param string $password Enrolment key (if required)
+     * @param int $instanceId Enrolment instance ID (0 = first available self-enrolment)
+     * @return array Result with 'status' key or error array
+     */
+    public static function selfEnrolUser(MoodleInstance $instance, int $courseId, string $password = '', int $instanceId = 0): array
+    {
+        $params = ['courseid' => $courseId];
+        if (!empty($password)) {
+            $params['password'] = $password;
+        }
+        if ($instanceId > 0) {
+            $params['instanceid'] = $instanceId;
+        }
+        return self::callApi($instance, 'enrol_self_enrol_user', $params);
+    }
+
+    /**
+     * Get self-enrolment instance info (e.g. whether password is required).
+     *
+     * @param MoodleInstance $instance
+     * @param int $instanceId The enrolment instance ID
+     * @return array Instance info or error array
+     */
+    public static function getSelfEnrolmentInfo(MoodleInstance $instance, int $instanceId): array
+    {
+        return self::callApi($instance, 'enrol_self_get_instance_info', [
+            'instanceid' => $instanceId,
+        ]);
+    }
+
+    /**
+     * Add meta enrolment instances (link courses so enrolments propagate).
+     *
+     * @param MoodleInstance $instance
+     * @param int $courseId The course to add meta enrolment to
+     * @param array $linkedCourseIds Array of course IDs to link from
+     * @return array Result or error array
+     */
+    public static function addMetaEnrolInstances(MoodleInstance $instance, int $courseId, array $linkedCourseIds): array
+    {
+        $params = [];
+        foreach ($linkedCourseIds as $i => $linkedId) {
+            $params["instances[$i][metacourseid]"] = $courseId;
+            $params["instances[$i][courseid]"] = $linkedId;
+        }
+        return self::callApi($instance, 'enrol_meta_add_instances', $params);
+    }
+
+    /**
+     * Delete meta enrolment instances.
+     *
+     * @param MoodleInstance $instance
+     * @param array $instanceIds Array of enrolment instance IDs to delete
+     * @return array Result or error array
+     */
+    public static function deleteMetaEnrolInstances(MoodleInstance $instance, array $instanceIds): array
+    {
+        $params = [];
+        foreach ($instanceIds as $i => $id) {
+            $params["instanceids[$i]"] = $id;
+        }
+        return self::callApi($instance, 'enrol_meta_delete_instances', $params);
+    }
+
+    /**
+     * Get potential users to enrol in a course.
+     *
+     * @param MoodleInstance $instance
+     * @param int $courseId
+     * @param string $search Search string to filter users
+     * @param int $page Page number (0-based)
+     * @param int $perPage Results per page
+     * @return array List of potential users or error array
+     */
+    public static function getPotentialUsers(MoodleInstance $instance, int $courseId, string $search = '', int $page = 0, int $perPage = 25): array
+    {
+        return self::callApi($instance, 'core_enrol_get_potential_users', [
+            'courseid' => $courseId,
+            'search' => $search,
+            'searchanywhere' => 1,
+            'page' => $page,
+            'perpage' => $perPage,
+        ]);
+    }
+
+    // ── Role assignment methods ───────────────────────────────────────────
+
+    /**
+     * Assign roles to users in Moodle.
+     *
+     * @param MoodleInstance $instance
+     * @param array $assignments Each element: ['userid'=>int, 'roleid'=>int, 'contextid'=>int] or ['userid'=>int, 'roleid'=>int, 'contextlevel'=>string, 'instanceid'=>int]
+     * @return array Empty on success, or error array
+     */
+    public static function assignRoles(MoodleInstance $instance, array $assignments): array
+    {
+        $params = [];
+        foreach ($assignments as $i => $assignment) {
+            $params["assignments[$i][roleid]"] = $assignment['roleid'];
+            $params["assignments[$i][userid]"] = $assignment['userid'];
+            if (isset($assignment['contextid'])) {
+                $params["assignments[$i][contextid]"] = $assignment['contextid'];
+            } else {
+                $params["assignments[$i][contextlevel]"] = $assignment['contextlevel'] ?? 'course';
+                $params["assignments[$i][instanceid]"] = $assignment['instanceid'] ?? 0;
+            }
+        }
+        return self::callApi($instance, 'core_role_assign_roles', $params);
+    }
+
+    /**
+     * Unassign roles from users in Moodle.
+     *
+     * @param MoodleInstance $instance
+     * @param array $unassignments Each element: ['userid'=>int, 'roleid'=>int, 'contextid'=>int] or ['userid'=>int, 'roleid'=>int, 'contextlevel'=>string, 'instanceid'=>int]
+     * @return array Empty on success, or error array
+     */
+    public static function unassignRoles(MoodleInstance $instance, array $unassignments): array
+    {
+        $params = [];
+        foreach ($unassignments as $i => $unassignment) {
+            $params["unassignments[$i][roleid]"] = $unassignment['roleid'];
+            $params["unassignments[$i][userid]"] = $unassignment['userid'];
+            if (isset($unassignment['contextid'])) {
+                $params["unassignments[$i][contextid]"] = $unassignment['contextid'];
+            } else {
+                $params["unassignments[$i][contextlevel]"] = $unassignment['contextlevel'] ?? 'course';
+                $params["unassignments[$i][instanceid]"] = $unassignment['instanceid'] ?? 0;
+            }
+        }
+        return self::callApi($instance, 'core_role_unassign_roles', $params);
+    }
+
+    /**
+     * Search users for enrolment in a course.
+     *
+     * @param MoodleInstance $instance
+     * @param int $courseId
+     * @param string $search Search term
+     * @param bool $searchAnywhere Search anywhere in fields (not just start)
+     * @param int $page Page number (0-based)
+     * @param int $perPage Results per page
+     * @return array List of matching users or error array
+     */
+    public static function searchEnrolUsers(MoodleInstance $instance, int $courseId, string $search = '', bool $searchAnywhere = true, int $page = 0, int $perPage = 25): array
+    {
+        return self::callApi($instance, 'core_enrol_search_users', [
+            'courseid' => $courseId,
+            'search' => $search,
+            'searchanywhere' => $searchAnywhere ? 1 : 0,
+            'page' => $page,
+            'perpage' => $perPage,
+        ]);
+    }
+
+    // ── Course module & section management ──────────────────────────────
+
+    /**
+     * Get detailed information about a course module by its cmid.
+     *
+     * @param MoodleInstance $instance
+     * @param int $cmid Course module ID
+     * @return array Module details or error array
+     */
+    public static function getCourseModule(MoodleInstance $instance, int $cmid): array
+    {
+        return self::callApi($instance, 'core_course_get_course_module', [
+            'cmid' => $cmid,
+        ]);
+    }
+
+    /**
+     * Get course module by module type name and instance ID.
+     *
+     * @param MoodleInstance $instance
+     * @param string $modname Module name (e.g. 'forum', 'assign')
+     * @param int $instanceId Module instance ID
+     * @return array Module details or error array
+     */
+    public static function getCourseModuleByInstance(MoodleInstance $instance, string $modname, int $instanceId): array
+    {
+        return self::callApi($instance, 'core_course_get_course_module_by_instance', [
+            'module' => $modname,
+            'instance' => $instanceId,
+        ]);
+    }
+
+    /**
+     * Get available activity types for a course (activity chooser).
+     *
+     * @param MoodleInstance $instance
+     * @param int $courseId
+     * @return array Content items or error array
+     */
+    public static function getCourseContentItems(MoodleInstance $instance, int $courseId): array
+    {
+        return self::callApi($instance, 'core_course_get_course_content_items', [
+            'courseid' => $courseId,
+        ]);
+    }
+
+    /**
+     * Execute a course editor action via core_courseformat_update_course.
+     * This is the unified API for all course editing operations (Moodle 4.0+).
+     *
+     * @param MoodleInstance $instance
+     * @param string $action Action name (e.g. 'cm_show', 'cm_hide', 'cm_move', 'section_add')
+     * @param int $courseId Course ID
+     * @param array $ids Affected IDs (cmids for cm_* actions, section ids for section_* actions)
+     * @param int|null $targetSectionId Target section ID (for move operations)
+     * @param int|null $targetCmId Target cm ID (for positioning)
+     * @return array State updates JSON or error array
+     */
+    public static function updateCourseAction(MoodleInstance $instance, string $action, int $courseId, array $ids = [], ?int $targetSectionId = null, ?int $targetCmId = null): array
+    {
+        $params = [
+            'action' => $action,
+            'courseid' => $courseId,
+        ];
+        foreach ($ids as $i => $id) {
+            $params["ids[$i]"] = (int)$id;
+        }
+        if ($targetSectionId !== null) {
+            $params['targetsectionid'] = $targetSectionId;
+        }
+        if ($targetCmId !== null) {
+            $params['targetcmid'] = $targetCmId;
+        }
+        return self::callApi($instance, 'core_courseformat_update_course', $params);
+    }
+
+    /**
+     * Delete course modules by their cmids.
+     *
+     * @param MoodleInstance $instance
+     * @param array $cmids Array of course module IDs to delete
+     * @return array Empty on success, or error array
+     */
+    public static function deleteModules(MoodleInstance $instance, array $cmids): array
+    {
+        $params = [];
+        foreach ($cmids as $i => $cmid) {
+            $params["cmids[$i]"] = (int)$cmid;
+        }
+        return self::callApi($instance, 'core_course_delete_modules', $params);
+    }
+
+    /**
+     * Show course modules (make visible).
+     */
+    public static function showModules(MoodleInstance $instance, int $courseId, array $cmids): array
+    {
+        return self::updateCourseAction($instance, 'cm_show', $courseId, $cmids);
+    }
+
+    /**
+     * Hide course modules.
+     */
+    public static function hideModules(MoodleInstance $instance, int $courseId, array $cmids): array
+    {
+        return self::updateCourseAction($instance, 'cm_hide', $courseId, $cmids);
+    }
+
+    /**
+     * Make modules available but not shown on course page (stealth).
+     */
+    public static function stealthModules(MoodleInstance $instance, int $courseId, array $cmids): array
+    {
+        return self::updateCourseAction($instance, 'cm_stealth', $courseId, $cmids);
+    }
+
+    /**
+     * Move course modules to a target section or position.
+     *
+     * @param MoodleInstance $instance
+     * @param int $courseId
+     * @param array $cmids Module IDs to move
+     * @param int $targetSectionId Destination section ID
+     * @param int|null $targetCmId Optional: place before this cm
+     */
+    public static function moveModules(MoodleInstance $instance, int $courseId, array $cmids, int $targetSectionId, ?int $targetCmId = null): array
+    {
+        return self::updateCourseAction($instance, 'cm_move', $courseId, $cmids, $targetSectionId, $targetCmId);
+    }
+
+    /**
+     * Duplicate course modules.
+     */
+    public static function duplicateModules(MoodleInstance $instance, int $courseId, array $cmids, ?int $targetSectionId = null, ?int $targetCmId = null): array
+    {
+        return self::updateCourseAction($instance, 'cm_duplicate', $courseId, $cmids, $targetSectionId, $targetCmId);
+    }
+
+    /**
+     * Add a new section to a course.
+     *
+     * @param MoodleInstance $instance
+     * @param int $courseId
+     * @param int|null $afterSectionId Insert after this section (null = at end)
+     */
+    public static function addSection(MoodleInstance $instance, int $courseId, ?int $afterSectionId = null): array
+    {
+        return self::updateCourseAction($instance, 'section_add', $courseId, [], $afterSectionId);
+    }
+
+    /**
+     * Show course sections.
+     */
+    public static function showSections(MoodleInstance $instance, int $courseId, array $sectionIds): array
+    {
+        return self::updateCourseAction($instance, 'section_show', $courseId, $sectionIds);
+    }
+
+    /**
+     * Hide course sections.
+     */
+    public static function hideSections(MoodleInstance $instance, int $courseId, array $sectionIds): array
+    {
+        return self::updateCourseAction($instance, 'section_hide', $courseId, $sectionIds);
+    }
+
+    /**
+     * Delete course sections.
+     */
+    public static function deleteSections(MoodleInstance $instance, int $courseId, array $sectionIds): array
+    {
+        return self::updateCourseAction($instance, 'section_delete', $courseId, $sectionIds);
+    }
+
+    /**
+     * Move sections after a target section.
+     */
+    public static function moveSectionAfter(MoodleInstance $instance, int $courseId, array $sectionIds, int $afterSectionId): array
+    {
+        return self::updateCourseAction($instance, 'section_move_after', $courseId, $sectionIds, $afterSectionId);
+    }
+
+    // ── Module indent ──
+
+    /**
+     * Indent modules to the right.
+     */
+    public static function indentRight(MoodleInstance $instance, int $courseId, array $cmids): array
+    {
+        return self::updateCourseAction($instance, 'cm_moveright', $courseId, $cmids);
+    }
+
+    /**
+     * Indent modules to the left.
+     */
+    public static function indentLeft(MoodleInstance $instance, int $courseId, array $cmids): array
+    {
+        return self::updateCourseAction($instance, 'cm_moveleft', $courseId, $cmids);
+    }
+
+    // ── Module group mode ──
+
+    /**
+     * Set modules to no-groups mode.
+     */
+    public static function setNoGroups(MoodleInstance $instance, int $courseId, array $cmids): array
+    {
+        return self::updateCourseAction($instance, 'cm_nogroups', $courseId, $cmids);
+    }
+
+    /**
+     * Set modules to visible-groups mode.
+     */
+    public static function setVisibleGroups(MoodleInstance $instance, int $courseId, array $cmids): array
+    {
+        return self::updateCourseAction($instance, 'cm_visiblegroups', $courseId, $cmids);
+    }
+
+    /**
+     * Set modules to separate-groups mode.
+     */
+    public static function setSeparateGroups(MoodleInstance $instance, int $courseId, array $cmids): array
+    {
+        return self::updateCourseAction($instance, 'cm_separategroups', $courseId, $cmids);
     }
 }

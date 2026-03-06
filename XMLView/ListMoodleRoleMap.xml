@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <column name="id" display="none" order="10">
+            <widget type="text" fieldname="id"/>
+        </column>
+        <column name="moodle-instance" numcolumns="2" order="100">
+            <widget type="select" fieldname="idinstance" onclick="EditMoodleInstance" required="true">
+                <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+            </widget>
+        </column>
+        <column name="moodle-role-shortname" numcolumns="2" order="110">
+            <widget type="text" fieldname="moodle_role_shortname"/>
+        </column>
+        <column name="role-name" numcolumns="2" order="115">
+            <widget type="text" fieldname="description"/>
+        </column>
+        <column name="roleid" numcolumns="1" order="120">
+            <widget type="number" fieldname="moodle_roleid" decimal="0"/>
+        </column>
+        <column name="context-level" numcolumns="2" order="140">
+            <widget type="text" fieldname="context_level"/>
+        </column>
+        <column name="is-default" numcolumns="1" order="150">
+            <widget type="checkbox" fieldname="is_default"/>
+        </column>
+    </columns>
+    <modals>
+        <group name="import-standard-roles" title="import-standard-roles" icon="fa-solid fa-download">
+            <column name="moodle-instance" numcolumns="12" order="100">
+                <widget type="select" fieldname="idinstance" required="true">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+        </group>
+    </modals>
+</view>

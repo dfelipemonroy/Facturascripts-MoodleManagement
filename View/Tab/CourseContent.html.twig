@@ -1,0 +1,620 @@
+{% set firstView = fsc.views | first %}
+{% set model = firstView.model %}
+{% set contents = fsc.courseContents %}
+{% set summary = fsc.getCourseContentSummary() %}
+{% set error = fsc.courseContentError %}
+{% set moduleDetail = fsc.moduleDetail %}
+
+<div class="container-fluid mt-3 mb-3">
+    {% if error is not empty %}
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            {{ error }}
+        </div>
+    {% elseif contents is empty %}
+        <div class="alert alert-info">
+            <i class="fa-solid fa-info-circle me-1"></i>
+            {{ trans('no-course-content') }}
+        </div>
+    {% else %}
+        {# Summary cards #}
+        <div class="row mb-3">
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card text-center">
+                    <div class="card-body py-2">
+                        <h4 class="mb-0">{{ summary.totalSections }}</h4>
+                        <small class="text-muted">{{ trans('sections') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-2">
+                <div class="card text-center">
+                    <div class="card-body py-2">
+                        <h4 class="mb-0">{{ summary.totalModules }}</h4>
+                        <small class="text-muted">{{ trans('activities') }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-2">
+                <div class="card">
+                    <div class="card-body py-2">
+                        <small class="text-muted d-block mb-1">{{ trans('by-type') }}</small>
+                        {% for type, count in summary.byType %}
+                            <span class="badge bg-secondary me-1">{{ type }}: {{ count }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-2 d-flex align-items-center">
+                <form method="post" class="w-100">
+                    {{ formToken() }}
+                    <input type="hidden" name="action" value="section-add"/>
+                    <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}"/>
+                    <input type="hidden" name="activetab" value="CourseContent"/>
+                    <button type="submit" class="btn btn-outline-primary btn-sm w-100"
+                            title="{{ trans('add-section') }}">
+                        <i class="fa-solid fa-plus me-1"></i>{{ trans('add-section') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {# Bulk actions bar (hidden by default, shown via JS) #}
+        <div id="bulkActionsBar" class="alert alert-secondary d-none mb-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <span>
+                    <strong id="selectedCount">0</strong> {{ trans('selected-items') }}
+                </span>
+                <div class="d-flex flex-wrap gap-1">
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-success" onclick="bulkAction('cm-show')"
+                                title="{{ trans('show-module') }}">
+                            <i class="fa-solid fa-eye me-1"></i>{{ trans('show-module') }}
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" onclick="bulkAction('cm-hide')"
+                                title="{{ trans('hide-module') }}">
+                            <i class="fa-solid fa-eye-slash me-1"></i>{{ trans('hide-module') }}
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="bulkAction('cm-stealth')"
+                                title="{{ trans('module-stealth') }}">
+                            <i class="fa-solid fa-link me-1"></i>{{ trans('module-stealth') }}
+                        </button>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-info" onclick="bulkAction('cm-duplicate')"
+                                title="{{ trans('duplicate-module') }}">
+                            <i class="fa-solid fa-copy me-1"></i>{{ trans('duplicate-module') }}
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="showMoveModal()"
+                                title="{{ trans('move-module') }}">
+                            <i class="fa-solid fa-arrows-alt me-1"></i>{{ trans('move-module') }}
+                        </button>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" onclick="bulkAction('cm-moveright')"
+                                title="{{ trans('indent-right') }}">
+                            <i class="fa-solid fa-indent"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="bulkAction('cm-moveleft')"
+                                title="{{ trans('indent-left') }}">
+                            <i class="fa-solid fa-outdent"></i>
+                        </button>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary dropdown-toggle"
+                                data-bs-toggle="dropdown" title="{{ trans('group-mode') }}">
+                            <i class="fa-solid fa-users me-1"></i>{{ trans('group-mode') }}
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="bulkAction('cm-nogroups'); return false;">
+                                <i class="fa-solid fa-user me-2"></i>{{ trans('no-groups') }}
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="bulkAction('cm-separategroups'); return false;">
+                                <i class="fa-solid fa-users-rectangle me-2"></i>{{ trans('separate-groups') }}
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="bulkAction('cm-visiblegroups'); return false;">
+                                <i class="fa-solid fa-users me-2"></i>{{ trans('visible-groups') }}
+                            </a></li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="bulkAction('cm-delete')"
+                            title="{{ trans('delete-module') }}">
+                        <i class="fa-solid fa-trash me-1"></i>{{ trans('delete-module') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {# Hidden form for bulk/individual actions #}
+        <form id="courseActionForm" method="post">
+            {{ formToken() }}
+            <input type="hidden" name="action" id="courseActionType" value=""/>
+            <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}"/>
+            <input type="hidden" name="activetab" value="CourseContent"/>
+            <input type="hidden" name="cmids" id="courseActionCmids" value=""/>
+            <input type="hidden" name="section_ids" id="courseActionSectionIds" value=""/>
+            <input type="hidden" name="target_section_id" id="courseActionTargetSection" value=""/>
+            <input type="hidden" name="cmid" id="courseActionCmid" value=""/>
+        </form>
+
+        {# Accordion with sections #}
+        <div class="accordion" id="courseContentAccordion">
+            {% for section in contents %}
+                {% set sectionId = 'section-' ~ loop.index0 %}
+                {% set modules = section.modules | default([]) %}
+                {% set sectionDbId = section.id | default(0) %}
+                {% set isGeneral = (section.section | default(0)) == 0 %}
+                {% set isFirst = loop.first %}
+                {% set isLast = loop.last %}
+                <div class="accordion-item {{ section.visible | default(1) == 0 ? 'opacity-50' : '' }}">
+                    <h2 class="accordion-header" id="heading-{{ sectionId }}">
+                        <div class="d-flex w-100 align-items-center">
+                            <button class="accordion-button {{ loop.index0 > 0 ? 'collapsed' : '' }} flex-grow-1"
+                                    type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#collapse-{{ sectionId }}"
+                                    aria-expanded="{{ loop.index0 == 0 ? 'true' : 'false' }}">
+                                <strong>{{ section.name | default('Section ' ~ loop.index) }}</strong>
+                                <span class="badge bg-primary ms-2">{{ modules | length }}</span>
+                                {% if section.visible | default(1) == 0 %}
+                                    <span class="badge bg-warning ms-2">{{ trans('section-hidden') }}</span>
+                                {% endif %}
+                            </button>
+                            {# Section action buttons #}
+                            <div class="btn-group btn-group-sm me-2 flex-shrink-0" style="z-index: 5;">
+                                {% if not isGeneral %}
+                                    {% if not isFirst %}
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                onclick="moveSectionAfter({{ sectionDbId }}, 'up')"
+                                                title="{{ trans('move-up') }}">
+                                            <i class="fa-solid fa-arrow-up"></i>
+                                        </button>
+                                    {% endif %}
+                                    {% if not isLast %}
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                onclick="moveSectionAfter({{ sectionDbId }}, 'down')"
+                                                title="{{ trans('move-down') }}">
+                                            <i class="fa-solid fa-arrow-down"></i>
+                                        </button>
+                                    {% endif %}
+                                {% endif %}
+                                {% if section.visible | default(1) == 0 %}
+                                    <button type="button" class="btn btn-outline-success btn-sm"
+                                            onclick="sectionAction('section-show', {{ sectionDbId }})"
+                                            title="{{ trans('show-module') }}">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                {% else %}
+                                    <button type="button" class="btn btn-outline-warning btn-sm"
+                                            onclick="sectionAction('section-hide', {{ sectionDbId }})"
+                                            title="{{ trans('hide-module') }}">
+                                        <i class="fa-solid fa-eye-slash"></i>
+                                    </button>
+                                {% endif %}
+                                {% if not isGeneral %}
+                                    <button type="button" class="btn btn-outline-danger btn-sm"
+                                            onclick="confirmDeleteSection({{ sectionDbId }}, '{{ section.name | default('Section') | e('js') }}')"
+                                            title="{{ trans('delete-section') }}">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </h2>
+                    <div id="collapse-{{ sectionId }}"
+                         class="accordion-collapse collapse {{ loop.index0 == 0 ? 'show' : '' }}"
+                         aria-labelledby="heading-{{ sectionId }}" data-bs-parent="#courseContentAccordion">
+                        <div class="accordion-body p-0">
+                            {% if section.summary is defined and section.summary is not empty %}
+                                <div class="px-3 pt-2 text-muted small">{{ section.summary | striptags }}</div>
+                            {% endif %}
+                            {% if modules is empty %}
+                                <div class="px-3 py-2 text-muted">
+                                    <i class="fa-solid fa-info-circle me-1"></i>
+                                    {{ trans('no-activities') }}
+                                </div>
+                            {% else %}
+                                <table class="table table-sm table-hover mb-0">
+                                    <tbody>
+                                        {% for module in modules %}
+                                            {% set isHidden = (module.visible | default(1)) == 0 %}
+                                            {% set isStealth = (module.visible | default(1)) == 1 and (module.visibleoncoursepage | default(1)) == 0 %}
+                                            {% set groupMode = module.groupmode | default(0) %}
+                                            {% set indent = module.indent | default(0) %}
+                                            <tr class="{{ isHidden ? 'opacity-50' : '' }}">
+                                                <td style="width: 30px;" class="text-center">
+                                                    <input type="checkbox" class="form-check-input cm-checkbox"
+                                                           value="{{ module.id }}" onchange="updateBulkBar()"/>
+                                                </td>
+                                                <td class="text-center" style="width: 36px;">
+                                                    {% set modIcon = {
+                                                        'assign': 'fa-solid fa-file-pen',
+                                                        'quiz': 'fa-solid fa-question-circle',
+                                                        'forum': 'fa-solid fa-comments',
+                                                        'resource': 'fa-solid fa-file',
+                                                        'url': 'fa-solid fa-link',
+                                                        'page': 'fa-solid fa-file-lines',
+                                                        'label': 'fa-solid fa-tag',
+                                                        'folder': 'fa-solid fa-folder',
+                                                        'book': 'fa-solid fa-book-open',
+                                                        'chat': 'fa-solid fa-message',
+                                                        'choice': 'fa-solid fa-list-check',
+                                                        'data': 'fa-solid fa-database',
+                                                        'feedback': 'fa-solid fa-clipboard-check',
+                                                        'glossary': 'fa-solid fa-spell-check',
+                                                        'h5pactivity': 'fa-solid fa-puzzle-piece',
+                                                        'lesson': 'fa-solid fa-graduation-cap',
+                                                        'lti': 'fa-solid fa-arrow-up-right-from-square',
+                                                        'scorm': 'fa-solid fa-box-archive',
+                                                        'survey': 'fa-solid fa-chart-bar',
+                                                        'wiki': 'fa-solid fa-globe',
+                                                        'workshop': 'fa-solid fa-users-gear',
+                                                        'liveclass': 'fa-solid fa-video',
+                                                        'mirsurvey': 'fa-solid fa-clipboard-question',
+                                                        'subsection': 'fa-solid fa-layer-group'
+                                                    } %}
+                                                    <i class="{{ modIcon[module.modname] | default('fa-solid fa-cube') }} text-secondary"></i>
+                                                </td>
+                                                <td>
+                                                    {% if indent > 0 %}
+                                                        <span style="padding-left: {{ indent * 20 }}px; display: inline-block;"></span>
+                                                    {% endif %}
+                                                    {{ module.name | default('—') }}
+                                                    {% if isHidden %}
+                                                        <span class="badge bg-warning ms-1">{{ trans('module-hidden') }}</span>
+                                                    {% elseif isStealth %}
+                                                        <span class="badge bg-info ms-1">{{ trans('module-stealth') }}</span>
+                                                    {% endif %}
+                                                    {% if groupMode == 1 %}
+                                                        <span class="badge bg-secondary ms-1" title="{{ trans('separate-groups') }}">
+                                                            <i class="fa-solid fa-users-rectangle"></i>
+                                                        </span>
+                                                    {% elseif groupMode == 2 %}
+                                                        <span class="badge bg-secondary ms-1" title="{{ trans('visible-groups') }}">
+                                                            <i class="fa-solid fa-users"></i>
+                                                        </span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-muted small" style="width: 100px;">
+                                                    {{ module.modname | default('') }}
+                                                </td>
+                                                <td style="width: 210px;" class="text-end">
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                                onclick="moduleDetail({{ module.id }})"
+                                                                title="{{ trans('module-detail') }}">
+                                                            <i class="fa-solid fa-info-circle"></i>
+                                                        </button>
+                                                        {% if isHidden %}
+                                                            <button type="button"
+                                                                    class="btn btn-outline-success btn-sm"
+                                                                    onclick="moduleAction('cm-show', {{ module.id }})"
+                                                                    title="{{ trans('show-module') }}">
+                                                                <i class="fa-solid fa-eye"></i>
+                                                            </button>
+                                                        {% else %}
+                                                            <button type="button"
+                                                                    class="btn btn-outline-warning btn-sm"
+                                                                    onclick="moduleAction('cm-hide', {{ module.id }})"
+                                                                    title="{{ trans('hide-module') }}">
+                                                                <i class="fa-solid fa-eye-slash"></i>
+                                                            </button>
+                                                        {% endif %}
+                                                        <button type="button" class="btn btn-outline-info btn-sm"
+                                                                onclick="moduleAction('cm-duplicate', {{ module.id }})"
+                                                                title="{{ trans('duplicate-module') }}">
+                                                            <i class="fa-solid fa-copy"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                                                onclick="confirmDeleteModule({{ module.id }}, '{{ module.name | default('') | e('js') }}')"
+                                                                title="{{ trans('delete-module') }}">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                        {# Extra actions dropdown #}
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                                                data-bs-toggle="dropdown" title="{{ trans('more-actions') }}">
+                                                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                            {% if isStealth %}
+                                                                <li><a class="dropdown-item" href="#"
+                                                                       onclick="moduleAction('cm-show', {{ module.id }}); return false;">
+                                                                    <i class="fa-solid fa-eye me-2"></i>{{ trans('show-module') }}
+                                                                </a></li>
+                                                            {% elseif not isHidden %}
+                                                                <li><a class="dropdown-item" href="#"
+                                                                       onclick="moduleAction('cm-stealth', {{ module.id }}); return false;">
+                                                                    <i class="fa-solid fa-link me-2"></i>{{ trans('module-stealth') }}
+                                                                </a></li>
+                                                            {% endif %}
+                                                            <li><hr class="dropdown-divider"></li>
+                                                            <li><a class="dropdown-item" href="#"
+                                                                   onclick="moduleAction('cm-moveright', {{ module.id }}); return false;">
+                                                                <i class="fa-solid fa-indent me-2"></i>{{ trans('indent-right') }}
+                                                            </a></li>
+                                                            <li><a class="dropdown-item" href="#"
+                                                                   onclick="moduleAction('cm-moveleft', {{ module.id }}); return false;">
+                                                                <i class="fa-solid fa-outdent me-2"></i>{{ trans('indent-left') }}
+                                                            </a></li>
+                                                            <li><hr class="dropdown-divider"></li>
+                                                            <li class="dropdown-header">{{ trans('group-mode') }}</li>
+                                                            <li><a class="dropdown-item {{ groupMode == 0 ? 'active' : '' }}" href="#"
+                                                                   onclick="moduleAction('cm-nogroups', {{ module.id }}); return false;">
+                                                                <i class="fa-solid fa-user me-2"></i>{{ trans('no-groups') }}
+                                                            </a></li>
+                                                            <li><a class="dropdown-item {{ groupMode == 1 ? 'active' : '' }}" href="#"
+                                                                   onclick="moduleAction('cm-separategroups', {{ module.id }}); return false;">
+                                                                <i class="fa-solid fa-users-rectangle me-2"></i>{{ trans('separate-groups') }}
+                                                            </a></li>
+                                                            <li><a class="dropdown-item {{ groupMode == 2 ? 'active' : '' }}" href="#"
+                                                                   onclick="moduleAction('cm-visiblegroups', {{ module.id }}); return false;">
+                                                                <i class="fa-solid fa-users me-2"></i>{{ trans('visible-groups') }}
+                                                            </a></li>
+                                                        </ul>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+{# Move to section modal #}
+{% if contents is not empty %}
+<div class="modal fade" id="moveSectionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ trans('move-to-section') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <select class="form-select" id="moveTargetSection">
+                    {% for section in contents %}
+                        <option value="{{ section.id | default(0) }}">
+                            {{ section.name | default('Section ' ~ loop.index) }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ trans('cancel') }}</button>
+                <button type="button" class="btn btn-primary" onclick="executeMoveAction()">
+                    <i class="fa-solid fa-arrows-alt me-1"></i>{{ trans('move-module') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Delete confirmation modal #}
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ trans('confirm') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteConfirmMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ trans('cancel') }}</button>
+                <button type="button" class="btn btn-danger" id="deleteConfirmBtn">
+                    <i class="fa-solid fa-trash me-1"></i>{{ trans('delete') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Module detail modal #}
+<div class="modal fade" id="moduleDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ trans('module-detail') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="moduleDetailBody">
+                <div class="text-center py-3">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    {# Section ordering data for move up/down #}
+    const sectionOrder = [
+        {% for section in contents %}
+            { id: {{ section.id | default(0) }}, section: {{ section.section | default(0) }} },
+        {% endfor %}
+    ];
+
+    function getSelectedCmids() {
+        const checkboxes = document.querySelectorAll('.cm-checkbox:checked');
+        return Array.from(checkboxes).map(cb => cb.value);
+    }
+
+    function updateBulkBar() {
+        const selected = getSelectedCmids();
+        const bar = document.getElementById('bulkActionsBar');
+        const count = document.getElementById('selectedCount');
+        if (selected.length > 0) {
+            bar.classList.remove('d-none');
+            count.textContent = selected.length;
+        } else {
+            bar.classList.add('d-none');
+        }
+    }
+
+    function submitCourseAction(action, cmids, sectionIds, targetSectionId) {
+        const form = document.getElementById('courseActionForm');
+        document.getElementById('courseActionType').value = action;
+        document.getElementById('courseActionCmids').value = cmids || '';
+        document.getElementById('courseActionSectionIds').value = sectionIds || '';
+        document.getElementById('courseActionTargetSection').value = targetSectionId || '';
+        form.submit();
+    }
+
+    function moduleAction(action, cmid) {
+        submitCourseAction(action, String(cmid), '', '');
+    }
+
+    function bulkAction(action) {
+        const cmids = getSelectedCmids();
+        if (cmids.length === 0) return;
+        if (action === 'cm-delete') {
+            confirmDeleteModule(cmids.join(','), cmids.length + ' {{ trans("activities") | e("js") }}');
+            return;
+        }
+        submitCourseAction(action, cmids.join(','), '', '');
+    }
+
+    function sectionAction(action, sectionId) {
+        submitCourseAction(action, '', String(sectionId), '');
+    }
+
+    function moveSectionAfter(sectionId, direction) {
+        const idx = sectionOrder.findIndex(s => s.id === sectionId);
+        if (idx < 0) return;
+
+        let afterId;
+        if (direction === 'up' && idx > 1) {
+            // Move before current previous = move after the one two positions up
+            afterId = sectionOrder[idx - 2].id;
+        } else if (direction === 'up' && idx === 1) {
+            // Move to first position (after section 0 = General)
+            afterId = sectionOrder[0].id;
+        } else if (direction === 'down' && idx < sectionOrder.length - 1) {
+            // Move after the next section
+            afterId = sectionOrder[idx + 1].id;
+        } else {
+            return;
+        }
+
+        const form = document.getElementById('courseActionForm');
+        document.getElementById('courseActionType').value = 'section-move';
+        document.getElementById('courseActionCmids').value = '';
+        document.getElementById('courseActionSectionIds').value = String(sectionId);
+        document.getElementById('courseActionTargetSection').value = String(afterId);
+        form.submit();
+    }
+
+    function showMoveModal() {
+        const selected = getSelectedCmids();
+        if (selected.length === 0) return;
+        new bootstrap.Modal(document.getElementById('moveSectionModal')).show();
+    }
+
+    function executeMoveAction() {
+        const cmids = getSelectedCmids();
+        const targetSectionId = document.getElementById('moveTargetSection').value;
+        submitCourseAction('cm-move', cmids.join(','), '', targetSectionId);
+    }
+
+    function confirmDeleteModule(cmidOrCmids, name) {
+        const msg = document.getElementById('deleteConfirmMessage');
+        msg.textContent = '{{ trans("confirm-delete-modules") | e("js") }}' + '\n\n' + name;
+        const btn = document.getElementById('deleteConfirmBtn');
+        btn.onclick = function () {
+            submitCourseAction('cm-delete', String(cmidOrCmids), '', '');
+        };
+        new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+    }
+
+    function confirmDeleteSection(sectionId, name) {
+        const msg = document.getElementById('deleteConfirmMessage');
+        msg.textContent = '{{ trans("confirm-delete-section") | e("js") }}' + '\n\n' + name;
+        const btn = document.getElementById('deleteConfirmBtn');
+        btn.onclick = function () {
+            submitCourseAction('section-delete', '', String(sectionId), '');
+        };
+        new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+    }
+
+    function moduleDetail(cmid) {
+        const body = document.getElementById('moduleDetailBody');
+        body.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>';
+        new bootstrap.Modal(document.getElementById('moduleDetailModal')).show();
+        showModuleInfoFromContents(cmid);
+    }
+
+    function showModuleInfoFromContents(cmid) {
+        const body = document.getElementById('moduleDetailBody');
+        {% if contents is not empty %}
+        const allModules = {
+            {% for section in contents %}
+                {% for module in section.modules | default([]) %}
+                    {{ module.id }}: {
+                        name: {{ module.name | default('—') | json_encode | raw }},
+                        modname: {{ module.modname | default('') | json_encode | raw }},
+                        id: {{ module.id }},
+                        instance: {{ module.instance | default(0) }},
+                        visible: {{ module.visible | default(1) }},
+                        visibleoncoursepage: {{ module.visibleoncoursepage | default(1) }},
+                        indent: {{ module.indent | default(0) }},
+                        groupmode: {{ module.groupmode | default(0) }},
+                        completion: {{ module.completion | default(0) }},
+                        section: {{ section.section | default(0) }},
+                        sectionName: {{ section.name | default('Section') | json_encode | raw }},
+                        description: {{ module.description | default('') | json_encode | raw }},
+                        url: {{ module.url | default('') | json_encode | raw }}
+                    },
+                {% endfor %}
+            {% endfor %}
+        };
+        {% else %}
+        const allModules = {};
+        {% endif %}
+
+        const mod = allModules[cmid];
+        if (!mod) {
+            body.innerHTML = '<div class="alert alert-warning">{{ trans("no-data") | e("js") }}</div>';
+            return;
+        }
+
+        const completionLabels = {0: '{{ trans("none") | e("js") }}', 1: '{{ trans("manual") | e("js") }}', 2: '{{ trans("automatic") | e("js") }}'};
+        const groupLabels = {0: '{{ trans("no-groups") | e("js") }}', 1: '{{ trans("separate-groups") | e("js") }}', 2: '{{ trans("visible-groups") | e("js") }}'};
+        const visibleLabel = mod.visible ? (mod.visibleoncoursepage ? '{{ trans("yes") | e("js") }}' : '{{ trans("module-stealth") | e("js") }}') : '{{ trans("module-hidden") | e("js") }}';
+
+        body.innerHTML = `
+            <table class="table table-sm">
+                <tr><th style="width:40%">{{ trans("name") | e("js") }}</th><td>${mod.name}</td></tr>
+                <tr><th>{{ trans("type") | e("js") }}</th><td>${mod.modname}</td></tr>
+                <tr><th>ID (cmid)</th><td>${mod.id}</td></tr>
+                <tr><th>Instance ID</th><td>${mod.instance}</td></tr>
+                <tr><th>{{ trans("section") | e("js") }}</th><td>${mod.sectionName} (#${mod.section})</td></tr>
+                <tr><th>{{ trans("visible") | e("js") }}</th><td>${visibleLabel}</td></tr>
+                <tr><th>{{ trans("indent") | e("js") }}</th><td>${mod.indent}</td></tr>
+                <tr><th>{{ trans("group-mode") | e("js") }}</th><td>${groupLabels[mod.groupmode] || mod.groupmode}</td></tr>
+                <tr><th>Completion</th><td>${completionLabels[mod.completion] || mod.completion}</td></tr>
+                ${mod.description ? `<tr><th>{{ trans("description") | e("js") }}</th><td>${mod.description}</td></tr>` : ''}
+                ${mod.url ? `<tr><th>URL</th><td><a href="${mod.url}" target="_blank" rel="noopener">${mod.url}</a></td></tr>` : ''}
+            </table>
+            <div class="text-end">
+                <div class="btn-group btn-group-sm">
+                    ${mod.visible
+                        ? `<button class="btn btn-outline-warning" onclick="moduleAction('cm-hide', ${mod.id})" data-bs-dismiss="modal"><i class="fa-solid fa-eye-slash me-1"></i>{{ trans("hide-module") | e("js") }}</button>`
+                        : `<button class="btn btn-outline-success" onclick="moduleAction('cm-show', ${mod.id})" data-bs-dismiss="modal"><i class="fa-solid fa-eye me-1"></i>{{ trans("show-module") | e("js") }}</button>`
+                    }
+                    <button class="btn btn-outline-info" onclick="moduleAction('cm-duplicate', ${mod.id})" data-bs-dismiss="modal">
+                        <i class="fa-solid fa-copy me-1"></i>{{ trans("duplicate-module") | e("js") }}
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="confirmDeleteModule(${mod.id}, '${mod.name.replace(/'/g, "\\'")}')" data-bs-dismiss="modal">
+                        <i class="fa-solid fa-trash me-1"></i>{{ trans("delete-module") | e("js") }}
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+</script>
+{% endif %}

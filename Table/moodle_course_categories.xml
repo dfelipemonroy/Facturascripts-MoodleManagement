@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<table>
+    <column>
+        <name>id</name>
+        <type>serial</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>idinstance</name>
+        <type>integer</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>moodle_categoryid</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>codfamilia</name>
+        <type>character varying(8)</type>
+    </column>
+    <column>
+        <name>name</name>
+        <type>character varying(200)</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>description</name>
+        <type>text</type>
+    </column>
+    <column>
+        <name>parent_categoryid</name>
+        <type>integer</type>
+        <default>0</default>
+    </column>
+    <column>
+        <name>visible</name>
+        <type>boolean</type>
+        <default>true</default>
+    </column>
+    <column>
+        <name>sync_active</name>
+        <type>boolean</type>
+        <default>true</default>
+    </column>
+    <column>
+        <name>source</name>
+        <type>character varying(20)</type>
+    </column>
+    <column>
+        <name>last_sync</name>
+        <type>timestamp</type>
+    </column>
+    <column>
+        <name>creation_date</name>
+        <type>timestamp</type>
+    </column>
+    <constraint>
+        <name>moodle_course_categories_pkey</name>
+        <type>PRIMARY KEY (id)</type>
+    </constraint>
+    <constraint>
+        <name>moodle_course_categories_fk_instance</name>
+        <type>FOREIGN KEY (idinstance) REFERENCES moodle_instances (id) ON DELETE CASCADE ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_course_categories_fk_familia</name>
+        <type>FOREIGN KEY (codfamilia) REFERENCES familias (codfamilia) ON DELETE SET NULL ON UPDATE CASCADE</type>
+    </constraint>
+    <constraint>
+        <name>moodle_course_categories_unique</name>
+        <type>UNIQUE (idinstance, moodle_categoryid)</type>
+    </constraint>
+</table>

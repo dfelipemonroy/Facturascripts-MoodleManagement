@@ -24,6 +24,7 @@ use FacturaScripts\Core\Template\CronClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Where;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
+use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
@@ -31,6 +32,7 @@ class Cron extends CronClass
 {
     const JOB_NAME = 'moodle-health-check';
     const USER_SYNC_JOB = 'moodle-user-sync';
+    const COURSE_SYNC_JOB = 'moodle-course-sync';
 
     public function run(): void
     {
@@ -44,6 +46,12 @@ class Cron extends CronClass
         $syncJob->every('6 hours');
         $syncJob->run(function () {
             $this->userSync();
+        });
+
+        $courseJob = $this->job(self::COURSE_SYNC_JOB);
+        $courseJob->every('6 hours');
+        $courseJob->run(function () {
+            $this->courseSync();
         });
     }
 
@@ -167,6 +175,66 @@ class Cron extends CronClass
                 }
 
                 $map->moodle_username = $moodleUser['username'] ?? $map->moodle_username;
+                $map->last_sync = date('Y-m-d H:i:s');
+                $map->last_error = '';
+                $map->save();
+            }
+        }
+    }
+
+    private function courseSync(): void
+    {
+        $instanceModel = new MoodleInstance();
+        $instances = $instanceModel->all(
+            [Where::notEq('status', 'inactive'), Where::isNotNull('token')],
+            [],
+            0,
+            0
+        );
+
+        foreach ($instances as $instance) {
+            $mapModel = new MoodleCourseMap();
+            $maps = $mapModel->all(
+                [
+                    new DataBaseWhere('idinstance', $instance->id),
+                    new DataBaseWhere('moodle_courseid', 0, '>'),
+                ],
+                [],
+                0,
+                0
+            );
+
+            if (empty($maps)) {
+                continue;
+            }
+
+            $courseIds = array_map(function ($m) {
+                return $m->moodle_courseid;
+            }, $maps);
+
+            $result = MoodleClient::getCourses($instance, $courseIds);
+
+            if (isset($result['exception'])) {
+                Tools::log(self::COURSE_SYNC_JOB)->warning('course-sync-failed', [
+                    '%name%' => $instance->name,
+                    '%message%' => $result['message'] ?? $result['exception'],
+                ]);
+                continue;
+            }
+
+            $moodleCourses = [];
+            foreach ($result as $course) {
+                if (isset($course['id'])) {
+                    $moodleCourses[$course['id']] = $course;
+                }
+            }
+
+            foreach ($maps as $map) {
+                if (!isset($moodleCourses[$map->moodle_courseid])) {
+                    continue;
+                }
+
+                MoodleClient::moodleCourseToMap($map, $moodleCourses[$map->moodle_courseid]);
                 $map->last_sync = date('Y-m-d H:i:s');
                 $map->last_error = '';
                 $map->save();

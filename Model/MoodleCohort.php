@@ -54,6 +54,9 @@ class MoodleCohort extends ModelClass
     /** @var string FK to gruposclientes.codgrupo */
     public $codgrupo;
 
+    /** @var bool */
+    public $sync_active;
+
     /** @var string */
     public $last_sync;
 
@@ -64,6 +67,7 @@ class MoodleCohort extends ModelClass
     {
         parent::clear();
         $this->source = 'synced';
+        $this->sync_active = false;
         $this->member_count = 0;
         $this->creation_date = date('Y-m-d H:i:s');
     }

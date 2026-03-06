@@ -105,6 +105,7 @@ class MoodleUserMap extends ModelClass
             return false;
         }
 
+        $this->moodle_userid = (int)$this->moodle_userid;
         $this->moodle_username = Tools::noHtml($this->moodle_username ?? '');
         $this->last_error = Tools::noHtml($this->last_error ?? '');
 
