@@ -24,6 +24,11 @@ use FacturaScripts\Core\Template\InitClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\WorkQueue;
 
+/**
+ * Class Init
+ *
+ * @package FacturaScripts\Plugins\MoodleManagement
+ */
 class Init extends InitClass
 {
     public function init(): void
