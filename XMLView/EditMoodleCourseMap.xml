@@ -61,6 +61,9 @@
                     <values source="productos" fieldcode="idproducto" fieldtitle="descripcion"/>
                 </widget>
             </column>
+            <column name="duracion-dias" numcolumns="4" order="330">
+                <widget type="number" fieldname="duracion_dias" hint="duracion-dias-hint"/>
+            </column>
         </group>
         <group name="sync-info" title="sync-info" icon="fa-solid fa-arrows-rotate" numcolumns="12">
             <column name="source" numcolumns="3" order="400">

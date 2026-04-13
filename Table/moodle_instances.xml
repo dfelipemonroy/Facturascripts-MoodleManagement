@@ -80,6 +80,23 @@
         <type>text</type>
     </column>
     <column>
+        <name>onboarding_enabled</name>
+        <type>boolean</type>
+        <default>false</default>
+    </column>
+    <column>
+        <name>onboarding_course_id</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>onboarding_cohort_id</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>onboarding_welcome_message</name>
+        <type>text</type>
+    </column>
+    <column>
         <name>creation_date</name>
         <type>timestamp</type>
     </column>

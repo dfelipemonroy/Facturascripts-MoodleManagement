@@ -1,0 +1,109 @@
+{% set firstView = fsc.views | first %}
+{% set model = firstView.model %}
+{% set events = fsc.calendarEvents %}
+{% set eventsError = fsc.calendarEventsError %}
+
+<div class="container-fluid mt-3 mb-3">
+    {% if eventsError is not empty %}
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            {{ eventsError }}
+        </div>
+    {% else %}
+        {# Create event form #}
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="post" name="createEventForm">
+                    <input type="hidden" name="action" value="create-calendar-event">
+                    <input type="hidden" name="activetab" value="UserCalendar">
+                    <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}">
+                    {{ formToken() }}
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <input type="text" name="event_name" class="form-control"
+                                   placeholder="{{ trans('create-event-placeholder') }}" required>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <input type="datetime-local" name="event_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <input type="text" name="event_description" class="form-control"
+                                   placeholder="{{ trans('event-description') }}">
+                        </div>
+                        <div class="col-md-1 mb-2 d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {# Events list #}
+        {% if events is empty %}
+            <div class="alert alert-info">
+                <i class="fa-solid fa-info-circle me-1"></i>
+                {{ trans('no-calendar-events') }}
+            </div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>{{ trans('event-name') }}</th>
+                            <th>{{ trans('event-description') }}</th>
+                            <th class="text-center" style="width: 160px;">{{ trans('event-date') }}</th>
+                            <th class="text-center" style="width: 100px;">{{ trans('event-type') }}</th>
+                            <th class="text-center" style="width: 80px;">{{ trans('actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                            <tr>
+                                <td><strong>{{ event.name }}</strong></td>
+                                <td>
+                                    {% if event.description is defined and event.description is not empty %}
+                                        {{ event.description | striptags | slice(0, 100) }}
+                                        {% if event.description | striptags | length > 100 %}...{% endif %}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center align-middle">
+                                    {% if event.timestart is defined and event.timestart > 0 %}
+                                        {{ event.timestart | date('d/m/Y H:i') }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center align-middle">
+                                    {% if event.eventtype == 'user' %}
+                                        <span class="badge bg-primary">{{ trans('event-type-user') }}</span>
+                                    {% elseif event.eventtype == 'course' %}
+                                        <span class="badge bg-info">{{ trans('event-type-course') }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ event.eventtype }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center align-middle">
+                                    <form method="post" class="d-inline"
+                                          onsubmit="return confirm('{{ trans('confirm-delete') }}');">
+                                        <input type="hidden" name="action" value="delete-calendar-event">
+                                        <input type="hidden" name="activetab" value="UserCalendar">
+                                        <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}">
+                                        <input type="hidden" name="event_id" value="{{ event.id }}">
+                                        {{ formToken() }}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ trans('delete') }}">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

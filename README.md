@@ -1,4 +1,4 @@
-# MoodleManagement v1.1
+# MoodleManagement v1.2
 
 Plugin para FacturaScripts que permite gestionar plataformas Moodle directamente desde el ERP. Conecta tu sistema de facturación con tu LMS mediante la API REST de Moodle.
 
@@ -102,7 +102,35 @@ Plugin para FacturaScripts que permite gestionar plataformas Moodle directamente
 - **Sincronización incremental** (cada 6 horas): sincronización de usuarios y cursos con resolución de conflictos
 - **Reconciliación** (diaria): verificación de integridad de mapeos de usuarios y matrículas contra Moodle
 - **Limpieza** (diaria): eliminación automática de mapeos huérfanos (contactos eliminados)
-- **Control de expiración** (cada 6 horas): detección de matrículas por vencer (7 días) y expiración automática
+- **Control de expiración** (cada 6 horas): detección de matrículas por vencer (7 días), expiración automática y generación de presupuestos de renovación
+
+### Notas y Anotaciones
+- Crear, leer y eliminar notas en el perfil de usuarios de Moodle desde FS
+- Pestaña "Notas" en el mapeo de usuario con historial completo
+- Soporte para notas de tipo sitio y personal
+- Notas ordenadas por fecha de creación (más reciente primero)
+
+### Calendario de Moodle
+- Crear y eliminar eventos en el calendario de usuarios de Moodle desde FS
+- Pestaña "Calendario" en el mapeo de usuario
+- Visualización de eventos existentes con tipo y descripción
+- Soporte para eventos de tipo usuario
+
+### Facturación Avanzada (Suscripciones y Renovación)
+- Campo `duracion_dias` en cursos para definir la duración de acceso tras la matrícula
+- Cálculo automático de `timeend` al matricular (timestart + duración en días)
+- Generación automática de presupuestos de renovación cuando una matrícula está por expirar (7 días)
+- El presupuesto incluye el producto del curso al precio configurado, vinculado al cliente del contacto
+- Flujo completo: presupuesto → aprobación → factura → EnrolmentWorker renueva la matrícula
+
+### Onboarding Automatizado
+- Configuración por instancia: curso de bienvenida, cohort por defecto, mensaje de bienvenida
+- Al crear un nuevo mapeo de usuario, el sistema automáticamente:
+  1. Matricula al usuario en el curso de bienvenida configurado
+  2. Lo asigna al cohort por defecto
+  3. Le envía un mensaje de bienvenida personalizado (variables: %name%, %username%, %site%)
+  4. Crea una nota de onboarding en su perfil de Moodle
+- Activación/desactivación por instancia con checkbox
 
 ## Requisitos
 
@@ -256,6 +284,20 @@ Para que el plugin funcione correctamente, debe crear un servicio web en Moodle 
 | `core_message_get_unread_conversations_count` | Contar conversaciones con mensajes no leídos (badge navbar) |
 | `core_message_mark_all_conversation_messages_as_read` | Marcar todos los mensajes de una conversación como leídos |
 
+#### Notas
+| Función | Descripción |
+|---------|-------------|
+| `core_notes_create_notes` | Crear notas en perfil de usuario |
+| `core_notes_get_course_notes` | Obtener notas de un curso/usuario |
+| `core_notes_delete_notes` | Eliminar notas |
+
+#### Calendario
+| Función | Descripción |
+|---------|-------------|
+| `core_calendar_get_calendar_events` | Obtener eventos del calendario |
+| `core_calendar_create_calendar_events` | Crear eventos en el calendario |
+| `core_calendar_delete_calendar_events` | Eliminar eventos del calendario |
+
 #### Roles
 | Función | Descripción |
 |---------|-------------|
@@ -365,7 +407,7 @@ LGPL v3 - GNU Lesser General Public License
 
 ---
 
-# MoodleManagement v1.1
+# MoodleManagement v1.2
 
 FacturaScripts plugin for managing Moodle platforms directly from your ERP. Connect your billing system with your LMS through the Moodle REST API.
 
@@ -469,7 +511,35 @@ FacturaScripts plugin for managing Moodle platforms directly from your ERP. Conn
 - **Incremental sync** (every 6 hours): user and course synchronization with conflict resolution
 - **Reconciliation** (daily): integrity verification of user and enrolment mappings against Moodle
 - **Cleanup** (daily): automatic removal of orphaned mappings (deleted contacts)
-- **Expiry control** (every 6 hours): detection of expiring enrolments (7 days) and automatic expiration
+- **Expiry control** (every 6 hours): detection of expiring enrolments (7 days), automatic expiration and renewal estimate generation
+
+### Notes & Annotations
+- Create, read and delete notes on Moodle user profiles from FS
+- "Notes" tab in user mapping with full history
+- Support for site and personal note types
+- Notes sorted by creation date (newest first)
+
+### Moodle Calendar
+- Create and delete events on Moodle user calendars from FS
+- "Calendar" tab in user mapping
+- Display existing events with type and description
+- Support for user-type events
+
+### Advanced Billing (Subscriptions & Renewal)
+- `duracion_dias` field on courses to define access duration after enrolment
+- Automatic `timeend` calculation on enrolment (timestart + duration in days)
+- Automatic renewal estimate generation when an enrolment is about to expire (7 days)
+- Estimate includes the course product at the configured price, linked to the contact's client
+- Full flow: estimate → approval → invoice → EnrolmentWorker renews the enrolment
+
+### Automated Onboarding
+- Per-instance configuration: welcome course, default cohort, welcome message
+- When creating a new user mapping, the system automatically:
+  1. Enrols the user in the configured welcome course
+  2. Assigns them to the default cohort
+  3. Sends a personalized welcome message (variables: %name%, %username%, %site%)
+  4. Creates an onboarding note on their Moodle profile
+- Enable/disable per instance with checkbox
 
 ## Requirements
 
@@ -622,6 +692,20 @@ For the plugin to work correctly, you must create a web service in Moodle with t
 | `core_message_get_conversations` | List user conversations (conversations hub) |
 | `core_message_get_unread_conversations_count` | Count conversations with unread messages (navbar badge) |
 | `core_message_mark_all_conversation_messages_as_read` | Mark all messages in a conversation as read |
+
+#### Notes
+| Function | Description |
+|----------|-------------|
+| `core_notes_create_notes` | Create notes on user profile |
+| `core_notes_get_course_notes` | Get notes for a course/user |
+| `core_notes_delete_notes` | Delete notes |
+
+#### Calendar
+| Function | Description |
+|----------|-------------|
+| `core_calendar_get_calendar_events` | Get calendar events |
+| `core_calendar_create_calendar_events` | Create calendar events |
+| `core_calendar_delete_calendar_events` | Delete calendar events |
 
 #### Roles
 | Function | Description |

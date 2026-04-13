@@ -85,6 +85,9 @@ class MoodleCourseMap extends ModelClass
     /** @var int FK to attached_files for the Moodle cover image */
     public $idfile_cover;
 
+    /** @var int Days of access after enrolment (0 = unlimited) */
+    public $duracion_dias;
+
     /** @var string */
     public $creation_date;
 
@@ -101,6 +104,7 @@ class MoodleCourseMap extends ModelClass
         $this->currency = 'EUR';
         $this->source = 'synced';
         $this->idfile_cover = null;
+        $this->duracion_dias = 0;
         $this->creation_date = date('Y-m-d H:i:s');
     }
 

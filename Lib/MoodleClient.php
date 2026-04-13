@@ -1496,4 +1496,104 @@ class MoodleClient
 
         return is_numeric($result) ? (int)$result : 0;
     }
+
+    // ── Notes ────────────────────────────────────────────────────────────
+
+    /**
+     * Create notes on user profiles in Moodle.
+     * @param array $notes Each note: ['userid' => int, 'courseid' => int, 'text' => string, 'publishstate' => 'personal'|'course'|'site']
+     */
+    public static function createNotes(MoodleInstance $instance, array $notes): array
+    {
+        $params = [];
+        foreach ($notes as $i => $note) {
+            $params["notes[$i][userid]"] = $note['userid'];
+            $params["notes[$i][courseid]"] = $note['courseid'] ?? 1;
+            $params["notes[$i][publishstate]"] = $note['publishstate'] ?? 'site';
+            $params["notes[$i][text]"] = $note['text'];
+        }
+        return self::callApi($instance, 'core_notes_create_notes', $params);
+    }
+
+    /**
+     * Get notes for a user in a course (or all courses).
+     */
+    public static function getNotes(MoodleInstance $instance, int $courseid, int $userid = 0): array
+    {
+        $params = ['courseid' => $courseid];
+        if ($userid > 0) {
+            $params['userid'] = $userid;
+        }
+        return self::callApi($instance, 'core_notes_get_course_notes', $params);
+    }
+
+    /**
+     * Delete notes by IDs.
+     * @param int[] $noteIds
+     */
+    public static function deleteNotes(MoodleInstance $instance, array $noteIds): array
+    {
+        $params = [];
+        foreach ($noteIds as $i => $id) {
+            $params["notes[$i]"] = $id;
+        }
+        return self::callApi($instance, 'core_notes_delete_notes', $params);
+    }
+
+    // ── Calendar ─────────────────────────────────────────────────────────
+
+    /**
+     * Create calendar events in Moodle.
+     * @param array $events Each event: ['name' => string, 'description' => string, 'courseid' => int, 'userid' => int, 'timestart' => int, 'timeduration' => int, 'eventtype' => 'user'|'course'|'site']
+     */
+    public static function createCalendarEvents(MoodleInstance $instance, array $events): array
+    {
+        $params = [];
+        foreach ($events as $i => $event) {
+            foreach ($event as $key => $value) {
+                $params["events[$i][$key]"] = $value;
+            }
+        }
+        return self::callApi($instance, 'core_calendar_create_calendar_events', $params);
+    }
+
+    /**
+     * Get calendar events for a period.
+     */
+    public static function getCalendarEvents(MoodleInstance $instance, array $options = []): array
+    {
+        $params = [];
+        if (!empty($options['eventids'])) {
+            foreach ($options['eventids'] as $i => $id) {
+                $params["options[eventids][$i]"] = $id;
+            }
+        }
+        if (isset($options['timestart'])) {
+            $params['options[timestart]'] = $options['timestart'];
+        }
+        if (isset($options['timeend'])) {
+            $params['options[timeend]'] = $options['timeend'];
+        }
+        if (isset($options['userevents'])) {
+            $params['options[userevents]'] = $options['userevents'] ? 1 : 0;
+        }
+        if (isset($options['siteevents'])) {
+            $params['options[siteevents]'] = $options['siteevents'] ? 1 : 0;
+        }
+        return self::callApi($instance, 'core_calendar_get_calendar_events', $params);
+    }
+
+    /**
+     * Delete calendar events.
+     * @param array $events Each: ['eventid' => int, 'repeat' => 0|1]
+     */
+    public static function deleteCalendarEvents(MoodleInstance $instance, array $events): array
+    {
+        $params = [];
+        foreach ($events as $i => $event) {
+            $params["events[$i][eventid]"] = $event['eventid'];
+            $params["events[$i][repeat]"] = $event['repeat'] ?? 0;
+        }
+        return self::callApi($instance, 'core_calendar_delete_calendar_events', $params);
+    }
 }

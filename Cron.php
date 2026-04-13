@@ -25,6 +25,7 @@ use FacturaScripts\Core\Template\CronClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Where;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
+use FacturaScripts\Dinamic\Model\PresupuestoCliente;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
@@ -468,6 +469,9 @@ class Cron extends CronClass
                     '%courseid%' => $enrolment->moodle_courseid,
                 ]);
             } else {
+                // generate renewal estimate if not already created
+                $this->generateRenewalEstimate($enrolment);
+
                 Tools::log(self::EXPIRY_CHECK_JOB)->info('enrolment-expiring-soon', [
                     '%userid%' => $enrolment->moodle_userid,
                     '%courseid%' => $enrolment->moodle_courseid,
@@ -475,5 +479,66 @@ class Cron extends CronClass
                 ]);
             }
         }
+    }
+
+    private function generateRenewalEstimate(MoodleEnrolment $enrolment): void
+    {
+        // skip if a renewal estimate already exists for this enrolment
+        if (!empty($enrolment->idpresupuesto)) {
+            return;
+        }
+
+        $courseMap = $enrolment->getCourseMap();
+        if (null === $courseMap || empty($courseMap->duracion_dias) || empty($courseMap->idproducto)) {
+            return;
+        }
+
+        $contacto = $enrolment->getContacto();
+        if (empty($contacto->idcontacto)) {
+            return;
+        }
+
+        // find the client linked to this contact
+        $cliente = new \FacturaScripts\Dinamic\Model\Cliente();
+        if (!empty($contacto->codcliente)) {
+            $cliente->loadFromCode($contacto->codcliente);
+        }
+
+        if (empty($cliente->codcliente)) {
+            return;
+        }
+
+        $presupuesto = new PresupuestoCliente();
+        $presupuesto->setSubject($cliente);
+        $presupuesto->idcontactofact = $contacto->idcontacto;
+        $presupuesto->observaciones = Tools::lang()->trans('renewal-estimate-note', [
+            '%course%' => $courseMap->fullname,
+        ]);
+
+        if (false === $presupuesto->save()) {
+            Tools::log(self::EXPIRY_CHECK_JOB)->warning('renewal-estimate-failed', [
+                '%userid%' => $enrolment->moodle_userid,
+                '%courseid%' => $enrolment->moodle_courseid,
+            ]);
+            return;
+        }
+
+        // add the course product line
+        $producto = $courseMap->getProducto();
+        $newLine = $presupuesto->getNewLine();
+        $newLine->referencia = $producto->referencia ?? '';
+        $newLine->descripcion = $courseMap->fullname;
+        $newLine->cantidad = 1;
+        $newLine->pvpunitario = $courseMap->price;
+        $newLine->save();
+
+        // link the estimate to the enrolment
+        $enrolment->idpresupuesto = $presupuesto->idpresupuesto;
+        $enrolment->save();
+
+        Tools::log(self::EXPIRY_CHECK_JOB)->notice('renewal-estimate-created', [
+            '%course%' => $courseMap->fullname,
+            '%client%' => $cliente->nombre,
+        ]);
     }
 }

@@ -43,6 +43,7 @@ class Init extends InitClass
         WorkQueue::addWorker('ContactSyncWorker', 'Model.Contacto.Update');
         WorkQueue::addWorker('ContactDeleteWorker', 'Model.Contacto.Delete');
         WorkQueue::addWorker('BadgeSyncWorker', 'Model.MoodleUserMap.Save');
+        WorkQueue::addWorker('OnboardingWorker', 'Model.MoodleUserMap.Insert');
     }
 
     public function uninstall(): void

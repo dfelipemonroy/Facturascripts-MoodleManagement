@@ -1,0 +1,99 @@
+{% set firstView = fsc.views | first %}
+{% set model = firstView.model %}
+{% set notes = fsc.userNotes %}
+{% set notesError = fsc.userNotesError %}
+
+<div class="container-fluid mt-3 mb-3">
+    {% if notesError is not empty %}
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            {{ notesError }}
+        </div>
+    {% else %}
+        {# Create note form #}
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="post" name="createNoteForm">
+                    <input type="hidden" name="action" value="create-note">
+                    <input type="hidden" name="activetab" value="UserNotes">
+                    <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}">
+                    {{ formToken() }}
+                    <div class="row">
+                        <div class="col-md-9 mb-2">
+                            <textarea name="note_text" class="form-control" rows="2"
+                                      placeholder="{{ trans('write-note-placeholder') }}" required></textarea>
+                        </div>
+                        <div class="col-md-2 mb-2">
+                            <select name="note_publish_state" class="form-select">
+                                <option value="site">{{ trans('note-type-site') }}</option>
+                                <option value="personal">{{ trans('note-type-personal') }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1 mb-2 d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {# Notes list #}
+        {% if notes is empty %}
+            <div class="alert alert-info">
+                <i class="fa-solid fa-info-circle me-1"></i>
+                {{ trans('no-notes-found') }}
+            </div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>{{ trans('note') }}</th>
+                            <th class="text-center" style="width: 120px;">{{ trans('type') }}</th>
+                            <th class="text-center" style="width: 160px;">{{ trans('date') }}</th>
+                            <th class="text-center" style="width: 80px;">{{ trans('actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for note in notes %}
+                            <tr>
+                                <td>{{ note.text | raw }}</td>
+                                <td class="text-center align-middle">
+                                    {% if note.publishstate == 'site' %}
+                                        <span class="badge bg-primary">{{ trans('note-type-site') }}</span>
+                                    {% elseif note.publishstate == 'personal' %}
+                                        <span class="badge bg-secondary">{{ trans('note-type-personal') }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info">{{ trans('note-type-course') }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center align-middle">
+                                    {% if note.created is defined and note.created > 0 %}
+                                        {{ note.created | date('d/m/Y H:i') }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center align-middle">
+                                    <form method="post" class="d-inline"
+                                          onsubmit="return confirm('{{ trans('confirm-delete') }}');">
+                                        <input type="hidden" name="action" value="delete-note">
+                                        <input type="hidden" name="activetab" value="UserNotes">
+                                        <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}">
+                                        <input type="hidden" name="note_id" value="{{ note.id }}">
+                                        {{ formToken() }}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ trans('delete') }}">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

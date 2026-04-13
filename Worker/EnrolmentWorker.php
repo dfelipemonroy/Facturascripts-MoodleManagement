@@ -91,6 +91,14 @@ class EnrolmentWorker extends WorkerClass
         $enrolment->idfactura = $invoice->idfactura;
         $enrolment->notes = Tools::lang()->trans('auto-enrol-on-payment');
 
+        // set timestart/timeend based on course duration
+        if (empty($enrolment->timestart)) {
+            $enrolment->timestart = time();
+        }
+        if (!empty($courseMap->duracion_dias) && $courseMap->duracion_dias > 0) {
+            $enrolment->timeend = $enrolment->timestart + ($courseMap->duracion_dias * 86400);
+        }
+
         // check if course has self-enrolment and store the key
         $this->detectSelfEnrolmentKey($enrolment, $courseMap);
 

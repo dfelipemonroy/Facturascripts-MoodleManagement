@@ -69,8 +69,26 @@
                 <widget type="textarea" fieldname="last_error" readonly="true"/>
             </column>
         </group>
+        <group name="onboarding" title="onboarding" icon="fa-solid fa-user-plus" numcolumns="12">
+            <column name="onboarding-enabled" numcolumns="2" order="300">
+                <widget type="checkbox" fieldname="onboarding_enabled"/>
+            </column>
+            <column name="onboarding-course" numcolumns="3" order="310">
+                <widget type="autocomplete" fieldname="onboarding_course_id">
+                    <values source="moodle_course_map" fieldcode="moodle_courseid" fieldtitle="fullname"/>
+                </widget>
+            </column>
+            <column name="onboarding-cohort" numcolumns="3" order="320">
+                <widget type="autocomplete" fieldname="onboarding_cohort_id">
+                    <values source="moodle_cohorts" fieldcode="moodle_cohortid" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="onboarding-welcome-message" numcolumns="12" order="330">
+                <widget type="textarea" fieldname="onboarding_welcome_message" hint="onboarding-welcome-message-hint"/>
+            </column>
+        </group>
         <group name="notes" title="notes" numcolumns="12">
-            <column name="notes" numcolumns="12" order="300">
+            <column name="notes" numcolumns="12" order="400">
                 <widget type="textarea" fieldname="notes"/>
             </column>
         </group>

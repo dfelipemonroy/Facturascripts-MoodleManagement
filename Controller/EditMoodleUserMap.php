@@ -51,6 +51,18 @@ class EditMoodleUserMap extends EditController
     /** @var string Contact full name for chat display */
     public $chatContactName = '';
 
+    /** @var array Notes from Moodle for this user */
+    public $userNotes = [];
+
+    /** @var string */
+    public $userNotesError = '';
+
+    /** @var array Calendar events for this user */
+    public $calendarEvents = [];
+
+    /** @var string */
+    public $calendarEventsError = '';
+
     public function getModelClassName(): string
     {
         return 'MoodleUserMap';
@@ -80,6 +92,10 @@ class EditMoodleUserMap extends EditController
         $this->addListView('ListMoodleCertificateUser', 'MoodleCertificate', 'moodle-badges', 'fa-solid fa-award')
             ->addOrderBy(['date_issued'], 'date-issued', 2)
             ->addSearchFields(['badge_name', 'course_name']);
+
+        $this->addHtmlView('UserNotes', 'Tab/UserNotes', 'MoodleUserMap', 'moodle-notes', 'fa-solid fa-sticky-note');
+
+        $this->addHtmlView('UserCalendar', 'Tab/UserCalendar', 'MoodleUserMap', 'moodle-calendar', 'fa-solid fa-calendar-days');
     }
 
     protected function loadData($viewName, $view)
@@ -115,6 +131,16 @@ class EditMoodleUserMap extends EditController
                     ];
                     $view->loadData('', $where);
                 }
+                break;
+
+            case 'UserNotes':
+                $this->loadUserNotes();
+                $view->count = count($this->userNotes);
+                break;
+
+            case 'UserCalendar':
+                $this->loadCalendarEvents();
+                $view->count = count($this->calendarEvents);
                 break;
 
             default:
@@ -154,6 +180,22 @@ class EditMoodleUserMap extends EditController
             case 'unenrol-batch':
             case 'suspend-batch':
                 $this->processEnrolmentBatch($action);
+                return true;
+
+            case 'create-note':
+                $this->createNoteAction();
+                return true;
+
+            case 'delete-note':
+                $this->deleteNoteAction();
+                return true;
+
+            case 'create-calendar-event':
+                $this->createCalendarEventAction();
+                return true;
+
+            case 'delete-calendar-event':
+                $this->deleteCalendarEventAction();
                 return true;
         }
 
@@ -540,6 +582,244 @@ class EditMoodleUserMap extends EditController
         }
 
         Tools::log()->notice('message-sent');
+    }
+
+    private function loadUserNotes(): void
+    {
+        $model = $this->getModel();
+        if (empty($model->moodle_userid) || empty($model->idinstance)) {
+            return;
+        }
+
+        $instance = $model->getInstance();
+        if (empty($instance->id) || empty($instance->token) || $instance->status !== 'active') {
+            $this->userNotesError = Tools::lang()->trans('instance-not-active');
+            return;
+        }
+
+        // Get notes from site-level course (courseid=1 is SITE in Moodle)
+        $result = MoodleClient::getNotes($instance, 1, (int)$model->moodle_userid);
+        if (isset($result['exception'])) {
+            $this->userNotesError = $result['message'] ?? $result['exception'];
+            return;
+        }
+
+        // The API returns: { sitenotes: [...], coursenotes: [...], personalnotes: [...] }
+        $allNotes = [];
+        foreach (['sitenotes', 'coursenotes', 'personalnotes'] as $type) {
+            if (!empty($result[$type]) && is_array($result[$type])) {
+                foreach ($result[$type] as $note) {
+                    $note['_type'] = $type;
+                    $allNotes[] = $note;
+                }
+            }
+        }
+
+        // Sort by creation date descending
+        usort($allNotes, function ($a, $b) {
+            return ($b['created'] ?? 0) - ($a['created'] ?? 0);
+        });
+
+        $this->userNotes = $allNotes;
+    }
+
+    private function createNoteAction(): void
+    {
+        $model = $this->getModel();
+        if (false === $model->loadFromCode($this->request->get('code'))) {
+            Tools::log()->warning('record-not-found');
+            return;
+        }
+
+        if (empty($model->moodle_userid)) {
+            Tools::log()->warning('moodle-userid-required');
+            return;
+        }
+
+        $instance = $model->getInstance();
+        if (empty($instance->id) || empty($instance->token) || $instance->status !== 'active') {
+            Tools::log()->warning('instance-not-active');
+            return;
+        }
+
+        $text = trim($this->request->request->get('note_text', ''));
+        if (empty($text)) {
+            Tools::log()->warning('note-text-required');
+            return;
+        }
+
+        $publishState = $this->request->request->get('note_publish_state', 'site');
+        if (!in_array($publishState, ['personal', 'course', 'site'])) {
+            $publishState = 'site';
+        }
+
+        $result = MoodleClient::createNotes($instance, [[
+            'userid' => (int)$model->moodle_userid,
+            'courseid' => 1,
+            'publishstate' => $publishState,
+            'text' => $text,
+        ]]);
+
+        if (isset($result['exception'])) {
+            Tools::log()->error('note-create-failed', ['%error%' => $result['message'] ?? $result['exception']]);
+            return;
+        }
+
+        Tools::log()->notice('note-created');
+    }
+
+    private function deleteNoteAction(): void
+    {
+        $model = $this->getModel();
+        if (false === $model->loadFromCode($this->request->get('code'))) {
+            Tools::log()->warning('record-not-found');
+            return;
+        }
+
+        $instance = $model->getInstance();
+        if (empty($instance->id) || empty($instance->token) || $instance->status !== 'active') {
+            Tools::log()->warning('instance-not-active');
+            return;
+        }
+
+        $noteId = (int)$this->request->request->get('note_id', 0);
+        if ($noteId <= 0) {
+            Tools::log()->warning('note-id-required');
+            return;
+        }
+
+        $result = MoodleClient::deleteNotes($instance, [$noteId]);
+        if (isset($result['exception'])) {
+            Tools::log()->error('note-delete-failed', ['%error%' => $result['message'] ?? $result['exception']]);
+            return;
+        }
+
+        Tools::log()->notice('note-deleted');
+    }
+
+    private function loadCalendarEvents(): void
+    {
+        $model = $this->getModel();
+        if (empty($model->moodle_userid) || empty($model->idinstance)) {
+            return;
+        }
+
+        $instance = $model->getInstance();
+        if (empty($instance->id) || empty($instance->token) || $instance->status !== 'active') {
+            $this->calendarEventsError = Tools::lang()->trans('instance-not-active');
+            return;
+        }
+
+        $result = MoodleClient::getCalendarEvents($instance, [
+            'userevents' => true,
+            'siteevents' => false,
+            'timestart' => 0,
+            'timeend' => time() + (365 * 86400),
+        ]);
+
+        if (isset($result['exception'])) {
+            $this->calendarEventsError = $result['message'] ?? $result['exception'];
+            return;
+        }
+
+        $events = $result['events'] ?? [];
+
+        // Filter events for this user
+        $userId = (int)$model->moodle_userid;
+        $filtered = array_filter($events, function ($event) use ($userId) {
+            return (int)($event['userid'] ?? 0) === $userId;
+        });
+
+        // Sort by timestart descending
+        usort($filtered, function ($a, $b) {
+            return ($b['timestart'] ?? 0) - ($a['timestart'] ?? 0);
+        });
+
+        $this->calendarEvents = array_values($filtered);
+    }
+
+    private function createCalendarEventAction(): void
+    {
+        $model = $this->getModel();
+        if (false === $model->loadFromCode($this->request->get('code'))) {
+            Tools::log()->warning('record-not-found');
+            return;
+        }
+
+        if (empty($model->moodle_userid)) {
+            Tools::log()->warning('moodle-userid-required');
+            return;
+        }
+
+        $instance = $model->getInstance();
+        if (empty($instance->id) || empty($instance->token) || $instance->status !== 'active') {
+            Tools::log()->warning('instance-not-active');
+            return;
+        }
+
+        $name = trim($this->request->request->get('event_name', ''));
+        if (empty($name)) {
+            Tools::log()->warning('event-name-required');
+            return;
+        }
+
+        $dateStr = $this->request->request->get('event_date', '');
+        if (empty($dateStr)) {
+            Tools::log()->warning('event-date-required');
+            return;
+        }
+
+        $timestart = strtotime($dateStr);
+        if ($timestart === false) {
+            Tools::log()->warning('event-date-required');
+            return;
+        }
+
+        $description = trim($this->request->request->get('event_description', ''));
+
+        $result = MoodleClient::createCalendarEvents($instance, [[
+            'name' => $name,
+            'description' => $description,
+            'userid' => (int)$model->moodle_userid,
+            'timestart' => $timestart,
+            'timeduration' => 0,
+            'eventtype' => 'user',
+        ]]);
+
+        if (isset($result['exception'])) {
+            Tools::log()->error('calendar-event-create-failed', ['%error%' => $result['message'] ?? $result['exception']]);
+            return;
+        }
+
+        Tools::log()->notice('calendar-event-created');
+    }
+
+    private function deleteCalendarEventAction(): void
+    {
+        $model = $this->getModel();
+        if (false === $model->loadFromCode($this->request->get('code'))) {
+            Tools::log()->warning('record-not-found');
+            return;
+        }
+
+        $instance = $model->getInstance();
+        if (empty($instance->id) || empty($instance->token) || $instance->status !== 'active') {
+            Tools::log()->warning('instance-not-active');
+            return;
+        }
+
+        $eventId = (int)$this->request->request->get('event_id', 0);
+        if ($eventId <= 0) {
+            return;
+        }
+
+        $result = MoodleClient::deleteCalendarEvents($instance, [['eventid' => $eventId, 'repeat' => 0]]);
+        if (isset($result['exception'])) {
+            Tools::log()->error('calendar-event-delete-failed', ['%error%' => $result['message'] ?? $result['exception']]);
+            return;
+        }
+
+        Tools::log()->notice('calendar-event-deleted');
     }
 
     private function processEnrolmentBatch(string $action): void

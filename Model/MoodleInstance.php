@@ -83,6 +83,18 @@ class MoodleInstance extends ModelClass
     /** @var string */
     public $notes;
 
+    /** @var bool */
+    public $onboarding_enabled;
+
+    /** @var int|null FK to moodle_course_map.moodle_courseid — welcome course */
+    public $onboarding_course_id;
+
+    /** @var int|null Moodle cohort ID to assign new users */
+    public $onboarding_cohort_id;
+
+    /** @var string|null Welcome message template sent to new users */
+    public $onboarding_welcome_message;
+
     /** @var string */
     public $creation_date;
 
@@ -92,6 +104,10 @@ class MoodleInstance extends ModelClass
         $this->status = 'active';
         $this->environment = 'production';
         $this->default_sync_priority = 'newest_wins';
+        $this->onboarding_enabled = false;
+        $this->onboarding_course_id = null;
+        $this->onboarding_cohort_id = null;
+        $this->onboarding_welcome_message = null;
         $this->creation_date = date('Y-m-d H:i:s');
     }
 
