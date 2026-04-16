@@ -1,0 +1,474 @@
+{% extends "Master/MenuBghTemplate.html.twig" %}
+
+{% block bodyHeaderOptions %}
+    {{ parent() }}
+    {% set pageData = fsc.getPageData() %}
+    <div class="container-fluid d-print-none">
+        <div class="row">
+            <div class="col-md">
+                <i class="{{ pageData.icon }} fa-3x ps-3 float-end text-primary" aria-hidden="true"></i>
+                <h1 class="h5 mb-0">{{ trans(pageData.title) }}</h1>
+                <p class="text-muted mb-3">{{ trans('wizard-subtitle') }}</p>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block body %}
+    {% set route = fsc.url() %}
+    {% set step = fsc.step %}
+    {% set state = fsc.state %}
+
+    <div class="container-fluid mt-3 mb-4">
+        {# Stepper #}
+        <div class="row mb-4">
+            <div class="col-12">
+                <ul class="nav nav-pills nav-justified wizard-stepper bg-white shadow-sm rounded p-2">
+                    {% for i, label in [
+                        (1, trans('wizard-step-1')),
+                        (2, trans('wizard-step-2')),
+                        (3, trans('wizard-step-3')),
+                        (4, trans('wizard-step-4'))
+                    ] %}
+                        {% set nStep = loop.index %}
+                        <li class="nav-item">
+                            <span class="nav-link {% if nStep == step %}active{% elseif nStep < step %}text-success{% else %}text-muted{% endif %}">
+                                {% if nStep < step %}
+                                    <i class="fa-solid fa-circle-check me-1"></i>
+                                {% elseif nStep == step %}
+                                    <i class="fa-solid fa-circle-dot me-1"></i>
+                                {% else %}
+                                    <i class="fa-regular fa-circle me-1"></i>
+                                {% endif %}
+                                {{ nStep }}. {{ label }}
+                            </span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        {# ── STEP 1: Configuration ── #}
+        {% if step == 1 %}
+            {# Resolve initial values: active session state > cookie-saved prefs > hardcoded defaults #}
+            {% set prefs = fsc.prefs %}
+            {% set selInstance = state.idinstance|default(prefs.idinstance|default(0)) %}
+            {% set selMode = state.import_mode|default(prefs.import_mode|default('create_client_per_user')) %}
+            {% set selClient = state.codcliente|default(prefs.codcliente|default('')) %}
+            {% set selAuths = state.auth_types|default(prefs.auth_types|default([])) %}
+            {% set hasMemory = prefs.idinstance|default(0) > 0 or prefs.mapping|default([])|length > 0 %}
+
+            <form method="post" action="{{ route }}" class="card shadow-sm border-0">
+                <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
+                <input type="hidden" name="action" value="go-to-step-2"/>
+
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fa-solid fa-gear me-2"></i>{{ trans('wizard-step-1') }}
+                    </h5>
+
+                    {% if hasMemory %}
+                        <div class="alert alert-info py-2 mb-3">
+                            <i class="fa-solid fa-clock-rotate-left me-1"></i>
+                            {{ trans('wizard-prefs-loaded') }}
+                        </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">{{ trans('moodle-instance') }}</label>
+                            <select class="form-select" name="idinstance" required>
+                                <option value="">-- {{ trans('choose-one') }} --</option>
+                                {% for inst in fsc.instances %}
+                                    <option value="{{ inst.id }}"
+                                            {% if selInstance == inst.id %}selected{% endif %}>
+                                        {{ inst.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">{{ trans('wizard-instance-help') }}</small>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">{{ trans('auth-types-to-import') }}</label>
+                            <div class="d-flex flex-wrap gap-3">
+                                {% for auth in ['manual', 'email', 'ldap', 'oauth2'] %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="auth_types[]" value="{{ auth }}"
+                                               id="auth_{{ auth }}"
+                                               {% if selAuths is empty or auth in selAuths %}checked{% endif %}>
+                                        <label class="form-check-label" for="auth_{{ auth }}">{{ auth }}</label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted">{{ trans('wizard-auth-help') }}</small>
+                        </div>
+                    </div>
+
+                    <hr/>
+
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label">{{ trans('import-mode') }}</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="import_mode"
+                                       id="mode_create" value="create_client_per_user"
+                                       {% if selMode == 'create_client_per_user' %}checked{% endif %}>
+                                <label class="form-check-label" for="mode_create">
+                                    <strong>{{ trans('create-client-per-user') }}</strong>
+                                    <br/><small class="text-muted">{{ trans('wizard-mode-create-help') }}</small>
+                                </label>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="radio" name="import_mode"
+                                       id="mode_assign" value="assign_to_existing_client"
+                                       {% if selMode == 'assign_to_existing_client' %}checked{% endif %}>
+                                <label class="form-check-label" for="mode_assign">
+                                    <strong>{{ trans('assign-to-existing-client') }}</strong>
+                                    <br/><small class="text-muted">{{ trans('wizard-mode-assign-help') }}</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-8 mb-3" id="client-picker"
+                             style="{% if selMode != 'assign_to_existing_client' %}display:none;{% endif %}">
+                            <label class="form-label">{{ trans('customer') }}</label>
+                            <input type="text" class="form-control" name="codcliente"
+                                   value="{{ selClient }}"
+                                   placeholder="{{ trans('customer-code') }}"/>
+                            <small class="text-muted">{{ trans('wizard-client-help') }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="MoodleUserSync" class="btn btn-secondary">
+                        <i class="fa-solid fa-xmark me-1"></i>{{ trans('cancel') }}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        {{ trans('wizard-fetch-users') }}<i class="fa-solid fa-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+
+        {# ── STEP 2: Preview and select users ── #}
+        {% if step == 2 %}
+            <form method="post" action="{{ route }}" class="card shadow-sm border-0">
+                <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
+                <input type="hidden" name="action" value="go-to-step-3"/>
+
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fa-solid fa-users me-2"></i>{{ trans('wizard-step-2') }}
+                        </h5>
+                        <div>
+                            <span class="badge bg-info">{{ trans('moodle-instance') }}: {{ state.instance_name }}</span>
+                            <span class="badge bg-secondary">{{ state.users|length }} {{ trans('users-found') }}</span>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <input type="text" class="form-control" id="wizard-search"
+                                   placeholder="{{ trans('filter-by-email-or-name') }}"/>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="select-all-btn">
+                                {{ trans('select-all') }}
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="select-none-btn">
+                                {{ trans('select-none') }}
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success" id="select-new-btn">
+                                {{ trans('select-new-only') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-sm table-hover" id="wizard-table">
+                            <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width:40px;">
+                                    <input type="checkbox" id="check-all-header" class="form-check-input"/>
+                                </th>
+                                <th>{{ trans('moodle-userid') }}</th>
+                                <th>username</th>
+                                <th>{{ trans('email') }}</th>
+                                <th>{{ trans('full-name') }}</th>
+                                <th>{{ trans('country') }}</th>
+                                <th>{{ trans('status') }}</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for u in state.users %}
+                                <tr class="wizard-row {% if u.exists_mapping %}table-secondary{% elseif u.exists_contact %}table-warning{% endif %}"
+                                    data-search="{{ (u.email ~ ' ' ~ u.username ~ ' ' ~ u.firstname ~ ' ' ~ u.lastname)|lower }}"
+                                    data-is-new="{{ u.exists_mapping ? '0' : '1' }}">
+                                    <td>
+                                        <input type="checkbox" class="form-check-input wizard-check"
+                                               name="selected_users[]" value="{{ u.id }}"
+                                               {% if not u.exists_mapping %}checked{% endif %}
+                                               {% if u.exists_mapping %}disabled{% endif %}/>
+                                    </td>
+                                    <td>{{ u.id }}</td>
+                                    <td>{{ u.username }}</td>
+                                    <td><code>{{ u.email }}</code></td>
+                                    <td>{{ u.firstname }} {{ u.lastname }}</td>
+                                    <td>{{ u.country }}</td>
+                                    <td>
+                                        {% if u.exists_mapping %}
+                                            <span class="badge bg-secondary">{{ trans('already-mapped') }}</span>
+                                        {% elseif u.exists_contact %}
+                                            <span class="badge bg-warning text-dark">{{ trans('existing-contact') }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ trans('new') }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="fa-solid fa-info-circle me-1"></i>
+                        {{ trans('wizard-preview-note') }}
+                    </div>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <button type="submit" formaction="{{ route }}" name="action" value="back-to-step-1"
+                            class="btn btn-outline-secondary" formnovalidate>
+                        <i class="fa-solid fa-arrow-left me-1"></i>{{ trans('back') }}
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        {{ trans('wizard-configure-mapping') }}<i class="fa-solid fa-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+
+        {# ── STEP 3: Field mapping ── #}
+        {% if step == 3 %}
+            <form method="post" action="{{ route }}" class="card shadow-sm border-0">
+                <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
+                <input type="hidden" name="action" value="go-to-step-4"/>
+
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fa-solid fa-arrows-left-right me-2"></i>{{ trans('wizard-step-3') }}
+                    </h5>
+
+                    <p class="text-muted">{{ trans('wizard-mapping-help') }}</p>
+
+                    {# Fallback order for the mapping: session state > cookie prefs > hardcoded defaults #}
+                    {% set prefMap = fsc.prefs.mapping|default([]) %}
+                    {% set currentMap = state.mapping|default(prefMap ? prefMap : fsc.defaultMapping) %}
+                    {% set contactFields = fsc.getContactFields() %}
+                    {% set sampleUser = state.users|first %}
+
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead class="table-light">
+                            <tr>
+                                <th style="width:35%">{{ trans('moodle-field') }}</th>
+                                <th style="width:25%">{{ trans('sample-value') }}</th>
+                                <th style="width:40%">{{ trans('contact-field') }}</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for moodleField, label in fsc.getMoodleFields() %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ label }}</strong>
+                                        <br/>
+                                        <small class="text-muted">Moodle: <code>{{ moodleField }}</code></small>
+                                    </td>
+                                    <td>
+                                        {% if sampleUser[moodleField] is defined and sampleUser[moodleField] %}
+                                            <code class="text-muted">{{ sampleUser[moodleField] }}</code>
+                                        {% else %}
+                                            <span class="text-muted fst-italic">({{ trans('empty') }})</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm" name="mapping[{{ moodleField }}]">
+                                            <option value="_ignore_">— {{ trans('wizard-ignore-field') }} —</option>
+                                            {% for fieldKey, fieldLabel in contactFields %}
+                                                {% if fieldKey != '_ignore_' %}
+                                                    <option value="{{ fieldKey }}"
+                                                            {% if currentMap[moodleField] is defined and currentMap[moodleField] == fieldKey %}selected{% endif %}>
+                                                        {{ fieldLabel }}
+                                                    </option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-info mb-0">
+                        <i class="fa-solid fa-info-circle me-1"></i>
+                        {{ trans('wizard-selected-summary', {'%count%': state.selected|length}) }}
+                    </div>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <button type="submit" name="action" value="back-to-step-2"
+                            class="btn btn-outline-secondary" formnovalidate>
+                        <i class="fa-solid fa-arrow-left me-1"></i>{{ trans('back') }}
+                    </button>
+                    <button type="submit" class="btn btn-success"
+                            onclick="return confirm('{{ trans('wizard-confirm-import') }}');">
+                        <i class="fa-solid fa-check me-1"></i>{{ trans('wizard-run-import') }}
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+
+        {# ── STEP 4: Results ── #}
+        {% if step == 4 %}
+            {% set result = state.result %}
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fa-solid fa-flag-checkered me-2"></i>{{ trans('wizard-step-4') }}
+                    </h5>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-2">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h3 class="text-success mb-0">{{ result.imported|default(0) }}</h3>
+                                    <small class="text-muted">{{ trans('imported') }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h3 class="text-warning mb-0">{{ result.skipped|default(0) }}</h3>
+                                    <small class="text-muted">{{ trans('skipped') }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="card border-danger">
+                                <div class="card-body text-center">
+                                    <h3 class="text-danger mb-0">{{ result.errors|default(0) }}</h3>
+                                    <small class="text-muted">{{ trans('errors') }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if result.details is not empty %}
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm">
+                                <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>{{ trans('status') }}</th>
+                                    <th>username</th>
+                                    <th>{{ trans('email') }}</th>
+                                    <th>{{ trans('message') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for d in result.details %}
+                                    <tr>
+                                        <td>
+                                            {% if d.status == 'imported' %}
+                                                <span class="badge bg-success">{{ trans('imported') }}</span>
+                                            {% elseif d.status == 'skipped' %}
+                                                <span class="badge bg-warning text-dark">{{ trans('skipped') }}</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">{{ trans('error') }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ d.username|default('-') }}</td>
+                                        <td><code>{{ d.email|default('-') }}</code></td>
+                                        <td>{{ trans(d.message) }}</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <form method="post" action="{{ route }}" class="mb-0">
+                        <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
+                        <input type="hidden" name="action" value="reset"/>
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fa-solid fa-rotate-left me-1"></i>{{ trans('wizard-restart') }}
+                        </button>
+                    </form>
+                    <div class="d-flex gap-2">
+                        {% if result.details is not empty %}
+                            <a href="{{ route }}?action=export-csv" class="btn btn-outline-secondary">
+                                <i class="fa-solid fa-file-csv me-1"></i>{{ trans('wizard-download-csv') }}
+                            </a>
+                        {% endif %}
+                        <a href="MoodleUserSync" class="btn btn-success">
+                            <i class="fa-solid fa-check me-1"></i>{{ trans('wizard-finish') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        (function () {
+            // Step 1: toggle client picker visibility
+            var modeRadios = document.querySelectorAll('input[name="import_mode"]');
+            var clientPicker = document.getElementById('client-picker');
+            if (modeRadios.length && clientPicker) {
+                modeRadios.forEach(function (r) {
+                    r.addEventListener('change', function () {
+                        clientPicker.style.display = (r.value === 'assign_to_existing_client' && r.checked) ? '' : 'none';
+                    });
+                });
+            }
+
+            // Step 2: filter + bulk select
+            var searchBox = document.getElementById('wizard-search');
+            var rows = document.querySelectorAll('#wizard-table tbody tr.wizard-row');
+            if (searchBox) {
+                searchBox.addEventListener('input', function () {
+                    var q = this.value.toLowerCase();
+                    rows.forEach(function (row) {
+                        row.style.display = row.dataset.search.indexOf(q) !== -1 ? '' : 'none';
+                    });
+                });
+            }
+            function setChecks(filterFn) {
+                document.querySelectorAll('.wizard-check').forEach(function (cb) {
+                    if (cb.disabled) return;
+                    cb.checked = filterFn(cb);
+                });
+            }
+            var selAll = document.getElementById('select-all-btn');
+            var selNone = document.getElementById('select-none-btn');
+            var selNew = document.getElementById('select-new-btn');
+            var headerAll = document.getElementById('check-all-header');
+            if (selAll) selAll.addEventListener('click', function () { setChecks(function () { return true; }); });
+            if (selNone) selNone.addEventListener('click', function () { setChecks(function () { return false; }); });
+            if (selNew) selNew.addEventListener('click', function () {
+                setChecks(function (cb) { return cb.closest('tr').dataset.isNew === '1'; });
+            });
+            if (headerAll) headerAll.addEventListener('change', function () {
+                var v = this.checked;
+                setChecks(function () { return v; });
+            });
+        })();
+    </script>
+{% endblock %}

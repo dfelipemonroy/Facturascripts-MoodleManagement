@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <group name="general" title="general-data" numcolumns="12" valign="bottom">
+            <column name="name" numcolumns="4" order="100">
+                <widget type="text" fieldname="name" maxlength="100" required="true" icon="fa-solid fa-tag"/>
+            </column>
+            <column name="moodle-instance" numcolumns="4" order="110">
+                <widget type="select" fieldname="idinstance" hint="template-instance-hint">
+                    <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+                </widget>
+            </column>
+            <column name="is-default" numcolumns="2" order="120">
+                <widget type="checkbox" fieldname="is_default" hint="is-default-hint"/>
+            </column>
+        </group>
+        <group name="texts" title="certificate-texts" numcolumns="12">
+            <column name="title-text" numcolumns="6" order="200">
+                <widget type="text" fieldname="title_text" maxlength="100" hint="title-text-hint" icon="fa-solid fa-heading"/>
+            </column>
+            <column name="subtitle-text" numcolumns="6" order="210">
+                <widget type="text" fieldname="subtitle_text" maxlength="200" icon="fa-solid fa-align-center"/>
+            </column>
+            <column name="completed-text" numcolumns="6" order="220">
+                <widget type="text" fieldname="completed_text" maxlength="200"/>
+            </column>
+            <column name="issuer-label" numcolumns="6" order="230">
+                <widget type="text" fieldname="issuer_label" maxlength="100"/>
+            </column>
+            <column name="verify-text" numcolumns="12" order="240">
+                <widget type="textarea" fieldname="verify_text"/>
+            </column>
+        </group>
+        <group name="style" title="style" numcolumns="12" valign="bottom">
+            <column name="primary-color" numcolumns="2" order="300">
+                <widget type="color" fieldname="primary_color" hint="primary-color-hint"/>
+            </column>
+            <column name="accent-color" numcolumns="2" order="310">
+                <widget type="color" fieldname="accent_color" hint="accent-color-hint"/>
+            </column>
+            <column name="title-font-size" numcolumns="2" order="320">
+                <widget type="number" fieldname="title_font_size" min="10" max="72"/>
+            </column>
+            <column name="name-font-size" numcolumns="2" order="330">
+                <widget type="number" fieldname="name_font_size" min="10" max="72"/>
+            </column>
+            <column name="course-font-size" numcolumns="2" order="340">
+                <widget type="number" fieldname="course_font_size" min="8" max="48"/>
+            </column>
+            <column name="logo-path" numcolumns="12" order="350">
+                <widget type="text" fieldname="logo_path" maxlength="300" hint="logo-path-hint" icon="fa-solid fa-image"/>
+            </column>
+        </group>
+        <group name="elements" title="elements-to-show" numcolumns="12">
+            <column name="show-unique-hash" numcolumns="3" order="400">
+                <widget type="checkbox" fieldname="show_unique_hash"/>
+            </column>
+            <column name="show-date-issued" numcolumns="3" order="410">
+                <widget type="checkbox" fieldname="show_date_issued"/>
+            </column>
+            <column name="show-issuer" numcolumns="3" order="420">
+                <widget type="checkbox" fieldname="show_issuer"/>
+            </column>
+        </group>
+        <group name="notes" title="notes" numcolumns="12">
+            <column name="notes" numcolumns="12" order="500">
+                <widget type="textarea" fieldname="notes"/>
+            </column>
+        </group>
+    </columns>
+</view>
