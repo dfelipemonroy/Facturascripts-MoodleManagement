@@ -33,47 +33,65 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
 class Cron extends CronClass
 {
-    const JOB_NAME = 'moodle-health-check';
-    const USER_SYNC_JOB = 'moodle-user-sync';
-    const COURSE_SYNC_JOB = 'moodle-course-sync';
-    const RECONCILIATION_JOB = 'moodle-reconciliation';
-    const CLEANUP_JOB = 'moodle-cleanup';
-    const EXPIRY_CHECK_JOB = 'moodle-expiry-check';
+    // Job names ------------------------------------------------------
+    public const JOB_NAME = 'moodle-health-check';
+    public const USER_SYNC_JOB = 'moodle-user-sync';
+    public const COURSE_SYNC_JOB = 'moodle-course-sync';
+    public const RECONCILIATION_JOB = 'moodle-reconciliation';
+    public const CLEANUP_JOB = 'moodle-cleanup';
+    public const EXPIRY_CHECK_JOB = 'moodle-expiry-check';
+
+    // Schedule intervals (consumed by $job->every()) -----------------
+    /** @since 2.0 */
+    public const EVERY_HOUR = '1 hour';
+    /** @since 2.0 */
+    public const EVERY_6_HOURS = '6 hours';
+    /** @since 2.0 */
+    public const EVERY_DAY = '1 day';
+
+    // Pagination -----------------------------------------------------
+    /**
+     * Batch size for paginated cron scans (applied in Fase 6 F6.3).
+     * Keeps memory bounded when iterating tables with 10k+ rows.
+     *
+     * @since 2.0
+     */
+    public const BATCH_SIZE = 500;
 
     public function run(): void
     {
         $job = $this->job(self::JOB_NAME);
-        $job->every('1 hour');
+        $job->every(self::EVERY_HOUR);
         $job->run(function () {
             $this->healthCheck();
         });
 
         $syncJob = $this->job(self::USER_SYNC_JOB);
-        $syncJob->every('6 hours');
+        $syncJob->every(self::EVERY_6_HOURS);
         $syncJob->run(function () {
             $this->userSync();
         });
 
         $courseJob = $this->job(self::COURSE_SYNC_JOB);
-        $courseJob->every('6 hours');
+        $courseJob->every(self::EVERY_6_HOURS);
         $courseJob->run(function () {
             $this->courseSync();
         });
 
         $reconJob = $this->job(self::RECONCILIATION_JOB);
-        $reconJob->every('1 day');
+        $reconJob->every(self::EVERY_DAY);
         $reconJob->run(function () {
             $this->reconciliation();
         });
 
         $cleanupJob = $this->job(self::CLEANUP_JOB);
-        $cleanupJob->every('1 day');
+        $cleanupJob->every(self::EVERY_DAY);
         $cleanupJob->run(function () {
             $this->cleanup();
         });
 
         $expiryJob = $this->job(self::EXPIRY_CHECK_JOB);
-        $expiryJob->every('6 hours');
+        $expiryJob->every(self::EVERY_6_HOURS);
         $expiryJob->run(function () {
             $this->expiryCheck();
         });

@@ -26,6 +26,38 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 class MoodleClient
 {
     /**
+     * Default HTTP timeout (seconds) for synchronous (UI) Moodle API calls.
+     * Cron jobs may override via $timeout parameter (see Fase 7 F7.7).
+     *
+     * @since 2.0
+     */
+    public const TIMEOUT_SECONDS = 60;
+
+    /**
+     * TCP connect timeout (seconds) — separate from overall timeout.
+     *
+     * @since 2.0
+     */
+    public const CONNECT_TIMEOUT_SECONDS = 15;
+
+    /**
+     * curl POSTREDIR bitmask for 301/302/303 redirects.
+     * Will be deprecated when SSRF hardening lands (Fase 7 F7.1) and
+     * follow-redirects is disabled.
+     *
+     * @since 2.0
+     */
+    public const REDIRECT_METHODS_BITMASK = 7;
+
+    /**
+     * Maximum response size (bytes) the client accepts before aborting.
+     * Enforced by CURLOPT_WRITEFUNCTION in Fase 7 F7.6.
+     *
+     * @since 2.0
+     */
+    public const MAX_RESPONSE_BYTES = 20 * 1024 * 1024;
+
+    /**
      * Call a Moodle Web Service function via REST API.
      *
      * @param MoodleInstance $instance The Moodle instance to call
@@ -49,10 +81,10 @@ class MoodleClient
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($postData),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 60,
-            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_TIMEOUT => self::TIMEOUT_SECONDS,
+            CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT_SECONDS,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_POSTREDIR => 7,
+            CURLOPT_POSTREDIR => self::REDIRECT_METHODS_BITMASK,
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
 

@@ -19,6 +19,23 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
 class EnrolmentWorker extends WorkerClass
 {
+    /**
+     * Maximum retries when a transient Moodle API error occurs
+     * (network timeout, 5xx, token rotation in flight).
+     * Consumed by Fase 6 F6.7 (RetryPolicy).
+     *
+     * @since 2.0
+     */
+    public const MAX_RETRIES = 3;
+
+    /**
+     * Base delay (milliseconds) for exponential backoff between
+     * retries. Real delay is BASE * 2^attempt.
+     *
+     * @since 2.0
+     */
+    public const RETRY_BASE_DELAY_MS = 500;
+
     public function run(WorkEvent $event): bool
     {
         $invoice = new FacturaCliente();
