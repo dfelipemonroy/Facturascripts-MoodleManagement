@@ -1,6 +1,7 @@
 {
     "academic-progress": "Progreso Académico",
     "action-failed": "Acción fallida: %error%",
+    "certificate-pdf-generation-failed": "No se pudo generar el PDF del certificado. Contacta con el administrador si el problema persiste.",
     "action-success": "Acción completada exitosamente.",
     "actions": "Acciones",
     "active": "Activo",

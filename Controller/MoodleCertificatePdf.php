@@ -50,8 +50,18 @@ class MoodleCertificatePdf extends Controller
         try {
             $pdfContent = CertificatePdfGenerator::generate($cert);
         } catch (\Throwable $e) {
-            Tools::log()->error('certificate-pdf-error', ['%error%' => $e->getMessage()]);
-            $this->response->setContent('Error: ' . $e->getMessage());
+            // F2.5 — never surface the exception message to the
+            // user: it may leak stack trace, file paths, DB errors
+            // or Moodle API internals. Keep detail in the log.
+            Tools::log()->error('certificate-pdf-error', [
+                'certificate_id' => (int) $cert->id,
+                'exception'      => get_class($e),
+                'message'        => $e->getMessage(),
+                'file'           => $e->getFile(),
+                'line'           => $e->getLine(),
+                'trace_hash'     => substr(sha1($e->getTraceAsString()), 0, 12),
+            ]);
+            $this->response->setContent(Tools::lang()->trans('certificate-pdf-generation-failed'));
             $this->response->setStatusCode(500);
             return;
         }
