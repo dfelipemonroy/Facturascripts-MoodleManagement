@@ -548,6 +548,28 @@
         showModuleInfoFromContents(cmid);
     }
 
+    // F2.4 — escape untrusted Moodle content before DOM insertion.
+    // `mod.name`, `mod.description`, `mod.url` etc. come from Moodle
+    // course authors who are NOT trusted to produce safe HTML.
+    function mmEscapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        var div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    }
+
+    // Extra layer for URLs used inside an href="..." attribute.
+    // Reject any scheme that is not http(s), mailto, or a same-origin
+    // path. Fallback is the literal string '#' which is inert.
+    function mmSafeUrl(url) {
+        if (!url) return '#';
+        var s = String(url).trim();
+        if (s.length === 0) return '#';
+        if (s[0] === '/' || s[0] === '#') return s;
+        if (/^https?:\/\//i.test(s) || /^mailto:/i.test(s)) return s;
+        return '#';
+    }
+
     function showModuleInfoFromContents(cmid) {
         const body = document.getElementById('moduleDetailBody');
         {% if contents is not empty %}
@@ -586,19 +608,31 @@
         const groupLabels = {0: '{{ trans("no-groups") | e("js") }}', 1: '{{ trans("separate-groups") | e("js") }}', 2: '{{ trans("visible-groups") | e("js") }}'};
         const visibleLabel = mod.visible ? (mod.visibleoncoursepage ? '{{ trans("yes") | e("js") }}' : '{{ trans("module-stealth") | e("js") }}') : '{{ trans("module-hidden") | e("js") }}';
 
+        // Pre-escape all untrusted Moodle fields (F2.4). Server-side
+        // allowlist-based rich text for mod.description is tracked
+        // for Fase 4 when the controller is revisited.
+        const safe = {
+            name:        mmEscapeHtml(mod.name),
+            modname:     mmEscapeHtml(mod.modname),
+            sectionName: mmEscapeHtml(mod.sectionName),
+            description: mmEscapeHtml(mod.description),
+            url:         mmEscapeHtml(mod.url),
+            urlHref:     mmEscapeHtml(mmSafeUrl(mod.url))
+        };
+
         body.innerHTML = `
             <table class="table table-sm">
-                <tr><th style="width:40%">{{ trans("name") | e("js") }}</th><td>${mod.name}</td></tr>
-                <tr><th>{{ trans("type") | e("js") }}</th><td>${mod.modname}</td></tr>
+                <tr><th style="width:40%">{{ trans("name") | e("js") }}</th><td>${safe.name}</td></tr>
+                <tr><th>{{ trans("type") | e("js") }}</th><td>${safe.modname}</td></tr>
                 <tr><th>ID (cmid)</th><td>${mod.id}</td></tr>
                 <tr><th>Instance ID</th><td>${mod.instance}</td></tr>
-                <tr><th>{{ trans("section") | e("js") }}</th><td>${mod.sectionName} (#${mod.section})</td></tr>
+                <tr><th>{{ trans("section") | e("js") }}</th><td>${safe.sectionName} (#${mod.section})</td></tr>
                 <tr><th>{{ trans("visible") | e("js") }}</th><td>${visibleLabel}</td></tr>
                 <tr><th>{{ trans("indent") | e("js") }}</th><td>${mod.indent}</td></tr>
                 <tr><th>{{ trans("group-mode") | e("js") }}</th><td>${groupLabels[mod.groupmode] || mod.groupmode}</td></tr>
                 <tr><th>Completion</th><td>${completionLabels[mod.completion] || mod.completion}</td></tr>
-                ${mod.description ? `<tr><th>{{ trans("description") | e("js") }}</th><td>${mod.description}</td></tr>` : ''}
-                ${mod.url ? `<tr><th>URL</th><td><a href="${mod.url}" target="_blank" rel="noopener noreferrer">${mod.url}</a></td></tr>` : ''}
+                ${mod.description ? `<tr><th>{{ trans("description") | e("js") }}</th><td>${safe.description}</td></tr>` : ''}
+                ${mod.url ? `<tr><th>URL</th><td><a href="${safe.urlHref}" target="_blank" rel="noopener noreferrer">${safe.url}</a></td></tr>` : ''}
             </table>
             <div class="text-end">
                 <div class="btn-group btn-group-sm">
@@ -609,7 +643,7 @@
                     <button class="btn btn-outline-info" onclick="moduleAction('cm-duplicate', ${mod.id})" data-bs-dismiss="modal">
                         <i class="fa-solid fa-copy me-1"></i>{{ trans("duplicate-module") | e("js") }}
                     </button>
-                    <button class="btn btn-outline-danger" onclick="confirmDeleteModule(${mod.id}, '${mod.name.replace(/'/g, "\\'")}')" data-bs-dismiss="modal">
+                    <button class="btn btn-outline-danger" data-cmid="${mod.id}" data-cmname="${safe.name}" data-bs-dismiss="modal" onclick="confirmDeleteModule(this.dataset.cmid, this.dataset.cmname)">
                         <i class="fa-solid fa-trash me-1"></i>{{ trans("delete-module") | e("js") }}
                     </button>
                 </div>
