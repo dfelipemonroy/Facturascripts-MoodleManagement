@@ -9,6 +9,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 use FacturaScripts\Core\Base\Controller;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\CertificatePdfGenerator;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CspHeader;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCertificate;
 
 /**
@@ -32,6 +33,17 @@ class MoodleCertificatePdf extends Controller
     public function privateCore(&$response, $user, $permissions): void
     {
         parent::privateCore($response, $user, $permissions);
+
+        // F2.11 — PDF response is not HTML so the main script-src is
+        // irrelevant, but we still want frame-ancestors 'none' and
+        // X-Content-Type-Options nosniff to prevent the PDF from
+        // being framed inside an attacker site or mis-sniffed.
+        CspHeader::apply($this->response, [
+            'script-src'  => "'none'",
+            'style-src'   => "'none'",
+            'img-src'     => "'none'",
+            'object-src'  => "'none'",
+        ]);
 
         $code = $this->request->get('code');
         if (empty($code)) {
