@@ -21,6 +21,10 @@ namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
 use FacturaScripts\Core\Lib\ExtendedController\EditController;
 
+/**
+ * @since 2.0 — Part of the configurable certificate templates feature
+ *              (see docs/BRAINSTORMING.md §v2.0-E).
+ */
 class EditMoodleCertificateTemplate extends EditController
 {
     public function getModelClassName(): string

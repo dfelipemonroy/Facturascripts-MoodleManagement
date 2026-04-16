@@ -29,6 +29,9 @@ use FacturaScripts\Core\Tools;
  * A template can be global (idinstance = null, is_default = true) or tied
  * to a specific Moodle instance.
  *
+ * @since 2.0 — New model (feature v2.0-E). Fase 5 F5.2 seeds the
+ *              default row; Fase 5 F5.5 ensures idinstance FK SET NULL.
+ *
  * Lookup precedence in CertificatePdfGenerator:
  *   1. Template matching cert's idinstance (first row found)
  *   2. Global default template (idinstance IS NULL AND is_default = true)

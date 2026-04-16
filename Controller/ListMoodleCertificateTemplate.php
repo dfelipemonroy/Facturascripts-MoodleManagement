@@ -21,6 +21,10 @@ namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
 
+/**
+ * @since 2.0 — Part of the configurable certificate templates feature
+ *              (see docs/BRAINSTORMING.md §v2.0-E).
+ */
 class ListMoodleCertificateTemplate extends ListController
 {
     public function getPageData(): array

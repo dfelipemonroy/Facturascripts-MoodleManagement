@@ -28,6 +28,10 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
  * Sends the expiry-notification email for a single enrolment.
  * Extracted from Cron so it can be reused by the manual "resend" button
  * on EditMoodleEnrolment without instantiating a CronClass.
+ *
+ * @since 2.0 — Fase 8 F8.5 removes raw email/PII from log lines via
+ *              Lib/Logger/PiiMasker.php; Fase 7 F7.20 forces TLS on
+ *              the SMTP transport when configured.
  */
 class ExpiryNotifier
 {

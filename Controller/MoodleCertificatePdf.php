@@ -14,6 +14,9 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCertificate;
 /**
  * Downloads a PDF certificate for a given MoodleCertificate record.
  * URL: /MoodleCertificatePdf?code=<id>
+ *
+ * @since 2.0 — CRITICAL: Fase 4 F4.1 adds ownership check (IDOR fix)
+ *              and Fase 2 F2.5 sanitizes exception messages.
  */
 class MoodleCertificatePdf extends Controller
 {

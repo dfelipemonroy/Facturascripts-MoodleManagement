@@ -21,6 +21,9 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCertificateTemplate;
  *   1. Explicit template passed to generate()
  *   2. Best match via MoodleCertificateTemplate::findBest($cert->idinstance)
  *   3. Hardcoded built-in defaults
+ *
+ * @since 2.0 — Fase 7 F7.8 hardens resolveLogoPath() against path
+ *              traversal.
  */
 class CertificatePdfGenerator
 {

@@ -26,6 +26,10 @@ use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
+/**
+ * @since 2.0 — Fase 2 F2.6 hardens the `mm_wizard_type` cookie with
+ *              HttpOnly/Secure/SameSite flags.
+ */
 class MoodleImportWizard extends Controller
 {
     const SESSION_KEY = 'moodle_import_wizard';
