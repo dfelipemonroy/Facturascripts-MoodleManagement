@@ -1,0 +1,61 @@
+# PHPStan configuration for MoodleManagement plugin
+# FacturaScripts 2025.81 · PHP 8.0+
+# Conforms with V2.0-ACTION-PLAN F0.3
+#
+# Usage (from plugin root):
+#   vendor/bin/phpstan analyse
+# Or with FS core vendor:
+#   ../../vendor/bin/phpstan analyse
+
+parameters:
+    # Level 5 is the V2.0 DoD target.
+    # Step up gradually: start at 0, raise as errors drop to 0.
+    level: 5
+
+    # Bootstrap the FS autoloader so framework classes resolve.
+    # Falls back to the vendor in FS root when running locally.
+    bootstrapFiles:
+        - ../../vendor/autoload.php
+
+    # Paths analysed
+    paths:
+        - Controller
+        - Model
+        - Lib
+        - Worker
+        - Extension
+        - Widget
+        - Cron.php
+        - Init.php
+
+    # Paths excluded
+    excludePaths:
+        analyseAndScan:
+            - Dinamic/*
+            - vendor/*
+            - node_modules/*
+            - Assets/JS/vendor/*
+            - docs/*
+            - .docs-dev/*
+            - Test/Fixtures/*
+
+    # FacturaScripts uses dynamic Dinamic\ proxy classes generated at runtime.
+    # Tell PHPStan to treat unresolved Dinamic namespace calls gracefully.
+    ignoreErrors:
+        # Dinamic proxies resolved at runtime — PHPStan can't see them.
+        - '#Class FacturaScripts\\Dinamic\\#'
+        # FS Model base uses magic ->all() without strict signature.
+        - '#Call to an undefined (static )?method FacturaScripts\\Core\\(Template|Model)\\#'
+        # Tools::log() / lang() return union types with magic methods.
+        - '#Cannot call method trans\(\) on mixed#'
+
+    # Treat unmatched ignores as a hint, not a failure (good during ramp-up).
+    reportUnmatchedIgnoredErrors: false
+
+    # Useful when signatures are polymorphic across FS core.
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
+
+    # Parallel analysis tuning
+    parallel:
+        maximumNumberOfProcesses: 4
