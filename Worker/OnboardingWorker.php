@@ -17,8 +17,33 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleRoleMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
+/**
+ * Runs the new-user onboarding pipeline when a MoodleUserMap is first
+ * created (`Model.MoodleUserMap.Insert` event).
+ *
+ * Steps, each conditional on the instance configuration:
+ *   1. Enrol the user in the configured welcome course.
+ *   2. Add the user to the configured onboarding cohort.
+ *   3. Send the welcome message over the Moodle messaging API.
+ *   4. Create an operator-visible note on the user's profile.
+ *
+ * All failures are logged and swallowed so one failing step does not
+ * prevent the remainder from running. Retries and race-condition
+ * resilience are added in Fase 6 F6.5.
+ *
+ * @since 2.0 PHPDoc completed (existed since 1.1)
+ */
 class OnboardingWorker extends WorkerClass
 {
+    /**
+     * Entry point called by the WorkQueue when a MoodleUserMap Insert
+     * event fires.
+     *
+     * @param WorkEvent $event Event with $event->value = MoodleUserMap PK.
+     * @return bool True once finalised via $this->done() — always true
+     *              (errors are logged, not escalated, so the event is
+     *              not retried indefinitely).
+     */
     public function run(WorkEvent $event): bool
     {
         $map = new MoodleUserMap();
@@ -47,6 +72,19 @@ class OnboardingWorker extends WorkerClass
         return $this->done();
     }
 
+    /**
+     * Enrols the user in the instance's welcome course (if configured
+     * and not already enrolled).
+     *
+     * Creates a MoodleEnrolment row with role resolved via
+     * MoodleRoleMap::resolveRoleForContact(). Duration is taken from
+     * the course map's `duracion_dias` if present; otherwise the
+     * enrolment is open-ended.
+     *
+     * @param MoodleInstance $instance
+     * @param MoodleUserMap  $map
+     * @return void
+     */
     private function enrolInWelcomeCourse(MoodleInstance $instance, MoodleUserMap $map): void
     {
         if (empty($instance->onboarding_course_id)) {
@@ -99,6 +137,14 @@ class OnboardingWorker extends WorkerClass
         }
     }
 
+    /**
+     * Adds the user to the instance's onboarding cohort via
+     * `core_cohort_add_cohort_members`.
+     *
+     * @param MoodleInstance $instance
+     * @param MoodleUserMap  $map
+     * @return void
+     */
     private function addToCohort(MoodleInstance $instance, MoodleUserMap $map): void
     {
         if (empty($instance->onboarding_cohort_id)) {
@@ -124,6 +170,17 @@ class OnboardingWorker extends WorkerClass
         }
     }
 
+    /**
+     * Delivers the welcome message via Moodle's messaging API, with
+     * placeholder substitution (%name%, %username%, %site%).
+     *
+     * Requires $instance->service_userid to be set (the sending user
+     * in Moodle). If absent, silently skips.
+     *
+     * @param MoodleInstance $instance
+     * @param MoodleUserMap  $map
+     * @return void
+     */
     private function sendWelcomeMessage(MoodleInstance $instance, MoodleUserMap $map): void
     {
         if (empty($instance->onboarding_welcome_message) || empty($instance->service_userid)) {
@@ -158,6 +215,14 @@ class OnboardingWorker extends WorkerClass
         }
     }
 
+    /**
+     * Creates a site-wide visible note on the Moodle user profile with
+     * an onboarding timestamp (operator trail).
+     *
+     * @param MoodleInstance $instance
+     * @param MoodleUserMap  $map
+     * @return void
+     */
     private function createOnboardingNote(MoodleInstance $instance, MoodleUserMap $map): void
     {
         $contact = $map->getContacto();

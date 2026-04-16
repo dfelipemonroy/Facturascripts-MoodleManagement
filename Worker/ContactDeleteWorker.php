@@ -14,8 +14,22 @@ use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
+/**
+ * Suspends the Moodle user(s) linked to a deleted FacturaScripts
+ * Contacto, plus suspends all active enrolments. Does NOT hard-delete
+ * the Moodle user — suspension preserves history for audit / fiscal
+ * purposes.
+ *
+ * Triggered by `Model.Contacto.Delete`.
+ *
+ * @since 2.0 PHPDoc completed (existed since 1.0)
+ */
 class ContactDeleteWorker extends WorkerClass
 {
+    /**
+     * @param WorkEvent $event $event->value = deleted Contacto PK.
+     * @return bool True once $this->done() is called.
+     */
     public function run(WorkEvent $event): bool
     {
         $contactId = (int)$event->value;
@@ -70,6 +84,14 @@ class ContactDeleteWorker extends WorkerClass
         return $this->done();
     }
 
+    /**
+     * Moves every 'enrolled' MoodleEnrolment for the given contact/
+     * instance pair to 'suspended' state via MoodleEnrolment::suspend().
+     *
+     * @param int $contactId
+     * @param int $instanceId
+     * @return void
+     */
     private function suspendEnrolments(int $contactId, int $instanceId): void
     {
         $enrolModel = new MoodleEnrolment();

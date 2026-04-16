@@ -17,6 +17,21 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleRoleMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
+/**
+ * Central enrolment reconciliation worker.
+ *
+ * Triggered by `Model.FacturaCliente.Update`:
+ *   - If the invoice is `pagada = true`: iterates lines whose product
+ *     is mapped to a Moodle course and calls
+ *     MoodleEnrolment::enrol() to register them in Moodle.
+ *   - If the invoice is NOT paid: any pending enrolment linked to
+ *     that invoice is suspended / rolled back.
+ *
+ * Fase 7 F7.9 adds cantidad (line quantity) multiplication so that
+ * pack-style products enrol N slots per line.
+ *
+ * @since 2.0 PHPDoc completed (existed since 1.0)
+ */
 class EnrolmentWorker extends WorkerClass
 {
     /**
@@ -36,6 +51,10 @@ class EnrolmentWorker extends WorkerClass
      */
     public const RETRY_BASE_DELAY_MS = 500;
 
+    /**
+     * @param WorkEvent $event $event->value = FacturaCliente PK.
+     * @return bool True once $this->done() is called.
+     */
     public function run(WorkEvent $event): bool
     {
         $invoice = new FacturaCliente();

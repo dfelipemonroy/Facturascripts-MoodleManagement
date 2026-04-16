@@ -21,8 +21,28 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleRoleMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
+/**
+ * Creates `pending` MoodleEnrolment rows when a Presupuesto or
+ * Pedido is saved with lines that map to Moodle courses.
+ *
+ * No Moodle API call is made here: the enrolments stay as 'pending'
+ * in the local DB until the corresponding invoice is marked as paid,
+ * at which point EnrolmentWorker turns them into real Moodle
+ * enrolments.
+ *
+ * Listens to `Model.PresupuestoCliente.Update` and
+ * `Model.PedidoCliente.Update`. Line-delete propagation is added in
+ * Fase 6 F6.10.
+ *
+ * @since 2.0 PHPDoc completed (existed since 1.1)
+ */
 class PreEnrolmentWorker extends WorkerClass
 {
+    /**
+     * @param WorkEvent $event $event->value = Presupuesto or Pedido PK
+     *                         depending on $event->name.
+     * @return bool True once $this->done() is called.
+     */
     public function run(WorkEvent $event): bool
     {
         if ($event->name === 'Model.PresupuestoCliente.Update') {
@@ -43,6 +63,15 @@ class PreEnrolmentWorker extends WorkerClass
         return $this->done();
     }
 
+    /**
+     * Iterates the document lines and creates a MoodleEnrolment row
+     * per line whose product is mapped to a Moodle course. Skips
+     * lines whose enrolment already exists (idempotent).
+     *
+     * @param PresupuestoCliente|PedidoCliente $doc
+     * @param string $docType Either 'presupuesto' or 'pedido'.
+     * @return void
+     */
     private function createPendingEnrolments($doc, string $docType): void
     {
         $contactId = $this->getContactId($doc);
@@ -102,6 +131,16 @@ class PreEnrolmentWorker extends WorkerClass
         }
     }
 
+    /**
+     * Resolves the billing contact PK from the document:
+     *   1. Use $doc->idcontactofact if set.
+     *   2. Else load the Cliente by codcliente and use its
+     *      idcontactofact.
+     *   3. Else return 0 (caller must treat as "no contact").
+     *
+     * @param PresupuestoCliente|PedidoCliente $doc
+     * @return int idcontacto or 0 if none found.
+     */
     private function getContactId($doc): int
     {
         if (!empty($doc->idcontactofact)) {

@@ -14,8 +14,23 @@ use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
+/**
+ * Propagates changes made to a FacturaScripts Contacto to the mapped
+ * Moodle user(s) via `core_user_update_users`.
+ *
+ * Triggered by `Model.Contacto.Update`. Skips maps whose
+ * sync_direction is 'moodle_to_fs' (remote wins policy).
+ *
+ * Debouncing / coalescing is implemented in Fase 6 F6.8.
+ *
+ * @since 2.0 PHPDoc completed (existed since 1.0)
+ */
 class ContactSyncWorker extends WorkerClass
 {
+    /**
+     * @param WorkEvent $event $event->value = Contacto PK (idcontacto).
+     * @return bool True once $this->done() is called.
+     */
     public function run(WorkEvent $event): bool
     {
         $contact = new Contacto();
