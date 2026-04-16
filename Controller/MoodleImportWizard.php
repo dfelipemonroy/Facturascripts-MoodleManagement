@@ -170,15 +170,47 @@ class MoodleImportWizard extends Controller
             'auth_types' => (array)($this->state['auth_types'] ?? []),
             'mapping' => (array)($this->state['mapping'] ?? []),
         ];
+        // F2.6 — harden cookie:
+        //   HttpOnly : JS cannot read the state (blocks XSS-based read)
+        //   Secure   : only over HTTPS (auto-detected from request)
+        //   SameSite : Lax so the cookie still ships on top-level
+        //              navigations the wizard depends on, but is
+        //              blocked on cross-site POST.
         @setcookie(
             self::PREFS_COOKIE,
             json_encode($payload),
-            time() + self::PREFS_COOKIE_TTL,
-            '/',
-            '',
-            false,
-            false
+            [
+                'expires'  => time() + self::PREFS_COOKIE_TTL,
+                'path'     => '/',
+                'domain'   => '',
+                'secure'   => $this->isHttpsRequest(),
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]
         );
+    }
+
+    /**
+     * Detects whether the current request is served over TLS. Honours
+     * X-Forwarded-Proto when FacturaScripts is behind a reverse proxy
+     * that FS itself trusts (same heuristic as Request::isSecure()).
+     *
+     * @since 2.0
+     */
+    private function isHttpsRequest(): bool
+    {
+        if (method_exists($this->request, 'isSecure') && $this->request->isSecure()) {
+            return true;
+        }
+        if (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off') {
+            return true;
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])
+            && strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https'
+        ) {
+            return true;
+        }
+        return false;
     }
 
     // ─────────────────────────────────────────────────────────────────────
