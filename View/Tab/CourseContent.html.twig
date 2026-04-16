@@ -598,7 +598,7 @@
                 <tr><th>{{ trans("group-mode") | e("js") }}</th><td>${groupLabels[mod.groupmode] || mod.groupmode}</td></tr>
                 <tr><th>Completion</th><td>${completionLabels[mod.completion] || mod.completion}</td></tr>
                 ${mod.description ? `<tr><th>{{ trans("description") | e("js") }}</th><td>${mod.description}</td></tr>` : ''}
-                ${mod.url ? `<tr><th>URL</th><td><a href="${mod.url}" target="_blank" rel="noopener">${mod.url}</a></td></tr>` : ''}
+                ${mod.url ? `<tr><th>URL</th><td><a href="${mod.url}" target="_blank" rel="noopener noreferrer">${mod.url}</a></td></tr>` : ''}
             </table>
             <div class="text-end">
                 <div class="btn-group btn-group-sm">
