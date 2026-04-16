@@ -1,3 +1,19 @@
-docs/
+# Ignore all internal docs by default...
+# Using docs/* (not docs/) so that selective !docs/<file> exceptions work.
+docs/*
+# ...but keep the v2.0 plan and checklist version-controlled.
+!docs/V2.0-ACTION-PLAN.md
+!docs/V2.0-TASK-CHECKLIST.md
+
 vendor/
 .phpunit.cache/
+
+# PHP-CS-Fixer / PHPStan caches
+.php-cs-fixer.cache
+
+# PHPUnit coverage reports (produced locally, kept out of repo)
+.phpunit.cache/coverage-html/
+.phpunit.cache/coverage.xml
+.phpunit.cache/junit.xml
+.phpunit.cache/result
+
