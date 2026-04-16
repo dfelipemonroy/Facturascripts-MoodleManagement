@@ -17,6 +17,8 @@
 {% block body %}
     {% set data = fsc.dashboardData %}
     <script src="{{ asset('node_modules/chart.js/dist/Chart.min.js') }}"></script>
+    {# A11y enhancement: mirrors title to aria-label on icon-only buttons. @since 2.0 F1.7 #}
+    <script src="{{ asset('Plugins/MoodleManagement/Assets/JS/a11y-enhance.js') }}"></script>
 
     <div class="container-fluid mt-3 mb-4">
         {# Summary cards row 1 #}
