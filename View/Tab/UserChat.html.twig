@@ -52,7 +52,10 @@
                                         {{ contactName }}
                                     </div>
                                 {% endif %}
-                                <div class="mm-chat-text">{{ msg.text | raw }}</div>
+                                {# F2.1 — stored XSS fix: escape then convert \n to <br>.
+                                   `nl2br` in Twig is safe by design: it escapes HTML
+                                   first and only injects <br> tags. Never use |raw here. #}
+                                <div class="mm-chat-text">{{ msg.text | nl2br }}</div>
                                 <div class="mm-chat-meta">
                                     {{ msg.timecreated | date('d/m/Y H:i') }}
                                     {% if isMe %}
@@ -118,24 +121,27 @@ document.addEventListener('DOMContentLoaded', function() {
         return div.innerHTML;
     }
 
+    // Convert \n to <br>. The input is ALREADY entity-escaped by
+    // escapeHtml() at the call site, so adding <br> is safe.
+    function nl2br(safeHtml) {
+        return safeHtml.replace(/\r?\n/g, '<br>');
+    }
+
     function renderMessage(msg) {
         var isMe = (parseInt(msg.useridfrom) === serviceUserId);
+        var bubbleClass = 'mm-chat-bubble ' + (isMe ? 'mm-chat-bubble--me' : 'mm-chat-bubble--other');
         var bubble = '<div class="d-flex mb-2 ' + (isMe ? 'justify-content-end' : 'justify-content-start') + '">';
-        bubble += '<div style="max-width: 75%; padding: 8px 14px; border-radius: 12px; ';
-        if (isMe) {
-            bubble += 'background: #dcf8c6; border-bottom-right-radius: 4px;';
-        } else {
-            bubble += 'background: #fff; border-bottom-left-radius: 4px; box-shadow: 0 1px 1px rgba(0,0,0,.1);';
-        }
-        bubble += '">';
+        bubble += '<div class="' + bubbleClass + '">';
         if (!isMe) {
-            bubble += '<div style="font-size: 0.75rem; color: #075e54; font-weight: 600; margin-bottom: 2px;">' + escapeHtml(contactName) + '</div>';
+            bubble += '<div class="mm-chat-sender">' + escapeHtml(contactName) + '</div>';
         }
-        bubble += '<div style="font-size: 0.9rem; word-wrap: break-word;">' + msg.text + '</div>';
-        bubble += '<div style="font-size: 0.7rem; color: #999; text-align: right; margin-top: 2px;">';
-        bubble += formatDate(msg.timecreated);
+        // F2.2 — stored XSS fix: escape msg.text before injecting,
+        // then convert \n to <br> (safe because input already escaped).
+        bubble += '<div class="mm-chat-text">' + nl2br(escapeHtml(msg.text || '')) + '</div>';
+        bubble += '<div class="mm-chat-meta">';
+        bubble += escapeHtml(formatDate(msg.timecreated));
         if (isMe) {
-            bubble += ' <i class="fa-solid fa-check-double ms-1" style="color: #53bdeb;"></i>';
+            bubble += ' <i class="fa-solid fa-check-double ms-1 mm-chat-read"></i>';
         }
         bubble += '</div></div></div>';
         return bubble;
