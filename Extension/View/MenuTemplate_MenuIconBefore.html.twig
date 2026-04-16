@@ -1,7 +1,9 @@
+{# Inline style moved to Assets/CSS/moodle.css (.mm-menu-badge). F1.8 #}
+<link rel="stylesheet" href="{{ asset('Plugins/MoodleManagement/Assets/CSS/moodle.css') }}"/>
 <li class="nav-item" title="{{ trans('moodle-conversations') }}" id="moodleChatNavItem">
-    <a class="nav-link" href="ListMoodleConversation">
+    <a class="nav-link" href="ListMoodleConversation" aria-label="{{ trans('moodle-conversations') }}">
         <i class="fa-solid fa-comments" aria-hidden="true"></i>
-        <span id="moodleChatBadge" class="badge bg-danger rounded-pill d-none" style="position: relative; top: -8px; left: -5px; font-size: 0.6rem;"></span>
+        <span id="moodleChatBadge" class="badge bg-danger rounded-pill d-none mm-menu-badge"></span>
     </a>
 </li>
 <script>

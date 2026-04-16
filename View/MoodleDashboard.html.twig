@@ -17,7 +17,8 @@
 {% block body %}
     {% set data = fsc.dashboardData %}
     <script src="{{ asset('node_modules/chart.js/dist/Chart.min.js') }}"></script>
-    {# A11y enhancement: mirrors title to aria-label on icon-only buttons. @since 2.0 F1.7 #}
+    {# Shared stylesheet (F1.8). A11y JS (F1.7). #}
+    <link rel="stylesheet" href="{{ asset('Plugins/MoodleManagement/Assets/CSS/moodle.css') }}"/>
     <script src="{{ asset('Plugins/MoodleManagement/Assets/JS/a11y-enhance.js') }}"></script>
 
     <div class="container-fluid mt-3 mb-4">
@@ -58,7 +59,7 @@
             <div class="col-xl col-md-4 col-6 mb-2">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body py-3 text-center">
-                        <h3 class="mb-0" style="color:#6f42c1">{{ data.activeInstances | default(0) }}</h3>
+                        <h3 class="mb-0 mm-metric-purple">{{ data.activeInstances | default(0) }}</h3>
                         <small class="text-muted">{{ trans('active-instances') }}</small>
                     </div>
                 </div>
@@ -66,7 +67,7 @@
             <div class="col-xl col-md-4 col-6 mb-2">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body py-3 text-center">
-                        <h3 class="mb-0" style="color:#0dcaf0">{{ data.totalUsers | default(0) }}</h3>
+                        <h3 class="mb-0 mm-metric-cyan">{{ data.totalUsers | default(0) }}</h3>
                         <small class="text-muted">{{ trans('mapped-users') }}</small>
                     </div>
                 </div>

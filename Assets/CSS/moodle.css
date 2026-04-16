@@ -1,0 +1,130 @@
+/*!
+ * MoodleManagement plugin — shared stylesheet.
+ * FacturaScripts 2025.81 — v2.0
+ *
+ * Conforms with V2.0-ACTION-PLAN F1.8 (§3.14).
+ *
+ * Purpose: host reusable utility classes that replace the most
+ * frequent inline `style="..."` attributes in Twig templates.
+ *
+ * Loading: include `{{ asset('Plugins/MoodleManagement/Assets/CSS/moodle.css') }}`
+ * in any Twig that uses these classes. Fase 3 F3.14 wires a
+ * `Cache-Control` header and Fase 11 may move these assets into
+ * the FS bundle pipeline.
+ */
+
+/* -------------------------------------------------------------
+ *  Icon sizes — replaces `style="font-size: X"` dots/indicators
+ * ----------------------------------------------------------- */
+.mm-icon-xs { font-size: 0.5rem; }
+.mm-icon-sm { font-size: 0.7rem; }
+.mm-icon-mm { font-size: 0.8rem; }
+
+/* -------------------------------------------------------------
+ *  Dashboard metric colours (replace inline color:#... swatches)
+ * ----------------------------------------------------------- */
+.mm-metric-purple { color: #6f42c1; }
+.mm-metric-cyan   { color: #0dcaf0; }
+
+/* -------------------------------------------------------------
+ *  Scrollable table / list containers
+ * ----------------------------------------------------------- */
+.mm-scroll-list  { max-height: 350px; overflow-y: auto; }
+.mm-scroll-table { max-height: 400px; overflow-y: auto; }
+.mm-scroll-tall  { max-height: 500px; overflow-y: auto; }
+
+/* -------------------------------------------------------------
+ *  Chat (UserChat.html.twig)
+ * ----------------------------------------------------------- */
+.mm-chat-area {
+    height: 450px;
+    overflow-y: auto;
+    background: #f0f2f5;
+}
+
+.mm-chat-footer { background: #f0f2f5; }
+
+.mm-chat-bubble {
+    max-width: 75%;
+    padding: 8px 14px;
+    border-radius: 12px;
+}
+
+.mm-chat-bubble--me {
+    background: #dcf8c6;
+    border-bottom-right-radius: 4px;
+}
+
+.mm-chat-bubble--other {
+    background: #ffffff;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .1);
+}
+
+.mm-chat-sender {
+    font-size: 0.75rem;
+    color: #075e54;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.mm-chat-text {
+    font-size: 0.9rem;
+    word-wrap: break-word;
+}
+
+.mm-chat-meta {
+    font-size: 0.7rem;
+    color: #999;
+    text-align: right;
+    margin-top: 2px;
+}
+
+.mm-chat-read    { color: #53bdeb; }
+
+.mm-chat-textarea {
+    resize: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+}
+
+.mm-chat-send-btn {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+}
+
+/* -------------------------------------------------------------
+ *  Conversation list rows
+ * ----------------------------------------------------------- */
+.mm-conv-status { min-width: 20px; }
+.mm-conv-body   { min-width: 0; }
+.mm-conv-time   { min-width: 100px; }
+.mm-conv-preview {
+    font-size: 0.85rem;
+}
+
+/* -------------------------------------------------------------
+ *  Course menu badge (Extension/View/MenuTemplate_MenuIconBefore)
+ * ----------------------------------------------------------- */
+.mm-menu-badge {
+    position: relative;
+    top: -8px;
+    left: -5px;
+    font-size: 0.6rem;
+}
+
+/* -------------------------------------------------------------
+ *  Widget — course image thumbnail in list cells
+ * ----------------------------------------------------------- */
+.mm-thumb {
+    max-height: 40px;
+    max-width: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+/* -------------------------------------------------------------
+ *  Miscellaneous helpers
+ * ----------------------------------------------------------- */
+.mm-cursor-pointer { cursor: pointer; }

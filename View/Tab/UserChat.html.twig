@@ -1,3 +1,7 @@
+{# UserChat tab — WhatsApp-style chat UI for FS↔Moodle messaging.
+   Styles moved from inline to Assets/CSS/moodle.css (F1.8). #}
+<link rel="stylesheet" href="{{ asset('Plugins/MoodleManagement/Assets/CSS/moodle.css') }}"/>
+
 {% set model = fsc.getModel() %}
 {% set messages = fsc.chatMessages %}
 {% set error = fsc.chatError %}
@@ -32,7 +36,7 @@
             </div>
 
             {# Messages area #}
-            <div id="chatMessagesArea" class="card-body p-3" style="height: 450px; overflow-y: auto; background: #f0f2f5;">
+            <div id="chatMessagesArea" class="card-body p-3 mm-chat-area">
                 {% if messages is empty %}
                     <div id="chatEmptyState" class="text-center text-muted py-5">
                         <i class="fa-regular fa-comments fa-3x mb-3 d-block opacity-50"></i>
@@ -42,17 +46,17 @@
                     {% for msg in messages %}
                         {% set isMe = (msg.useridfrom == serviceUserId) %}
                         <div class="d-flex mb-2 {{ isMe ? 'justify-content-end' : 'justify-content-start' }}">
-                            <div style="max-width: 75%; padding: 8px 14px; border-radius: 12px; {{ isMe ? 'background: #dcf8c6; border-bottom-right-radius: 4px;' : 'background: #fff; border-bottom-left-radius: 4px; box-shadow: 0 1px 1px rgba(0,0,0,.1);' }}">
+                            <div class="mm-chat-bubble {{ isMe ? 'mm-chat-bubble--me' : 'mm-chat-bubble--other' }}">
                                 {% if not isMe %}
-                                    <div style="font-size: 0.75rem; color: #075e54; font-weight: 600; margin-bottom: 2px;">
+                                    <div class="mm-chat-sender">
                                         {{ contactName }}
                                     </div>
                                 {% endif %}
-                                <div style="font-size: 0.9rem; word-wrap: break-word;">{{ msg.text | raw }}</div>
-                                <div style="font-size: 0.7rem; color: #999; text-align: right; margin-top: 2px;">
+                                <div class="mm-chat-text">{{ msg.text | raw }}</div>
+                                <div class="mm-chat-meta">
                                     {{ msg.timecreated | date('d/m/Y H:i') }}
                                     {% if isMe %}
-                                        <i class="fa-solid fa-check-double ms-1" style="color: #53bdeb;"></i>
+                                        <i class="fa-solid fa-check-double ms-1 mm-chat-read"></i>
                                     {% endif %}
                                 </div>
                             </div>
@@ -62,18 +66,17 @@
             </div>
 
             {# Input area #}
-            <div class="card-footer p-2" style="background: #f0f2f5;">
+            <div class="card-footer p-2 mm-chat-footer">
                 <form id="chatForm" method="post" class="d-flex gap-2 align-items-end">
                     <input type="hidden" name="action" value="send-chat-message"/>
                     <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}"/>
                     <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
                     <input type="hidden" name="activetab" value="UserChat"/>
                     <div class="flex-grow-1">
-                        <textarea id="chatInput" name="chat_message" class="form-control" rows="1" placeholder="{{ trans('type-your-message') }}" required
-                                  style="resize: none; border-radius: 20px; padding: 8px 16px;"
+                        <textarea id="chatInput" name="chat_message" class="form-control mm-chat-textarea" rows="1" placeholder="{{ trans('type-your-message') }}" required
                                   onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); this.form.submit();}"></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary rounded-circle" style="width: 42px; height: 42px; padding: 0;">
+                    <button type="submit" class="btn btn-primary rounded-circle mm-chat-send-btn" title="{{ trans('send-message') }}">
                         <i class="fa-solid fa-paper-plane"></i>
                     </button>
                 </form>

@@ -35,8 +35,10 @@ class WidgetCourseimage extends BaseWidget
             return '<td class="text-center">-</td>';
         }
 
+        // Class `mm-thumb` is defined in Assets/CSS/moodle.css (F1.8).
+        // The stylesheet must be loaded by the enclosing Twig.
         return '<td class="text-center">'
-            . '<img loading="lazy" src="' . $url . '" style="max-height:40px;max-width:60px;object-fit:cover;border-radius:4px;" alt=""/>'
+            . '<img loading="lazy" src="' . $url . '" class="mm-thumb" alt=""/>'
             . '</td>';
     }
 
