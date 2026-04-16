@@ -23,6 +23,7 @@ use FacturaScripts\Core\Model\Cliente;
 use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CsvEscaper;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
@@ -476,7 +477,10 @@ class MoodleImportWizard extends Controller
         // UTF-8 BOM so Excel opens the file correctly
         fwrite($buffer, "\xEF\xBB\xBF");
 
-        fputcsv($buffer, [
+        // F2.7 — header row is hardcoded (no user input) and would
+        // not trigger formula injection, but we route it through
+        // CsvEscaper anyway to keep a single formatting code-path.
+        CsvEscaper::fputcsvSafe($buffer, [
             Tools::lang()->trans('status'),
             'moodle-username',
             Tools::lang()->trans('email'),
@@ -484,7 +488,11 @@ class MoodleImportWizard extends Controller
         ], ';');
 
         foreach ($result['details'] as $row) {
-            fputcsv($buffer, [
+            // F2.7 — user-controlled Moodle values (`username`, `email`,
+            // translated `message`) go through CsvEscaper::fputcsvSafe
+            // so any leading '=', '+', '-', '@', TAB, CR is prefixed
+            // with a single quote. Blocks OWASP CSV injection.
+            CsvEscaper::fputcsvSafe($buffer, [
                 Tools::lang()->trans((string)($row['status'] ?? '')),
                 (string)($row['username'] ?? ''),
                 (string)($row['email'] ?? ''),
