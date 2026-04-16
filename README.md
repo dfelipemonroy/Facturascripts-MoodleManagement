@@ -4,6 +4,93 @@ Plugin para FacturaScripts que permite gestionar plataformas Moodle directamente
 
 *[English version below](#english--inglés)*
 
+## Arquitectura — Flujo de datos
+
+El diagrama muestra cómo una factura se convierte en una matrícula activa y, eventualmente, en un certificado entregado por email.
+
+```mermaid
+flowchart LR
+    subgraph FS["FacturaScripts"]
+        direction TB
+        FC[FacturaCliente<br/>pagada=true]
+        PC[PresupuestoCliente<br/>PedidoCliente]
+        CT[Contacto]
+        PR[Producto<br/>moodle_course=true]
+    end
+
+    subgraph WQ["WorkQueue (async workers)"]
+        direction TB
+        EW[EnrolmentWorker]
+        PW[PreEnrolmentWorker]
+        CSW[ContactSyncWorker]
+        CDW[ContactDeleteWorker]
+        OW[OnboardingWorker]
+        BSW[BadgeSyncWorker]
+    end
+
+    subgraph PLUG["Plugin models"]
+        direction TB
+        UM[MoodleUserMap]
+        CM[MoodleCourseMap]
+        EN[MoodleEnrolment]
+        CE[MoodleCertificate]
+    end
+
+    subgraph MOODLE["Moodle LMS (REST WS)"]
+        direction TB
+        MU[core_user_*]
+        ME[enrol_manual_*]
+        MB[core_badges_*]
+        MM[core_message_*]
+    end
+
+    subgraph OUT["Output"]
+        direction TB
+        PDF[PDF<br/>CertificatePdfGenerator]
+        EMAIL[Email<br/>NewMail + ExpiryNotifier]
+    end
+
+    FC -- "Model.FacturaCliente.Update" --> EW
+    PC -- "Model.Presupuesto/Pedido.Update" --> PW
+    CT -- "Model.Contacto.Update" --> CSW
+    CT -- "Model.Contacto.Delete" --> CDW
+    UM -. "Model.MoodleUserMap.Insert" .-> OW
+    UM -. "Model.MoodleUserMap.Save (cascade-risk, F6.1)" .-> BSW
+
+    EW --> EN
+    PW --> EN
+    CSW --> MU
+    CDW --> MU
+    OW --> ME
+    OW --> MM
+    BSW --> MB
+
+    EN --> ME
+    UM <--> MU
+    CM <--> MU
+    PR --> CM
+
+    EN --> CE
+    CE --> PDF
+    CE --> EMAIL
+
+    classDef fs fill:#d0e6ff,stroke:#0060b0,color:#000;
+    classDef wq fill:#fff4c2,stroke:#b08000,color:#000;
+    classDef plug fill:#d4edda,stroke:#0c6b2a,color:#000;
+    classDef moodle fill:#f8d7da,stroke:#a02030,color:#000;
+    classDef out fill:#e7d4f5,stroke:#5a2a8a,color:#000;
+    class FC,PC,CT,PR fs
+    class EW,PW,CSW,CDW,OW,BSW wq
+    class UM,CM,EN,CE plug
+    class MU,ME,MB,MM moodle
+    class PDF,EMAIL out
+```
+
+**Leyenda rápida**:
+- **Flechas sólidas**: evento `Model.X.Update`/`Insert`/`Delete` que dispara el worker correspondiente.
+- **Flechas punteadas**: eventos en vigilancia activa para la Fase 6 (cascadas pendientes de cortar).
+- Los cron jobs (`healthCheck`, `userSync`, `courseSync`, `reconciliation`, `cleanup`, `expiryCheck`) consumen los mismos modelos pero se ejecutan en horario propio — no aparecen en este diagrama para mantenerlo legible.
+
 ## Funcionalidades
 
 ### Gestión de Instancias Moodle
@@ -412,6 +499,93 @@ LGPL v3 - GNU Lesser General Public License
 FacturaScripts plugin for managing Moodle platforms directly from your ERP. Connect your billing system with your LMS through the Moodle REST API.
 
 *[Versión en español arriba](#moodlemanagement-v10)*
+
+## Architecture — Data Flow
+
+The diagram shows how a paid invoice becomes an active enrolment and eventually a certificate delivered by email.
+
+```mermaid
+flowchart LR
+    subgraph FS["FacturaScripts"]
+        direction TB
+        FC[FacturaCliente<br/>pagada=true]
+        PC[PresupuestoCliente<br/>PedidoCliente]
+        CT[Contacto]
+        PR[Producto<br/>moodle_course=true]
+    end
+
+    subgraph WQ["WorkQueue (async workers)"]
+        direction TB
+        EW[EnrolmentWorker]
+        PW[PreEnrolmentWorker]
+        CSW[ContactSyncWorker]
+        CDW[ContactDeleteWorker]
+        OW[OnboardingWorker]
+        BSW[BadgeSyncWorker]
+    end
+
+    subgraph PLUG["Plugin models"]
+        direction TB
+        UM[MoodleUserMap]
+        CM[MoodleCourseMap]
+        EN[MoodleEnrolment]
+        CE[MoodleCertificate]
+    end
+
+    subgraph MOODLE["Moodle LMS (REST WS)"]
+        direction TB
+        MU[core_user_*]
+        ME[enrol_manual_*]
+        MB[core_badges_*]
+        MM[core_message_*]
+    end
+
+    subgraph OUT["Output"]
+        direction TB
+        PDF[PDF<br/>CertificatePdfGenerator]
+        EMAIL[Email<br/>NewMail + ExpiryNotifier]
+    end
+
+    FC -- "Model.FacturaCliente.Update" --> EW
+    PC -- "Model.Presupuesto/Pedido.Update" --> PW
+    CT -- "Model.Contacto.Update" --> CSW
+    CT -- "Model.Contacto.Delete" --> CDW
+    UM -. "Model.MoodleUserMap.Insert" .-> OW
+    UM -. "Model.MoodleUserMap.Save (cascade-risk, F6.1)" .-> BSW
+
+    EW --> EN
+    PW --> EN
+    CSW --> MU
+    CDW --> MU
+    OW --> ME
+    OW --> MM
+    BSW --> MB
+
+    EN --> ME
+    UM <--> MU
+    CM <--> MU
+    PR --> CM
+
+    EN --> CE
+    CE --> PDF
+    CE --> EMAIL
+
+    classDef fs fill:#d0e6ff,stroke:#0060b0,color:#000;
+    classDef wq fill:#fff4c2,stroke:#b08000,color:#000;
+    classDef plug fill:#d4edda,stroke:#0c6b2a,color:#000;
+    classDef moodle fill:#f8d7da,stroke:#a02030,color:#000;
+    classDef out fill:#e7d4f5,stroke:#5a2a8a,color:#000;
+    class FC,PC,CT,PR fs
+    class EW,PW,CSW,CDW,OW,BSW wq
+    class UM,CM,EN,CE plug
+    class MU,ME,MB,MM moodle
+    class PDF,EMAIL out
+```
+
+**Quick legend**:
+- **Solid arrows**: `Model.X.Update`/`Insert`/`Delete` event that fires the corresponding worker.
+- **Dotted arrows**: events tracked for active remediation in Phase 6 (cascades to be cut).
+- Cron jobs (`healthCheck`, `userSync`, `courseSync`, `reconciliation`, `cleanup`, `expiryCheck`) consume the same models but run on their own schedule — omitted here to keep the diagram readable.
 
 ## Features
 
