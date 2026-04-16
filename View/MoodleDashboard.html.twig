@@ -16,7 +16,12 @@
 
 {% block body %}
     {% set data = fsc.dashboardData %}
-    <script src="{{ asset('node_modules/chart.js/dist/Chart.min.js') }}"></script>
+    {# F3.1 — Upgrade Chart.js 2.9 -> 4.x.
+       Chart.js 4 ships as UMD at `dist/chart.umd.js`.
+       Admins whose FS installation predates this must run
+       `npm --prefix $FS_ROOT install chart.js@^4` once.
+       Fallback CDN line is documented in UPGRADE.md §1.5. #}
+    <script src="{{ asset('node_modules/chart.js/dist/chart.umd.js') }}"></script>
     {# Shared stylesheet (F1.8). A11y JS (F1.7). #}
     <link rel="stylesheet" href="{{ asset('Plugins/MoodleManagement/Assets/CSS/moodle.css') }}"/>
     <script src="{{ asset('Plugins/MoodleManagement/Assets/JS/a11y-enhance.js') }}"></script>
@@ -155,6 +160,17 @@
             return g;
         }
 
+        // Chart.js 4 style tokens shared across the 4 charts.
+        // F3.1 — `legend` / `tooltips` moved under `plugins`; ticks.fontColor
+        // renamed to ticks.color; gridLines renamed to grid; yAxes[]/xAxes[]
+        // collapsed into `y` / `x`. horizontalBar type replaced by
+        // indexAxis: 'y' on a bar chart.
+        var v4TooltipStyle = {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            cornerRadius: 6,
+            padding: 10
+        };
+
         // --- 1. Status doughnut ---
         var ctxStatus = document.getElementById('chartStatus').getContext('2d');
         new Chart(ctxStatus, {
@@ -182,9 +198,11 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                cutoutPercentage: 65,
-                legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } },
-                tooltips: { backgroundColor: 'rgba(0,0,0,0.8)', cornerRadius: 6 }
+                cutout: '65%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } },
+                    tooltip: v4TooltipStyle
+                }
             }
         });
 
@@ -210,21 +228,25 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    yAxes: [{
-                        ticks: { beginAtZero: true, precision: 0, fontColor: '#6c757d' },
-                        gridLines: { color: 'rgba(0,0,0,0.05)', zeroLineColor: 'rgba(0,0,0,0.1)' }
-                    }],
-                    xAxes: [{
-                        ticks: { fontColor: '#6c757d' },
-                        gridLines: { display: false }
-                    }]
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, color: '#6c757d' },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    x: {
+                        ticks: { color: '#6c757d' },
+                        grid: { display: false }
+                    }
                 },
-                legend: { display: false },
-                tooltips: { backgroundColor: 'rgba(0,0,0,0.8)', cornerRadius: 6 }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: v4TooltipStyle
+                }
             }
         });
 
         // --- 3. Top courses horizontal bar with individual gradients ---
+        // Chart.js 4 removed `type: 'horizontalBar'`; use bar with indexAxis: 'y'.
         var ctxCourses = document.getElementById('chartTopCourses').getContext('2d');
         var courseColors = [
             { base: '#0d6efd', light: 'rgba(13,110,253,0.15)' },
@@ -245,7 +267,7 @@
             return courseColors[i % courseColors.length].base;
         });
         new Chart(ctxCourses, {
-            type: 'horizontalBar',
+            type: 'bar',
             data: {
                 labels: {{ data.topCourseLabels | default([]) | json_encode | raw }},
                 datasets: [{
@@ -258,20 +280,24 @@
                 }]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    xAxes: [{
-                        ticks: { beginAtZero: true, precision: 0, fontColor: '#6c757d' },
-                        gridLines: { color: 'rgba(0,0,0,0.05)' }
-                    }],
-                    yAxes: [{
-                        ticks: { fontColor: '#6c757d' },
-                        gridLines: { display: false }
-                    }]
+                    x: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, color: '#6c757d' },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    y: {
+                        ticks: { color: '#6c757d' },
+                        grid: { display: false }
+                    }
                 },
-                legend: { display: false },
-                tooltips: { backgroundColor: 'rgba(0,0,0,0.8)', cornerRadius: 6 }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: v4TooltipStyle
+                }
             }
         });
 
@@ -293,8 +319,10 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } },
-                tooltips: { backgroundColor: 'rgba(0,0,0,0.8)', cornerRadius: 6 }
+                plugins: {
+                    legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } },
+                    tooltip: v4TooltipStyle
+                }
             }
         });
     });
