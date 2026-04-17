@@ -731,6 +731,13 @@ class MoodleClient
     /**
      * Determine sync winner based on priority rule and timestamps.
      * Returns 'fs', 'moodle', or 'conflict'.
+     *
+     * @since 2.0 F7.5 — both sides are normalised to UTC epoch
+     *        before comparison. Previously strtotime($fsModified)
+     *        used the server's default timezone (often Europe/Madrid)
+     *        while $moodleModified arrived as a raw UTC epoch —
+     *        comparing them introduced a 1-2h drift that flipped
+     *        the winner incorrectly near the hour boundary.
      */
     public static function resolveConflict(string $priority, ?string $fsModified, ?string $moodleModified): string
     {
@@ -749,11 +756,29 @@ class MoodleClient
                 if (empty($moodleModified)) {
                     return 'fs';
                 }
-                $fsTime = strtotime($fsModified);
-                $moodleTime = is_numeric($moodleModified) ? (int)$moodleModified : strtotime($moodleModified);
+                $fsTime = self::parseToUtcEpoch($fsModified);
+                $moodleTime = is_numeric($moodleModified)
+                    ? (int) $moodleModified
+                    : self::parseToUtcEpoch((string) $moodleModified);
                 return $fsTime >= $moodleTime ? 'fs' : 'moodle';
             default:
                 return 'conflict';
+        }
+    }
+
+    /**
+     * F7.5 — parse a SQL timestamp string to a UTC Unix epoch so
+     * resolveConflict can compare apples-to-apples with Moodle's
+     * `timemodified`. Falls back to strtotime() when the input
+     * does not parse cleanly.
+     */
+    private static function parseToUtcEpoch(string $value): int
+    {
+        try {
+            $dt = new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+            return $dt->getTimestamp();
+        } catch (\Throwable $e) {
+            return (int) strtotime($value);
         }
     }
 
