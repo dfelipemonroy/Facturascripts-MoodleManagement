@@ -238,6 +238,9 @@ class Cron extends CronClass
         $orderBy = ['id' => 'ASC'];
         $offset = 0;
 
+        // F13 DISCOVERED-04 — per-batch warnings through BufferedLogger.
+        $log = new \FacturaScripts\Plugins\MoodleManagement\Lib\Logger\BufferedLogger(self::USER_SYNC_JOB, 50);
+
         do {
             $maps = $mapModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
             if (empty($maps)) {
@@ -250,10 +253,11 @@ class Cron extends CronClass
 
             $result = MoodleClient::getUsersByField($instance, 'id', $moodleIds);
             if (isset($result['exception'])) {
-                Tools::log(self::USER_SYNC_JOB)->warning('user-sync-failed', [
+                $log->warning('user-sync-failed', [
                     '%name%'    => $instance->name,
                     '%message%' => $result['message'] ?? $result['exception'],
                 ]);
+                $log->flush();
                 break;
             }
 
@@ -274,6 +278,8 @@ class Cron extends CronClass
             }
             $offset += self::BATCH_SIZE;
         } while (true);
+
+        $log->flush();
     }
 
     /**
@@ -422,6 +428,11 @@ class Cron extends CronClass
     {
         // F6.3 — paginate: chunk the local maps and call the WS once
         // per chunk. Missing-user marks happen per chunk boundary.
+        //
+        // F13 DISCOVERED-04 — route per-row warnings through the
+        // BufferedLogger so a reconciliation sweep with 1000 missing
+        // users emits at most one compound Tools::log() call per
+        // level instead of up to 1000.
         $mapModel = new MoodleUserMap();
         $where = [
             new DataBaseWhere('idinstance', $instance->id),
@@ -429,6 +440,7 @@ class Cron extends CronClass
         ];
         $orderBy = ['id' => 'ASC'];
         $offset = 0;
+        $log = new \FacturaScripts\Plugins\MoodleManagement\Lib\Logger\BufferedLogger(self::RECONCILIATION_JOB, 50);
 
         do {
             $maps = $mapModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
@@ -441,6 +453,7 @@ class Cron extends CronClass
             }, $maps);
             $result = MoodleClient::getUsersByField($instance, 'id', $moodleIds);
             if (isset($result['exception'])) {
+                $log->flush();
                 return;
             }
 
@@ -453,7 +466,7 @@ class Cron extends CronClass
                 if (!isset($existingIds[$map->moodle_userid])) {
                     $map->last_error = Tools::lang()->trans('user-not-found-in-moodle');
                     $map->save();
-                    Tools::log(self::RECONCILIATION_JOB)->warning('reconcile-user-missing', [
+                    $log->warning('reconcile-user-missing', [
                         '%userid%'   => $map->moodle_userid,
                         '%instance%' => $instance->name,
                     ]);
@@ -465,6 +478,8 @@ class Cron extends CronClass
             }
             $offset += self::BATCH_SIZE;
         } while (true);
+
+        $log->flush();
     }
 
     private function reconcileEnrolments(MoodleInstance $instance): void
@@ -472,6 +487,9 @@ class Cron extends CronClass
         // F6.3 — outer loop paginates course maps; inner loop
         // paginates local enrolments for that course. Each WS call
         // scoped to a single course so payloads stay small.
+        //
+        // F13 DISCOVERED-04 — BufferedLogger again for the high-
+        // cardinality warning case.
         $courseMapModel = new MoodleCourseMap();
         $cmWhere = [
             new DataBaseWhere('idinstance', $instance->id),
@@ -479,6 +497,7 @@ class Cron extends CronClass
         ];
         $cmOrder = ['id' => 'ASC'];
         $cmOffset = 0;
+        $log = new \FacturaScripts\Plugins\MoodleManagement\Lib\Logger\BufferedLogger(self::RECONCILIATION_JOB, 50);
 
         do {
             $courseMaps = $courseMapModel->all($cmWhere, $cmOrder, $cmOffset, self::BATCH_SIZE);
@@ -516,7 +535,7 @@ class Cron extends CronClass
                             $enrolment->last_error = Tools::lang()->trans('enrolment-not-found-in-moodle');
                             $enrolment->last_sync = date('Y-m-d H:i:s');
                             $enrolment->save();
-                            Tools::log(self::RECONCILIATION_JOB)->warning('reconcile-enrolment-missing', [
+                            $log->warning('reconcile-enrolment-missing', [
                                 '%userid%'   => $enrolment->moodle_userid,
                                 '%courseid%' => $enrolment->moodle_courseid,
                             ]);
@@ -534,6 +553,8 @@ class Cron extends CronClass
             }
             $cmOffset += self::BATCH_SIZE;
         } while (true);
+
+        $log->flush();
     }
 
     private function cleanup(): void
