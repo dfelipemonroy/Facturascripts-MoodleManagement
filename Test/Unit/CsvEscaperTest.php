@@ -25,7 +25,7 @@ final class CsvEscaperTest extends TestCase
         self::assertSame($expected, CsvEscaper::escape($input));
     }
 
-    public function dangerousProvider(): array
+    public static function dangerousProvider(): array
     {
         return [
             ['=SUM(A1:A2)',                      "'=SUM(A1:A2)"],

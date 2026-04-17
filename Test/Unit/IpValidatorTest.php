@@ -25,7 +25,7 @@ final class IpValidatorTest extends TestCase
         self::assertFalse(IpValidator::isPublicIp($ip), "expected private: $ip");
     }
 
-    public function privateIpProvider(): array
+    public static function privateIpProvider(): array
     {
         return [
             ['127.0.0.1'],
@@ -54,7 +54,7 @@ final class IpValidatorTest extends TestCase
         self::assertTrue(IpValidator::isPublicIp($ip), "expected public: $ip");
     }
 
-    public function publicIpProvider(): array
+    public static function publicIpProvider(): array
     {
         return [
             ['8.8.8.8'],

@@ -76,14 +76,27 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
 
+      # F14 — PHPStan needs FS core on disk so its autoload resolves
+       # `FacturaScripts\Core\*` used throughout the plugin.
+      - name: Clone FacturaScripts core
+        run: |
+          git clone --depth 1 --branch main \
+            https://github.com/NeoRazorX/facturascripts.git /tmp/fs-core
+          cp -r Plugins/MoodleManagement /tmp/fs-core/Plugins/MoodleManagement
+
+      - name: Install FS core vendor
+        working-directory: /tmp/fs-core
+        run: |
+          composer install --no-progress --no-interaction --no-dev
+
       - name: Install PHPStan
-        working-directory: Plugins/MoodleManagement
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
         run: |
           composer require --dev --no-progress --no-interaction \
             "phpstan/phpstan:^1.10"
 
       - name: PHPStan level 5
-        working-directory: Plugins/MoodleManagement
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
         run: |
           vendor/bin/phpstan analyse --no-progress --error-format=github
 
@@ -104,25 +117,41 @@ jobs:
           coverage: xdebug
           extensions: pdo_sqlite, mbstring, dom, libxml, openssl
 
-      - name: Install PHPUnit
-        working-directory: Plugins/MoodleManagement
+      # F14 — integration tests instantiate FS core models, which
+       # need the FacturaScripts source tree on disk. Clone FS core
+       # next to the plugin, copy the plugin into its Plugins/
+       # directory, and run PHPUnit from there so the two-level
+       # dirname() walk in Test/bootstrap.php resolves correctly.
+      - name: Clone FacturaScripts core
+        run: |
+          git clone --depth 1 --branch main \
+            https://github.com/NeoRazorX/facturascripts.git /tmp/fs-core
+          cp -r Plugins/MoodleManagement /tmp/fs-core/Plugins/MoodleManagement
+
+      - name: Install FS core vendor
+        working-directory: /tmp/fs-core
+        run: |
+          composer install --no-progress --no-interaction --no-dev
+
+      - name: Install PHPUnit in plugin vendor
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
         run: |
           composer require --dev --no-progress --no-interaction \
             "phpunit/phpunit:^9.6"
 
       - name: Run unit tests
-        working-directory: Plugins/MoodleManagement
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
         run: |
           vendor/bin/phpunit --testsuite=Unit --no-coverage --colors=never
 
       - name: Run integration tests
-        working-directory: Plugins/MoodleManagement
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
         run: |
           vendor/bin/phpunit --testsuite=Integration --no-coverage --colors=never
 
       - name: Run coverage report (PHP 8.2 only)
         if: matrix.php == '8.2'
-        working-directory: Plugins/MoodleManagement
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
         run: |
           vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml --colors=never
 
@@ -131,5 +160,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-xml
-          path: Plugins/MoodleManagement/coverage.xml
+          path: /tmp/fs-core/Plugins/MoodleManagement/coverage.xml
           retention-days: 30

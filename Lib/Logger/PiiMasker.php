@@ -48,10 +48,16 @@ final class PiiMasker
         if (count($parts) < 2) {
             return $local . '@***';
         }
-        $tld = array_pop($parts);
-        $main = implode('.', $parts);
-        $main = $main !== '' ? $main[0] . '***' : '***';
-        return $local . '@' . $main . '.' . $tld;
+        // Keep the last TWO segments as the suffix when the domain
+        // has 3+ labels (covers ccTLDs like co.uk, com.au, com.br).
+        // Fall back to the last single label otherwise.
+        $count = count($parts);
+        $suffixLabels = $count >= 3 ? 2 : 1;
+        $suffix = implode('.', array_slice($parts, -$suffixLabels));
+        $mainSegments = array_slice($parts, 0, $count - $suffixLabels);
+        $mainJoined = implode('.', $mainSegments);
+        $main = $mainJoined !== '' ? $mainJoined[0] . '***' : '***';
+        return $local . '@' . $main . '.' . $suffix;
     }
 
     /**

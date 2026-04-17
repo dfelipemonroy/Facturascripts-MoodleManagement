@@ -775,13 +775,21 @@ class MoodleClient
             $parts = explode('@', $contact->email);
             $username = strtolower(trim($parts[0]));
             $username = preg_replace('/[^a-z0-9\-_.]/', '', $username);
-            if (!empty($username)) {
+            if (self::hasAlnum($username)) {
                 return $username;
             }
         }
         $base = strtolower(trim(($contact->nombre ?? '') . '.' . ($contact->apellidos ?? '')));
         $base = preg_replace('/[^a-z0-9\-_.]/', '', str_replace(' ', '.', $base));
-        return !empty($base) ? $base : 'user' . time();
+        // F14 — require at least one alphanumeric so a lone '.' or
+        // '-' from a name-only contact doesn't survive as username.
+        return self::hasAlnum($base) ? $base : 'user' . time();
+    }
+
+    /** True when $s contains at least one ASCII alphanumeric. */
+    private static function hasAlnum(?string $s): bool
+    {
+        return $s !== null && $s !== '' && (bool) preg_match('/[a-z0-9]/i', $s);
     }
 
     // ---- Field mapping methods ----

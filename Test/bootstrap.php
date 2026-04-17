@@ -21,13 +21,19 @@ declare(strict_types=1);
 $pluginRoot = dirname(__DIR__);
 $fsRoot = dirname($pluginRoot, 2); // ../../ → FacturaScripts root
 
-// 1. Plugin-local composer autoload if present
+// 1. Plugin-local composer autoload if present.
+//
+//    F14 caveat: when BOTH the plugin's own vendor (with phpunit 9) AND
+//    the FS core vendor (with phpunit 11) are present, loading the
+//    plugin vendor FIRST wins for phpunit classes and avoids a
+//    TestSuite::__construct visibility collision. Always load the
+//    plugin vendor before FS core.
 $pluginVendor = $pluginRoot . '/vendor/autoload.php';
 if (is_file($pluginVendor)) {
     require_once $pluginVendor;
 }
 
-// 2. FacturaScripts core composer autoload
+// 2. FacturaScripts core composer autoload.
 $fsVendor = $fsRoot . '/vendor/autoload.php';
 if (is_file($fsVendor)) {
     require_once $fsVendor;

@@ -42,6 +42,31 @@ final class HtmlSanitizer
      *
      * @var array<string, string[]>
      */
+    /**
+     * Tags whose text content is executable (or semantically an
+     * active document). Dropped in full — both the element AND its
+     * text body — so the sanitiser does not turn
+     *   <script>evil()</script>
+     * into the literal string "evil()" that downstream code might
+     * still treat as code.
+     *
+     * @since 2.0 — F14 phpunit regression
+     *
+     * @var array<string, true>
+     */
+    private const EXEC_TAG_BLOCKLIST = [
+        'script'   => true,
+        'style'    => true,
+        'iframe'   => true,
+        'object'   => true,
+        'embed'    => true,
+        'applet'   => true,
+        'link'     => true,
+        'meta'     => true,
+        'frame'    => true,
+        'frameset' => true,
+    ];
+
     private const TAG_ALLOWLIST = [
         'p'       => [],
         'br'      => [],
@@ -162,7 +187,18 @@ final class HtmlSanitizer
             if ($child instanceof \DOMElement) {
                 $tag = strtolower($child->tagName);
                 if (!isset(self::TAG_ALLOWLIST[$tag])) {
-                    // Not allowed: replace with its text content.
+                    // F14 bugfix — for executable tags (script, style,
+                    // iframe, object, embed) we MUST drop the text
+                    // content too; replacing a <script> with its
+                    // textContent preserves the JS body as a raw
+                    // string, which is still exploitable in contexts
+                    // that treat it as code. For normal disallowed
+                    // tags we keep the text so paragraphs / lists
+                    // flatten nicely.
+                    if (isset(self::EXEC_TAG_BLOCKLIST[$tag])) {
+                        $node->removeChild($child);
+                        continue;
+                    }
                     $text = $child->ownerDocument->createTextNode($child->textContent);
                     $node->replaceChild($text, $child);
                     continue;
