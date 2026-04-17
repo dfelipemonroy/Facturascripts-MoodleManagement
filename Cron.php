@@ -293,7 +293,14 @@ class Cron extends CronClass
         $priority = $map->getEffectivePriority();
 
         if ($map->sync_direction === 'bidirectional') {
-            $winner = MoodleClient::resolveConflict($priority, $contact->fechaalta, $moodleModified);
+            // F7.4 — use mm_last_modified (updated by EditContacto
+            // execAfterAction) instead of fechaalta, which never
+            // moves past the original insert and always made Moodle
+            // "win" conflict resolution.
+            $fsModified = !empty($contact->mm_last_modified)
+                ? $contact->mm_last_modified
+                : $contact->fechaalta;
+            $winner = MoodleClient::resolveConflict($priority, $fsModified, $moodleModified);
             if ($winner === 'moodle') {
                 MoodleClient::moodleUserToContact($contact, $moodleUser, $customFieldsMap);
                 $contact->save();

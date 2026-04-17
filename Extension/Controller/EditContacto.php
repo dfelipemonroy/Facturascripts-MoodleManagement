@@ -20,6 +20,7 @@
 namespace FacturaScripts\Plugins\MoodleManagement\Extension\Controller;
 
 use Closure;
+use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 
 class EditContacto
@@ -48,6 +49,43 @@ class EditContacto
                 $idcontacto = $this->getViewModelValue($this->getMainViewName(), 'idcontacto');
                 $where = [new DataBaseWhere('idcontacto', $idcontacto)];
                 $view->loadData('', $where);
+            }
+        };
+    }
+
+    /**
+     * F7.4 — update `contactos.mm_last_modified` whenever the
+     * operator saves the contact. ContactSyncWorker uses this
+     * column to tell whether the FS-side record has mutated since
+     * the last Moodle sync, replacing the buggy `fechaalta`
+     * heuristic that never moves past the original insert.
+     *
+     * Uses a raw UPDATE so the write does NOT re-trigger
+     * Model.Contacto.Update (which would loop into
+     * ContactSyncWorker and debounce into itself).
+     *
+     * @since 2.0
+     */
+    public function execAfterAction(): Closure
+    {
+        return function ($action) {
+            if ($action !== 'save-ok' && $action !== 'save-data') {
+                return;
+            }
+            $idcontacto = (int) $this->getViewModelValue($this->getMainViewName(), 'idcontacto');
+            if ($idcontacto <= 0) {
+                return;
+            }
+            try {
+                $db = new DataBase();
+                $db->exec(
+                    'UPDATE contactos SET mm_last_modified = ' . $db->var2str(date('Y-m-d H:i:s'))
+                    . ' WHERE idcontacto = ' . (int) $idcontacto
+                );
+            } catch (\Throwable $e) {
+                // Column may be absent on installs that haven't run
+                // the v2.0 migration yet; swallow silently so the
+                // contact save itself is not impacted.
             }
         };
     }
