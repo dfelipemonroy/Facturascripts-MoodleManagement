@@ -524,15 +524,19 @@ class MoodleClient
      */
     public static function resetCourseCache(?int $instanceId = null, ?int $courseId = null): void
     {
+        // F13 DISCOVERED-06 — the overviewCache must stay in sync,
+        // otherwise a reset(clear) would leave stale overviewfiles
+        // attached to a course that the admin just edited.
         if ($instanceId === null) {
             self::$courseCache = [];
+            self::$overviewCache = [];
             return;
         }
         if ($courseId === null) {
-            unset(self::$courseCache[$instanceId]);
+            unset(self::$courseCache[$instanceId], self::$overviewCache[$instanceId]);
             return;
         }
-        unset(self::$courseCache[$instanceId][$courseId]);
+        unset(self::$courseCache[$instanceId][$courseId], self::$overviewCache[$instanceId][$courseId]);
     }
 
     /**
@@ -943,15 +947,32 @@ class MoodleClient
     /**
      * Get course overview files from Moodle.
      * Uses getCoursesByField which returns overviewfiles (getCourses does not).
+     *
+     * F13 DISCOVERED-06 — per-request memoisation matching the
+     * pattern F7.21 applied to getCourseById. A single admin screen
+     * often renders several cards for the same course (widget,
+     * dashboard, certificate) and each one asks for the overview
+     * files; without the cache that's N identical WS round-trips.
+     *
+     * Cache is cleared together with the main courseCache via
+     * resetCourseCache(); see note inline in that method.
      */
+    private static array $overviewCache = [];
+
     public static function getOverviewFiles(MoodleInstance $instance, int $courseId): array
     {
+        $iid = (int) $instance->id;
+        if ($iid <= 0 || $courseId <= 0) {
+            return [];
+        }
+        if (isset(self::$overviewCache[$iid][$courseId])) {
+            return self::$overviewCache[$iid][$courseId];
+        }
         $result = self::getCoursesByField($instance, 'id', (string)$courseId);
         $courses = $result['courses'] ?? [];
-        if (!empty($courses[0]['overviewfiles'])) {
-            return $courses[0]['overviewfiles'];
-        }
-        return [];
+        $files = !empty($courses[0]['overviewfiles']) ? $courses[0]['overviewfiles'] : [];
+        self::$overviewCache[$iid][$courseId] = $files;
+        return $files;
     }
 
     /**
