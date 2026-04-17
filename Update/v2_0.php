@@ -181,6 +181,35 @@ return [
     },
 
     // ──────────────────────────────────────────────────────────────
+    //  F5.10 — collation unification (ALTO)
+    //  Normalise every plugin table to utf8mb4 / utf8mb4_unicode_520_ci
+    //  on MySQL. PostgreSQL uses client_encoding + LC_COLLATE at DB
+    //  level, so we skip there.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.10-collation-utf8mb4' => static function (SchemaMigrator $m): bool {
+        if ($m->isPostgres()) {
+            return true; // not applicable
+        }
+        $tables = [
+            'moodle_instances', 'moodle_user_map', 'moodle_course_map',
+            'moodle_enrolments', 'moodle_cohorts', 'moodle_role_map',
+            'moodle_course_categories', 'moodle_certificates',
+            'moodle_certificate_templates', 'moodle_audit_log',
+            'moodle_schema_version',
+        ];
+        foreach ($tables as $table) {
+            if (!$m->tableExists($table)) {
+                continue;
+            }
+            $m->db()->exec(
+                'ALTER TABLE ' . $table
+                . ' CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci'
+            );
+        }
+        return true;
+    },
+
+    // ──────────────────────────────────────────────────────────────
     //  F5.7 — FK codgrupo -> gruposclientes (ALTO)
     //  moodle_cohorts.codgrupo is the only FS foreign key not
     //  declared in the base table XML. Use ON DELETE SET NULL so
