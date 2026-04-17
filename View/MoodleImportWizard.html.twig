@@ -328,8 +328,9 @@
                             class="btn btn-outline-secondary" formnovalidate>
                         <i class="fa-solid fa-arrow-left me-1"></i>{{ trans('back') }}
                     </button>
+                    {# F3.2 — confirm via mm-actions.js data-mm-confirm #}
                     <button type="submit" class="btn btn-success"
-                            onclick="return confirm('{{ trans('wizard-confirm-import') }}');">
+                            data-mm-confirm="{{ trans('wizard-confirm-import') }}">
                         <i class="fa-solid fa-check me-1"></i>{{ trans('wizard-run-import') }}
                     </button>
                 </div>

@@ -18,7 +18,8 @@
                     <label class="form-label fw-bold">
                         <i class="fa-solid fa-users me-1"></i>{{ trans('recipients') }}
                     </label>
-                    <select name="recipient_mode" class="form-select" id="recipientMode" onchange="toggleRecipientSelect()">
+                    {# F3.2 — change handler moved to external JS (delegated in mm-actions.js listener below). #}
+                    <select name="recipient_mode" class="form-select" id="recipientMode" data-mm-change-call="toggleRecipientSelect">
                         <option value="all">{{ trans('all-enrolled-users') }} ({{ enrolledUsers | length }})</option>
                         <option value="selected">{{ trans('selected-users') }}</option>
                     </select>
@@ -48,8 +49,9 @@
 
             <div class="row">
                 <div class="col-md-8">
+                    {# F3.2 — confirm via data-mm-confirm handled by mm-actions.js #}
                     <button type="submit" class="btn btn-primary"
-                            onclick="return confirm('{{ trans('confirm-send-message') }}');">
+                            data-mm-confirm="{{ trans('confirm-send-message') }}">
                         <i class="fa-solid fa-paper-plane me-1"></i>{{ trans('send-message') }}
                     </button>
                 </div>

@@ -1,5 +1,9 @@
 {# Inline style moved to Assets/CSS/moodle.css (.mm-menu-badge). F1.8 #}
 <link rel="stylesheet" href="{{ asset('Plugins/MoodleManagement/Assets/CSS/moodle.css') }}"/>
+{# F3.2 — global event delegation for data-mm-* attributes,
+   loaded once via the menu extension so it is available on every
+   FS page the plugin might render content on. #}
+<script src="{{ asset('Plugins/MoodleManagement/Assets/JS/mm-actions.js') }}" defer></script>
 <li class="nav-item" title="{{ trans('moodle-conversations') }}" id="moodleChatNavItem">
     <a class="nav-link" href="ListMoodleConversation" aria-label="{{ trans('moodle-conversations') }}">
         <i class="fa-solid fa-comments" aria-hidden="true"></i>

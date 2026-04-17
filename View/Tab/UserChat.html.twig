@@ -76,8 +76,9 @@
                     <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
                     <input type="hidden" name="activetab" value="UserChat"/>
                     <div class="flex-grow-1">
+                        {# F3.2 — Enter-submit handled by mm-actions.js via data-mm-enter-submit #}
                         <textarea id="chatInput" name="chat_message" class="form-control mm-chat-textarea" rows="1" placeholder="{{ trans('type-your-message') }}" required
-                                  onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); this.form.submit();}"></textarea>
+                                  data-mm-enter-submit="1"></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary rounded-circle mm-chat-send-btn" title="{{ trans('send-message') }}">
                         <i class="fa-solid fa-paper-plane"></i>

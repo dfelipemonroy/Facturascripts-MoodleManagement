@@ -51,13 +51,15 @@
                                 <small class="text-muted">{{ group.id }}</small>
                             </td>
                             <td class="text-end">
+                                {# F3.2 — delegated handler via Assets/JS/mm-actions.js #}
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         data-bs-toggle="modal" data-bs-target="#membersModal"
-                                        onclick="loadGroupMembers({{ group.id }}, '{{ group.name | e('js') }}')">
+                                        data-mm-call="loadGroupMembers"
+                                        data-mm-args='[{{ group.id }}, {{ group.name | default('') | json_encode | raw }}]'>
                                     <i class="fa-solid fa-users"></i>
                                 </button>
                                 <form method="post" class="d-inline"
-                                      onsubmit="return confirm('{{ trans('confirm-delete-group') }}');">
+                                      data-mm-confirm="{{ trans('confirm-delete-group') }}">
                                     <input type="hidden" name="action" value="group-delete"/>
                                     <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
                                     <input type="hidden" name="activetab" value="CourseGroups"/>

@@ -82,7 +82,7 @@
                                 </td>
                                 <td class="text-center align-middle">
                                     <form method="post" class="d-inline"
-                                          onsubmit="return confirm('{{ trans('confirm-delete') }}');">
+                                          data-mm-confirm="{{ trans('confirm-delete') }}">
                                         <input type="hidden" name="action" value="delete-note">
                                         <input type="hidden" name="activetab" value="UserNotes">
                                         <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}">

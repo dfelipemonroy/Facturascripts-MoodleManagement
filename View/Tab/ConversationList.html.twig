@@ -17,17 +17,18 @@
             </h5>
         </div>
         <div class="d-flex gap-2 align-items-center">
-            <button type="button" class="btn btn-success btn-sm" onclick="openNewConversationModal()">
+            {# F3.2 — inline onclick replaced by data-mm-* delegation (mm-actions.js). #}
+            <button type="button" class="btn btn-success btn-sm" data-mm-call="openNewConversationModal">
                 <i class="fa-solid fa-plus me-1"></i>{{ trans('new-conversation') }}
             </button>
             <div class="btn-group btn-group-sm">
-                <button id="btnFilterAll" type="button" class="btn btn-primary" onclick="setFilter('all')">
+                <button id="btnFilterAll" type="button" class="btn btn-primary" data-mm-call="setFilter" data-mm-args='["all"]'>
                     {{ trans('all') }}
                 </button>
-                <button id="btnFilterUnread" type="button" class="btn btn-outline-danger" onclick="setFilter('unread')">
+                <button id="btnFilterUnread" type="button" class="btn btn-outline-danger" data-mm-call="setFilter" data-mm-args='["unread"]'>
                     <i class="fa-solid fa-circle me-1" style="font-size: 0.5rem;"></i>{{ trans('show-unread-only') }}
                 </button>
-                <button id="btnFilterRead" type="button" class="btn btn-outline-success" onclick="setFilter('read')">
+                <button id="btnFilterRead" type="button" class="btn btn-outline-success" data-mm-call="setFilter" data-mm-args='["read"]'>
                     <i class="fa-solid fa-circle me-1" style="font-size: 0.5rem;"></i>{{ trans('show-read-only') }}
                 </button>
             </div>
@@ -110,7 +111,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold">{{ trans('select-user') }}</label>
                     <input type="text" id="newConvSearch" class="form-control mb-2"
-                           placeholder="{{ trans('search-user') }}" oninput="filterNewConvUsers()">
+                           placeholder="{{ trans('search-user') }}" data-mm-input-call="filterNewConvUsers">
                 </div>
                 <div id="newConvLoading" class="text-center py-3">
                     <i class="fa-solid fa-spinner fa-spin me-1"></i> {{ trans('loading') }}...
