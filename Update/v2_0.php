@@ -181,6 +181,26 @@ return [
     },
 
     // ──────────────────────────────────────────────────────────────
+    //  F5.7 — FK codgrupo -> gruposclientes (ALTO)
+    //  moodle_cohorts.codgrupo is the only FS foreign key not
+    //  declared in the base table XML. Use ON DELETE SET NULL so
+    //  deleting a FS group doesn't cascade-wipe the cohort history.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.7-cohorts-codgrupo-fk' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_cohorts') || !$m->tableExists('gruposclientes')) {
+            return true;
+        }
+        $fk = 'ca_mm_cohorts_codgrupo';
+        if ($m->constraintExists('moodle_cohorts', $fk)) {
+            return true;
+        }
+        $sql = 'ALTER TABLE moodle_cohorts ADD CONSTRAINT ' . $fk
+            . ' FOREIGN KEY (codgrupo) REFERENCES gruposclientes (codgrupo)'
+            . ' ON DELETE SET NULL ON UPDATE CASCADE';
+        return (bool) $m->db()->exec($sql);
+    },
+
+    // ──────────────────────────────────────────────────────────────
     //  F5.22 — created_at / updated_at on role_map (BAJO)
     // ──────────────────────────────────────────────────────────────
     '2.0.0-F5.22-role-map-timestamps' => static function (SchemaMigrator $m): bool {
