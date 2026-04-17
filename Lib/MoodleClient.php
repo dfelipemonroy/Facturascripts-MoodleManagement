@@ -223,7 +223,21 @@ class MoodleClient
     }
 
     /**
+     * Minimum Moodle version officially supported by the plugin.
+     * Populated from the `release` field of
+     * core_webservice_get_site_info — format "4.1.5+ (Build: ...)".
+     *
+     * @since 2.0 F7.18 · §2.25
+     */
+    public const MIN_MOODLE_RELEASE = '4.1';
+
+    /**
      * Apply site info data to the instance model.
+     *
+     * @since 2.0 — F7.18 verifies the Moodle release against
+     *             MIN_MOODLE_RELEASE. On old releases we still
+     *             store the site info but switch `status` to
+     *             'unsupported' so the dashboard surfaces it.
      */
     public static function applySiteInfo(MoodleInstance $instance, array $siteInfo): void
     {
@@ -236,6 +250,24 @@ class MoodleClient
         $instance->available_functions = isset($siteInfo['functions']) ? count($siteInfo['functions']) : 0;
         $instance->last_check = date('Y-m-d H:i:s');
         $instance->last_error = '';
+
+        // F7.18 — sanity check the Moodle release against the
+        // minimum we support. `release` is a string like
+        // "4.1.5+ (Build: 20240611)". Extract the leading dotted
+        // version and compare with version_compare.
+        $release = trim((string) $instance->moodle_release);
+        $releaseNumber = (string) strtok($release, ' +'); // "4.1.5"
+        if ($releaseNumber !== '' && version_compare($releaseNumber, self::MIN_MOODLE_RELEASE, '<')) {
+            $instance->status = 'unsupported';
+            $instance->last_error = 'moodle-version-too-old';
+            Tools::log()->warning('moodle-version-too-old', [
+                'instance' => (int) $instance->id,
+                'release'  => $releaseNumber,
+                'required' => self::MIN_MOODLE_RELEASE,
+            ]);
+            return;
+        }
+
         $instance->status = 'active';
     }
 

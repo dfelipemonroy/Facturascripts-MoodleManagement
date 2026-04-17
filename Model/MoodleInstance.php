@@ -161,7 +161,22 @@ class MoodleInstance extends ModelClass
             return false;
         }
 
-        if (!filter_var($this->url, FILTER_VALIDATE_URL) || !preg_match('/^https?:\/\//', $this->url)) {
+        // F7.10 — strict URL validation:
+        //   - FILTER_VALIDATE_URL accepts the syntax (host + scheme).
+        //   - scheme MUST be http or https (blocks file://, ftp://,
+        //     javascript:, data:, etc.).
+        //   - host MUST be non-empty and not contain control chars.
+        if (!filter_var($this->url, FILTER_VALIDATE_URL)) {
+            Tools::log()->error('invalid-moodle-url');
+            return false;
+        }
+        $scheme = strtolower((string) parse_url($this->url, PHP_URL_SCHEME));
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            Tools::log()->error('invalid-moodle-url');
+            return false;
+        }
+        $host = (string) parse_url($this->url, PHP_URL_HOST);
+        if ($host === '' || preg_match('/[\x00-\x1F\x7F]/', $host)) {
             Tools::log()->error('invalid-moodle-url');
             return false;
         }
