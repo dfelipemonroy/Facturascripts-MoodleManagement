@@ -338,8 +338,32 @@ flowchart TB
 ## Requisitos
 
 - FacturaScripts >= 2025.6
-- Moodle >= 4.0 (recomendado 4.5+)
+- Moodle >= 4.1 LTS (soportadas hasta 5.x; 4.0 marcado automáticamente como `unsupported`)
 - PHP >= 8.0 con extensión cURL
+- MySQL 5.7+ / MariaDB 10.4+ / PostgreSQL 13+
+
+### Matriz de versiones soportadas (v2.0)
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.6 · §9.7`
+>
+> Esta tabla es el contrato de soporte del plugin. Ver
+> `docs/SUPPORTED-VERSIONS.md` para el detalle por componente.
+
+| Dimensión      | Soportado                                                           | No soportado |
+|----------------|---------------------------------------------------------------------|--------------|
+| FacturaScripts | 2025.6 → 2025.latest                                                | < 2025.6 (bloqueado por `facturascripts.ini::min_version`) |
+| PHP            | 8.0, 8.1, 8.2 (CI matrix); 8.3 best-effort                          | < 8.0 |
+| Moodle         | 4.1 LTS + (`MoodleClient::MIN_MOODLE_RELEASE = '4.1'`)              | 4.0 marcado `unsupported` · < 4.0 bloqueado |
+| MySQL / MariaDB| MySQL 5.7+, MariaDB 10.4+                                           | MySQL 5.6, MariaDB < 10.4 |
+| PostgreSQL     | 13+                                                                 | < 13 |
+| Navegadores    | Chrome/Edge últimos 2, Firefox últimos 2, Safari 16+                | IE 11, Safari < 16 |
+| cURL           | >= 7.50 (HTTP/2 + TLS moderno)                                      | < 7.50 |
+
+Combinaciones probadas por CI (`.github/workflows/ci.yml`):
+
+- PHP 8.0 + FS 2025.6 + MySQL 8.0
+- PHP 8.1 + FS 2025.81 + MySQL 8.0
+- PHP 8.2 + FS 2025.81 + MySQL 8.0 (también genera reporte de cobertura)
 
 ## Instalación
 
@@ -968,8 +992,32 @@ flowchart TB
 ## Requirements
 
 - FacturaScripts >= 2025.6
-- Moodle >= 4.0 (4.5+ recommended)
+- Moodle >= 4.1 LTS (4.0 is automatically flagged as `unsupported`, supported through 5.x)
 - PHP >= 8.0 with cURL extension
+- MySQL 5.7+ / MariaDB 10.4+ / PostgreSQL 13+
+
+### Supported versions matrix (v2.0)
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.6 · §9.7`
+>
+> This table is the plugin's support contract. See
+> `docs/SUPPORTED-VERSIONS.md` for component-level detail.
+
+| Dimension       | Supported                                                             | Not supported |
+|-----------------|-----------------------------------------------------------------------|---------------|
+| FacturaScripts  | 2025.6 → 2025.latest                                                 | < 2025.6 (blocked by `facturascripts.ini::min_version`) |
+| PHP             | 8.0, 8.1, 8.2 (CI matrix); 8.3 best-effort                            | < 8.0 |
+| Moodle          | 4.1 LTS + (`MoodleClient::MIN_MOODLE_RELEASE = '4.1'`)                | 4.0 flagged `unsupported` · < 4.0 blocked |
+| MySQL / MariaDB | MySQL 5.7+, MariaDB 10.4+                                             | MySQL 5.6, MariaDB < 10.4 |
+| PostgreSQL      | 13+                                                                   | < 13 |
+| Browsers        | Chrome/Edge latest 2, Firefox latest 2, Safari 16+                    | IE 11, Safari < 16 |
+| cURL            | >= 7.50 (HTTP/2 + modern TLS)                                         | < 7.50 |
+
+Combinations exercised by CI (`.github/workflows/ci.yml`):
+
+- PHP 8.0 + FS 2025.6 + MySQL 8.0
+- PHP 8.1 + FS 2025.81 + MySQL 8.0
+- PHP 8.2 + FS 2025.81 + MySQL 8.0 (also emits coverage report)
 
 ## Installation
 
