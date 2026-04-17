@@ -28,13 +28,26 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
  *   4. Create an operator-visible note on the user's profile.
  *
  * All failures are logged and swallowed so one failing step does not
- * prevent the remainder from running. Retries and race-condition
- * resilience are added in Fase 6 F6.5.
+ * prevent the remainder from running.
  *
- * @since 2.0 PHPDoc completed (existed since 1.1)
+ * @since 2.0 — F6.5 adds load-retry with exponential backoff so the
+ *              worker tolerates the race where the Insert event fires
+ *              before the outer transaction commits.
  */
 class OnboardingWorker extends WorkerClass
 {
+    /**
+     * How many times we retry loadFromCode() if the MoodleUserMap
+     * row is not yet visible (race with an uncommitted transaction
+     * that triggered the Insert event).
+     *
+     * @since 2.0 F6.5
+     */
+    private const LOAD_RETRIES = 3;
+
+    /** Base delay (ms) between retries; doubles each attempt. */
+    private const LOAD_RETRY_BASE_MS = 500;
+
     /**
      * Entry point called by the WorkQueue when a MoodleUserMap Insert
      * event fires.
@@ -46,8 +59,12 @@ class OnboardingWorker extends WorkerClass
      */
     public function run(WorkEvent $event): bool
     {
-        $map = new MoodleUserMap();
-        if (false === $map->loadFromCode($event->value)) {
+        $map = $this->loadMapWithRetry((int) $event->value);
+        if ($map === null) {
+            Tools::log('MoodleManagement')->warning('onboarding-map-not-found', [
+                'id'       => (int) $event->value,
+                'attempts' => self::LOAD_RETRIES,
+            ]);
             return $this->done();
         }
 
@@ -70,6 +87,34 @@ class OnboardingWorker extends WorkerClass
         $this->createOnboardingNote($instance, $map);
 
         return $this->done();
+    }
+
+    /**
+     * F6.5 — load retry with exponential backoff.
+     *
+     * The FS WorkQueue can fire `Model.MoodleUserMap.Insert` before
+     * the outer transaction that inserted the row has committed. In
+     * that window, `loadFromCode()` returns false and the onboarding
+     * is lost. Up to LOAD_RETRIES attempts with 500 ms / 1 s / 2 s
+     * delays cover the slowest observed commit latency.
+     *
+     * Returns the loaded map or null after all retries are
+     * exhausted.
+     */
+    private function loadMapWithRetry(int $id): ?MoodleUserMap
+    {
+        $delayMs = self::LOAD_RETRY_BASE_MS;
+        for ($attempt = 1; $attempt <= self::LOAD_RETRIES; $attempt++) {
+            $map = new MoodleUserMap();
+            if ($map->loadFromCode($id)) {
+                return $map;
+            }
+            if ($attempt < self::LOAD_RETRIES) {
+                usleep($delayMs * 1000);
+                $delayMs *= 2;
+            }
+        }
+        return null;
     }
 
     /**
