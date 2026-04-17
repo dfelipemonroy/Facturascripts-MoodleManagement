@@ -16,6 +16,7 @@ docs/*
 !docs/QA-OWASP-ZAP.md
 !docs/RELEASE-CHECKLIST.md
 !docs/QA-LINT-ANALYSE.md
+!docs/V2.1-BACKLOG.md
 
 vendor/
 .phpunit.cache/
