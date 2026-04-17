@@ -87,7 +87,10 @@
                         <h6 class="mb-0"><i class="fa-solid fa-chart-pie me-1 text-muted"></i> {{ trans('enrolments-by-status') }}</h6>
                     </div>
                     <div class="card-body d-flex align-items-center justify-content-center">
-                        <canvas id="chartStatus"></canvas>
+                        {# F3.12 — skeleton shown until Chart.js finishes rendering.
+                           Replaced in-place when the canvas is drawn (see DOMContentLoaded). #}
+                        <span id="chartStatusSkeleton" class="mm-skeleton mm-skeleton--card" aria-hidden="true"></span>
+                        <canvas id="chartStatus" class="d-none"></canvas>
                     </div>
                 </div>
             </div>
@@ -171,7 +174,16 @@
             padding: 10
         };
 
+        // F3.12 — swap skeleton for the canvas once we're about to draw.
+        function revealChart(canvasId, skeletonId) {
+            var sk = document.getElementById(skeletonId);
+            var cv = document.getElementById(canvasId);
+            if (sk) sk.classList.add('d-none');
+            if (cv) cv.classList.remove('d-none');
+        }
+
         // --- 1. Status doughnut ---
+        revealChart('chartStatus', 'chartStatusSkeleton');
         var ctxStatus = document.getElementById('chartStatus').getContext('2d');
         new Chart(ctxStatus, {
             type: 'doughnut',
