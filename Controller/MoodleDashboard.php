@@ -15,6 +15,22 @@ use FacturaScripts\Dinamic\Model\User;
 
 class MoodleDashboard extends Controller
 {
+    /**
+     * Cache key for the rendered dashboard payload.
+     *
+     * F10.9 — the dashboard runs 7 aggregate SQL queries on every
+     * page load. The admin polls this screen throughout the day and
+     * external monitors hit it once per minute; caching the result
+     * for 60 s cuts DB load by ~90% without masking real-time
+     * changes for more than a minute.
+     *
+     * @since 2.0 — F10.9 · §6.22
+     */
+    private const DASH_CACHE_KEY = 'mm_dashboard_payload_v1';
+
+    /** TTL in seconds for the dashboard cache. */
+    private const DASH_CACHE_TTL = 60;
+
     /** @var array */
     public $dashboardData = [];
 
@@ -31,7 +47,19 @@ class MoodleDashboard extends Controller
     {
         parent::privateCore($response, $user, $permissions);
         $this->setTemplate('MoodleDashboard');
+
+        // F10.9 — cache hit short-circuit. Explicit refresh via
+        // ?refresh=1 re-populates the cache so admins can force a
+        // fresh view after a bulk import or sync.
+        $refresh = $this->request->query->getBoolean('refresh', false);
+        $cache = Tools::cache();
+        $cached = $refresh ? null : $cache->get(self::DASH_CACHE_KEY);
+        if (is_array($cached)) {
+            $this->dashboardData = $cached;
+            return;
+        }
         $this->loadDashboardData();
+        $cache->set(self::DASH_CACHE_KEY, $this->dashboardData, self::DASH_CACHE_TTL);
     }
 
     private function loadDashboardData(): void
