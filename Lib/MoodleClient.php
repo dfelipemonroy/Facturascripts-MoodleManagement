@@ -614,18 +614,66 @@ class MoodleClient
      */
     public static function generateUsername(Contacto $contact): string
     {
+        return self::buildUsernameCandidate($contact);
+    }
+
+    /**
+     * F7.3 — uniqueness-aware username generator. When an
+     * instance is provided the candidate is verified against
+     * `core_user_get_users_by_field`, and on collision a numeric
+     * suffix is appended ("diego", "diego1", … "diego99"). If 99
+     * suffixes are all taken, 8 random hex chars are appended as
+     * last-resort entropy.
+     *
+     * @since 2.0 F7.3 · §2.11
+     */
+    public static function generateUniqueUsername(Contacto $contact, MoodleInstance $instance): string
+    {
+        $base = self::buildUsernameCandidate($contact);
+        if (empty($instance->id) || empty($instance->token)) {
+            return $base;
+        }
+
+        $candidate = $base;
+        for ($i = 0; $i <= 99; $i++) {
+            if ($i > 0) {
+                $candidate = $base . $i;
+            }
+            $result = self::getUsersByField($instance, 'username', [$candidate]);
+            if (isset($result['exception'])) {
+                // Don't hard-fail on API glitches — fall back to base.
+                return $base;
+            }
+            if (empty($result)) {
+                return $candidate;
+            }
+        }
+
+        // Extremely unlikely branch: 100 consecutive collisions.
+        try {
+            $suffix = bin2hex(random_bytes(4));
+        } catch (\Throwable $e) {
+            $suffix = substr(md5(microtime(true) . $base), 0, 8);
+        }
+        return $base . '-' . $suffix;
+    }
+
+    /**
+     * Internal — normalise a Contacto into a Moodle-valid username
+     * (lowercase, [a-z0-9._-] only). No uniqueness check here —
+     * callers should use generateUniqueUsername() for account
+     * creation paths.
+     */
+    private static function buildUsernameCandidate(Contacto $contact): string
+    {
         if (!empty($contact->email)) {
-            // Use the part before @ as username
             $parts = explode('@', $contact->email);
             $username = strtolower(trim($parts[0]));
-            // Remove invalid chars for Moodle username (only lowercase alphanumeric, -, _, .)
             $username = preg_replace('/[^a-z0-9\-_.]/', '', $username);
             if (!empty($username)) {
                 return $username;
             }
         }
-
-        // Fallback: nombre.apellidos
         $base = strtolower(trim(($contact->nombre ?? '') . '.' . ($contact->apellidos ?? '')));
         $base = preg_replace('/[^a-z0-9\-_.]/', '', str_replace(' ', '.', $base));
         return !empty($base) ? $base : 'user' . time();
