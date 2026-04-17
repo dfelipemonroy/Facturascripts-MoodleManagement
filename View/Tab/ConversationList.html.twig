@@ -377,7 +377,21 @@
         list.classList.remove('d-none');
     }
 
-    window.filterNewConvUsers = function() {
+    // F3.4 — debounce input handler so typing at 60 wpm doesn't
+    // filter on every keystroke. 300 ms is the human-perception
+    // sweet spot recommended by nn/g.
+    function mmDebounce(fn, waitMs) {
+        var t;
+        return function () {
+            var ctx = this, args = arguments;
+            clearTimeout(t);
+            t = setTimeout(function () {
+                fn.apply(ctx, args);
+            }, waitMs);
+        };
+    }
+
+    window.filterNewConvUsers = mmDebounce(function() {
         var search = document.getElementById('newConvSearch').value.toLowerCase();
         if (!search) {
             renderAvailableUsers(availableUsers);
@@ -394,7 +408,7 @@
             document.getElementById('newConvEmpty').classList.add('d-none');
             renderAvailableUsers(filtered);
         }
-    };
+    }, 300);
 
     // Fix "Todos" button to point to this page instead of ListMoodleInstance
     function fixListButton() {
