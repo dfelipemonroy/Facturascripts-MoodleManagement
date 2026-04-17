@@ -20,9 +20,11 @@
 namespace FacturaScripts\Plugins\MoodleManagement;
 
 use FacturaScripts\Core\Base\DataBase;
+use FacturaScripts\Core\Lib\Widget\BaseWidget;
 use FacturaScripts\Core\Template\InitClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\WorkQueue;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Widget\WidgetMoodleTimestamp;
 
 /**
  * Class Init
@@ -44,6 +46,13 @@ class Init extends InitClass
         WorkQueue::addWorker('ContactDeleteWorker', 'Model.Contacto.Delete');
         WorkQueue::addWorker('BadgeSyncWorker', 'Model.MoodleUserMap.Save');
         WorkQueue::addWorker('OnboardingWorker', 'Model.MoodleUserMap.Insert');
+
+        // F3.7 — register custom widget for Moodle Unix-epoch INT columns.
+        // Using addExtension so BaseWidget::widgetClass() resolves the
+        // class when an XMLView declares <widget type="moodleTimestamp">.
+        if (method_exists(BaseWidget::class, 'addExtension')) {
+            BaseWidget::addExtension('moodleTimestamp', WidgetMoodleTimestamp::class);
+        }
     }
 
     public function uninstall(): void

@@ -59,10 +59,11 @@
                 <widget type="datetime" fieldname="enrolment_date" readonly="true"/>
             </column>
             <column name="timestart" numcolumns="4" order="210">
-                <widget type="number" fieldname="timestart"/>
+                <!-- F3.7 — epoch INT rendered human-readable -->
+                <widget type="moodleTimestamp" fieldname="timestart"/>
             </column>
             <column name="timeend" numcolumns="4" order="220">
-                <widget type="number" fieldname="timeend"/>
+                <widget type="moodleTimestamp" fieldname="timeend"/>
             </column>
         </group>
         <group name="document-links" title="documents" icon="fa-solid fa-file-invoice" numcolumns="6">
