@@ -8,10 +8,26 @@ namespace FacturaScripts\Plugins\MoodleManagement\Extension\Controller;
 
 use Closure;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
-use FacturaScripts\Core\Tools;
-use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
-use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Controller\ProductoMoodleDecorator;
 
+/**
+ * FS pipe()-based extension of EditProducto.
+ *
+ * @since 2.0 — F8.3 refactor: the closures now use ONLY the
+ *   FS-sanctioned public API ({@see ExtendedController\EditController}):
+ *     - $this->addListView()
+ *     - $this->getViewModelValue()
+ *     - $this->getMainViewName()
+ *     - $this->setSettings()
+ *   Direct access to $this->views[X]->model (a protected
+ *   BaseController property) was removed — it was an
+ *   encapsulation break that could collide with other plugins
+ *   that wrap the same view (StockAvanzado, NeoTheme…).
+ *
+ *   Any Moodle-specific business logic now lives in
+ *   {@see ProductoMoodleDecorator::syncCourseMap()} which the
+ *   extension calls with a pure data payload.
+ */
 class EditProducto
 {
     protected function createViews(): Closure
@@ -42,49 +58,22 @@ class EditProducto
     public function execAfterAction(): Closure
     {
         return function ($action) {
-            if (!in_array($action, ['edit', 'insert'])) {
+            if (!in_array($action, ['edit', 'insert'], true)) {
                 return;
             }
 
             $mainView = $this->getMainViewName();
-            $idproducto = $this->getViewModelValue($mainView, 'idproducto');
-            $isCourse = $this->getViewModelValue($mainView, 'moodle_course');
 
-            if (empty($isCourse) || empty($idproducto)) {
-                return;
-            }
-
-            // check if a MoodleCourseMap already exists for this product
-            $existing = new MoodleCourseMap();
-            $where = [new DataBaseWhere('idproducto', $idproducto)];
-            if ($existing->loadFromCode('', $where)) {
-                // sync price from variant to course map
-                if ($existing->syncPriceFromProduct()) {
-                    $existing->save();
-                }
-                return;
-            }
-
-            // find the first active Moodle instance
-            $instance = new MoodleInstance();
-            $whereInstance = [new DataBaseWhere('status', 'active')];
-            if (false === $instance->loadFromCode('', $whereInstance)) {
-                Tools::log()->warning('no-active-moodle-instance');
-                return;
-            }
-
-            // create a local-only course map (not synced to Moodle)
-            $producto = $this->views[$mainView]->model;
-            $map = new MoodleCourseMap();
-            $map->idinstance = $instance->id;
-            $map->idproducto = $idproducto;
-            $map->shortname = $producto->referencia ?? '';
-            $map->fullname = $producto->descripcion ?? '';
-            $map->summary = $producto->observaciones ?? '';
-            $map->price = $producto->precio ?? 0;
-            $map->sync_active = false;
-            $map->source = 'fs_managed';
-            $map->save();
+            // F8.3 — extract every field through getViewModelValue
+            // (public API). No reaching into $this->views[...]->model.
+            ProductoMoodleDecorator::syncCourseMap([
+                'idproducto'    => (int) $this->getViewModelValue($mainView, 'idproducto'),
+                'is_course'     => (bool) $this->getViewModelValue($mainView, 'moodle_course'),
+                'referencia'    => (string) $this->getViewModelValue($mainView, 'referencia'),
+                'descripcion'   => (string) $this->getViewModelValue($mainView, 'descripcion'),
+                'observaciones' => (string) $this->getViewModelValue($mainView, 'observaciones'),
+                'precio'        => (float) $this->getViewModelValue($mainView, 'precio'),
+            ]);
         };
     }
 }
