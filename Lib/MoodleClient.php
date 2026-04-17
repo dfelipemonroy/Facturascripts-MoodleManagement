@@ -690,8 +690,29 @@ class MoodleClient
     }
 
     /**
+     * MIME types accepted by downloadFile(). `image/svg+xml` is
+     * deliberately excluded: SVG can carry <script>/<foreignObject>
+     * and would be XSS-inert only if sanitised, which we don't do
+     * for file attachments. F3.9 + §3.12 of the audit.
+     *
+     * @since 2.0
+     */
+    private const DOWNLOAD_MIME_ALLOWLIST = [
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'image/gif',
+        'image/webp',
+        'application/pdf',
+    ];
+
+    /**
      * Download a file from Moodle (appending WS token to URL).
      * Returns the local filename on success, or empty string on failure.
+     *
+     * @since 2.0 — hardened with MIME allowlist (F3.9).
+     * Fase 7 F7.2 will move the token out of the URL into an
+     * Authorization header.
      */
     public static function downloadFile(MoodleInstance $instance, string $fileUrl): string
     {
@@ -702,8 +723,8 @@ class MoodleClient
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 60,
-            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_TIMEOUT => self::TIMEOUT_SECONDS,
+            CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT_SECONDS,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
@@ -717,12 +738,20 @@ class MoodleClient
             return '';
         }
 
-        if (false === strpos($contentType ?? '', 'image/')) {
+        // F3.9 — strict MIME allowlist. Strip charset / boundary
+        // suffix before comparing: `image/png; charset=binary` ->
+        // `image/png`.
+        $normalisedCt = strtolower(trim(strtok((string) $contentType, ';')));
+        if (!in_array($normalisedCt, self::DOWNLOAD_MIME_ALLOWLIST, true)) {
+            Tools::log()->warning('moodle-download-bad-mime', [
+                'url_host' => parse_url($fileUrl, PHP_URL_HOST),
+                'received_content_type' => $normalisedCt,
+            ]);
             return '';
         }
 
         $urlPath = parse_url($fileUrl, PHP_URL_PATH);
-        $filename = basename($urlPath);
+        $filename = basename((string) $urlPath);
         if (empty($filename)) {
             $filename = 'moodle_course_image.jpg';
         }
