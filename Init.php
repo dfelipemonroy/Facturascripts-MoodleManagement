@@ -43,9 +43,15 @@ class Init extends InitClass
         WorkQueue::addWorker('EnrolmentWorker', 'Model.FacturaCliente.Update');
         WorkQueue::addWorker('PreEnrolmentWorker', 'Model.PresupuestoCliente.Update');
         WorkQueue::addWorker('PreEnrolmentWorker', 'Model.PedidoCliente.Update');
+        WorkQueue::addWorker('PreEnrolmentWorker', 'Model.LineaPresupuestoCliente.Delete');
+        WorkQueue::addWorker('PreEnrolmentWorker', 'Model.LineaPedidoCliente.Delete');
         WorkQueue::addWorker('ContactSyncWorker', 'Model.Contacto.Update');
         WorkQueue::addWorker('ContactDeleteWorker', 'Model.Contacto.Delete');
-        WorkQueue::addWorker('BadgeSyncWorker', 'Model.MoodleUserMap.Save');
+        // F6.1 — rebinding BadgeSyncWorker from Save to Insert cuts the
+        // cascade where the worker's own ->save() re-triggered itself.
+        // Post-onboarding re-syncs are driven explicitly by setting
+        // badge_sync_needed=1 and enqueueing via WorkQueue::add().
+        WorkQueue::addWorker('BadgeSyncWorker', 'Model.MoodleUserMap.Insert');
         WorkQueue::addWorker('OnboardingWorker', 'Model.MoodleUserMap.Insert');
 
         // F3.7 — register custom widget for Moodle Unix-epoch INT columns.

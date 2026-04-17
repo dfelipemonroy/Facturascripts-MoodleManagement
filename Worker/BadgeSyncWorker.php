@@ -16,13 +16,16 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
  * Pulls earned badges from Moodle for a given user mapping and
  * mirrors them in the plugin's local storage.
  *
- * WARNING: currently bound to `Model.MoodleUserMap.Save` which is a
- * **cascade risk** — if the worker itself triggers ->save() on the
- * map, the event re-fires. Fase 6 F6.1 rebinds this to
- * `Model.MoodleUserMap.Insert` and introduces an explicit
- * `badge_sync_needed` flag for subsequent re-syncs.
- *
- * @since 2.0 PHPDoc completed (existed since 1.0)
+ * @since 2.0 — Fase 6 F6.1 cut the cascade hazard:
+ *   Before: subscribed to `Model.MoodleUserMap.Save`, so the
+ *           worker's internal ->save() re-triggered itself
+ *           (observed via Cron::userSync → badge sync loop).
+ *   After:  subscribed to `Model.MoodleUserMap.Insert` only (first
+ *           write). For explicit re-syncs after onboarding, set
+ *           MoodleUserMap::$badge_sync_needed = 1 and enqueue via
+ *           WorkQueue::add('BadgeSyncWorker', $id). The worker
+ *           clears the flag with a private UPDATE statement — no
+ *           ->save() — so no event is re-emitted.
  */
 class BadgeSyncWorker extends WorkerClass
 {
@@ -51,6 +54,21 @@ class BadgeSyncWorker extends WorkerClass
             Tools::log('MoodleManagement')->warning('sync-failed', [
                 '%message%' => 'Badge sync API error for user ' . $map->moodle_userid,
             ]);
+        }
+
+        // F6.1 — clear badge_sync_needed with a raw UPDATE so we
+        // DO NOT trigger Model.MoodleUserMap.Update. A $map->save()
+        // here would resurrect the cascade we just cut.
+        if (!empty($map->badge_sync_needed)) {
+            try {
+                $db = new \FacturaScripts\Core\Base\DataBase();
+                $db->exec('UPDATE moodle_user_map SET badge_sync_needed = 0 WHERE id = ' . (int) $map->id);
+            } catch (\Throwable $e) {
+                Tools::log()->warning('badge-sync-flag-clear-failed', [
+                    'id'      => (int) $map->id,
+                    'message' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $this->done();

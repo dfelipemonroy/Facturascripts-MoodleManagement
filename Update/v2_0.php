@@ -242,6 +242,20 @@ return [
     },
 
     // ──────────────────────────────────────────────────────────────
+    //  F6.1 — explicit badge re-sync flag (CRITICAL §1.1)
+    //  Cutting the BadgeSyncWorker cascade: the worker now listens
+    //  to Model.MoodleUserMap.Insert only. For targeted re-syncs
+    //  after a UI action, callers set this flag and enqueue the
+    //  worker manually.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F6.1-badge-sync-needed' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_user_map')) {
+            return true;
+        }
+        return $m->addColumnIfMissing('moodle_user_map', 'badge_sync_needed', 'TINYINT(1) NOT NULL DEFAULT 0');
+    },
+
+    // ──────────────────────────────────────────────────────────────
     //  F7.4 scaffold — contact sync last_modified column (ALTO §2.12)
     //  Fase 7 F7.4 consumes this column; adding it here keeps the
     //  DB migration surface in one place.
