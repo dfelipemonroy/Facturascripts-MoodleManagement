@@ -4,10 +4,11 @@ Thanks for your interest in contributing! This plugin powers production
 ERP/LMS integrations, so contributions are held to a high bar for quality,
 security and backwards compatibility.
 
-> During **v2.0 remediation** (active), the canonical backlog lives in
-> [`docs/V2.0-ACTION-PLAN.md`](docs/V2.0-ACTION-PLAN.md) and
-> [`docs/V2.0-TASK-CHECKLIST.md`](docs/V2.0-TASK-CHECKLIST.md). All work
-> must reference the corresponding audit finding (`[#AUDIT-FX.Y]`).
+The v2.0 remediation (166 tasks across 13 phases) is tracked in
+[`docs/V2.0-ACTION-PLAN.md`](docs/V2.0-ACTION-PLAN.md) and
+[`docs/V2.0-TASK-CHECKLIST.md`](docs/V2.0-TASK-CHECKLIST.md). Changes
+targeting those tasks must reference the audit finding (`[#AUDIT-FX.Y]`).
+Changes outside the v2.0 scope land under `main` once v2.0 ships.
 
 ---
 
@@ -17,10 +18,15 @@ security and backwards compatibility.
    regression test. Target coverage: ≥ 40% global, ≥ 70% in `Lib/`.
 2. **Security first.** User input is untrusted. Twig auto-escape is on.
    `|raw` needs a justification comment. SQL always parameterised.
-3. **Backwards compatible.** Public API of `MoodleClient` is frozen. If a
-   method must change shape, add a new one and deprecate the old.
-4. **Readability over cleverness.** PSR-12, descriptive names, no dead code.
-5. **Small commits.** One logical change per commit. Easier to bisect.
+3. **Backwards compatible.** Public API of `MoodleClient` is frozen; new
+   callers use the `Lib/Moodle/Api/*` facades. If a method must change
+   shape, add a new one and deprecate the old with a two-version grace
+   period.
+4. **Event names are public contract.** See
+   [`docs/EVENTS.md`](docs/EVENTS.md) — rename only via deprecation.
+5. **Readability over cleverness.** PSR-12, descriptive names, no dead
+   code (see `docs/DEAD-CODE-AUDIT.md` for tooling).
+6. **Small commits.** One logical change per commit. Easier to bisect.
 
 ---
 
@@ -128,28 +134,71 @@ A PR is mergeable when:
 ## 7. Testing
 
 - **Unit tests** in `Test/Unit/*` — no DB, no HTTP, mocks only.
-- **Integration tests** in `Test/Integration/*` — in-memory SQLite and
-  mocked `HttpClient`.
+  Covers pure-logic `Lib/*` classes (UsernameGenerator,
+  ConflictResolver, UserMatcher, CsvEscaper, HtmlSanitizer,
+  IpValidator, TokenCipher, SignedUrl, PiiMasker, Enums).
+- **Integration tests** in `Test/Integration/*` — in-memory SQLite
+  plus reflection/source-level assertions for wiring contracts
+  (WorkerCascadeGuardTest, CertificatePdfGeneratorTest,
+  MoodleClientRejectsSsrfTest, ControllerAuthRegressionTest).
 - **Fixtures** in `Test/Fixtures/*`.
 
 Run:
 ```bash
-vendor/bin/phpunit --testsuite MoodleManagement
+vendor/bin/phpunit --testsuite=Unit        # fast pre-commit
+vendor/bin/phpunit --testsuite=Integration # CI + pre-release
+vendor/bin/phpunit                          # both
 ```
 
+CI matrix covers PHP 8.0 / 8.1 / 8.2 (see
+`.github/workflows/ci.yml`). Any new `Lib/` class should land
+with at least one Unit test that exercises the happy path and
+one edge case.
+
 ---
 
-## 8. Reporting vulnerabilities
+## 8. Review checklist
 
-Do **not** open a public issue. See [`SECURITY.md`](SECURITY.md).
+Reviewers run through this list before approving a PR. Authors
+should self-check first.
+
+- [ ] Commit message follows Conventional Commits + audit ref.
+- [ ] PSR-12 clean (`vendor/bin/phpcs`).
+- [ ] PHPStan level 5 clean (`vendor/bin/phpstan analyse`).
+- [ ] New or changed `Lib/*` class has tests (Unit preferred).
+- [ ] No unused imports, dead branches, or leftover debug logs.
+- [ ] No `|raw` in Twig without a justification comment.
+- [ ] No direct `MoodleClient` call from new code — use the
+  `Lib/Moodle/Api/*` facades.
+- [ ] Any new schema change has an idempotent migration in
+  `Update/v2_0.php` + a base XML entry for fresh installs.
+- [ ] Any new event or cron job is documented in `docs/EVENTS.md`.
+- [ ] Security-sensitive code uses `Lib/Security/*` primitives —
+  no ad-hoc HMAC/cookie/escape helpers.
+
+## 9. Issue + PR templates
+
+- Open a bug: include plugin version, FS version, PHP version,
+  Moodle version, reproduction steps and a log excerpt (mask PII
+  first — `Lib/Logger/PiiMasker` can help).
+- Propose a feature: reference the relevant brainstorming section
+  (`.docs-dev/BRAINSTORMING.md` post-F11.7) or open a discussion
+  thread; features ship after v2.0 unless they close an audit
+  finding.
+
+## 10. Reporting vulnerabilities
+
+Do **not** open a public issue. See [`SECURITY.md`](SECURITY.md)
+— reports via `security@moodlemanagement.diegomonroydev.com` (PGP
+key fingerprint published there).
 
 ---
 
-## 9. License
+## 11. License
 
 By contributing, you agree your contribution is licensed under the
 same terms as this plugin (see `LICENSE`).
 
 ---
 
-*Last updated: 2026-04-16 · v2.0 kickoff*
+*Last updated: 2026-04-17 · finalised in V2.0-ACTION-PLAN F11.10.*
