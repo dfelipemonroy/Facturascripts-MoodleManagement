@@ -149,8 +149,47 @@ class EditMoodleUserMap extends EditController
         }
     }
 
+    /**
+     * Actions that mutate Moodle state or send messages on behalf of
+     * the mapped user. F4.2 requires every one of them to pass
+     * {@see canManageCurrentUserMap()} before running, so a low-
+     * privileged operator cannot flip state on a UserMap belonging
+     * to a client they do not manage.
+     *
+     * The AJAX-only `load-chat-messages` endpoint is NOT in this
+     * list because it is read-only.
+     *
+     * @since 2.0 F4.2
+     */
+    private const GUARDED_ACTIONS = [
+        'sync-to-moodle',
+        'sync-from-moodle',
+        'sync-badges',
+        'send-message',
+        'send-chat-message',
+        'enrol-batch',
+        'unenrol-batch',
+        'suspend-batch',
+        'create-note',
+        'delete-note',
+        'create-calendar-event',
+        'delete-calendar-event',
+    ];
+
     protected function execPreviousAction($action)
     {
+        // F4.2 — guard mutating actions against horizontal IDOR.
+        if (in_array($action, self::GUARDED_ACTIONS, true) && !$this->canManageCurrentUserMap()) {
+            Tools::log()->warning('usermap-action-forbidden', [
+                'action' => $action,
+                'actor'  => $this->user->nick ?? 'unknown',
+                'target' => $this->request->get('code'),
+            ]);
+            $this->response->setStatusCode(403);
+            $this->toolBox()->i18nLog()->warning('not-allowed-modify');
+            return false;
+        }
+
         switch ($action) {
             case 'sync-to-moodle':
                 $this->syncToMoodleAction();
@@ -200,6 +239,67 @@ class EditMoodleUserMap extends EditController
         }
 
         return parent::execPreviousAction($action);
+    }
+
+    /**
+     * Authorization helper for the guarded actions above.
+     *
+     * Access rules (ordered, first match wins):
+     *   1. FS admin flag -> allow.
+     *   2. Same codcliente as the UserMap's contact -> allow.
+     *   3. Virtual permission `moodle.manage-all-usermaps` declared
+     *      on one of the user's roles -> allow.
+     *   4. Else deny.
+     *
+     * @since 2.0 F4.2 · §2.4
+     */
+    protected function canManageCurrentUserMap(): bool
+    {
+        $user = $this->user ?? null;
+        if ($user === null) {
+            return false;
+        }
+
+        // Admin bypass.
+        if (!empty($user->admin)) {
+            return true;
+        }
+
+        $model = $this->getModel();
+        if (empty($model) || empty($model->idcontacto)) {
+            return false;
+        }
+
+        // Virtual role permission — admins can opt role-holders into
+        // cross-client management without flipping the admin flag.
+        if (method_exists($user, 'can') && $user->can('moodle.manage-all-usermaps')) {
+            return true;
+        }
+
+        $userCodcliente = (string) ($user->codcliente ?? '');
+        if ($userCodcliente === '') {
+            return false;
+        }
+
+        $cliente = new \FacturaScripts\Dinamic\Model\Cliente();
+        if (!$cliente->load($userCodcliente)) {
+            return false;
+        }
+
+        // Primary contact match.
+        if ((int) $cliente->idcontactofact === (int) $model->idcontacto) {
+            return true;
+        }
+
+        // Secondary: any contact of that Cliente.
+        $contacto = new \FacturaScripts\Dinamic\Model\Contacto();
+        if ($contacto->loadFromCode($model->idcontacto)
+            && (string) $contacto->codcliente === $userCodcliente
+        ) {
+            return true;
+        }
+
+        return false;
     }
 
     private function loadAcademicProgress(): void

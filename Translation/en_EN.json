@@ -3,6 +3,7 @@
     "action-failed": "Action failed: %error%",
     "certificate-not-saved-yet": "Certificate has not been saved yet.",
     "too-many-requests": "Too many requests. Please try again in a moment.",
+    "not-allowed-modify": "You do not have permission to modify this record.",
     "certificate-pdf-generation-failed": "Certificate PDF could not be generated. Please contact the administrator if the problem persists.",
     "action-success": "Action completed successfully.",
     "actions": "Actions",
