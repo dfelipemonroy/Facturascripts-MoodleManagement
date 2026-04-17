@@ -9,6 +9,7 @@ docs/*
 !docs/PHP-INI-HARDENING.md
 !docs/SUPPORTED-VERSIONS.md
 !docs/TROUBLESHOOTING.md
+!docs/EVENTS.md
 
 vendor/
 .phpunit.cache/
