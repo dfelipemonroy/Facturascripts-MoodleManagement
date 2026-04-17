@@ -6,6 +6,7 @@ docs/*
 !docs/V2.0-ACTION-PLAN.md
 !docs/V2.0-TASK-CHECKLIST.md
 !docs/DEAD-CODE-AUDIT.md
+!docs/PHP-INI-HARDENING.md
 
 vendor/
 .phpunit.cache/
