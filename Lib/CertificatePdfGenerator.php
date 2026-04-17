@@ -207,24 +207,88 @@ class CertificatePdfGenerator
     }
 
     /**
-     * Resolves a relative logo path against the FS root; returns null if path is empty.
+     * Allowed image extensions for certificate logos. SVG is
+     * excluded because Cezpdf cannot render it and, more
+     * importantly, allowing SVG would mean pdf generation running
+     * over a scriptable XML document.
+     *
+     * @since 2.0 F7.8 · §2.6
+     * @var string[]
+     */
+    private const LOGO_EXT_ALLOWLIST = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+
+    /**
+     * Resolves a logo path against the plugin logo folder with
+     * path-traversal protection.
+     *
+     * @since 2.0 F7.8 — previously any string (including "../../etc/
+     *        passwd") was accepted. The new implementation:
+     *
+     *   1. Rejects empty / non-string input.
+     *   2. Strips any `../`, `..\`, embedded nulls, scheme prefix.
+     *   3. Verifies the extension is in LOGO_EXT_ALLOWLIST.
+     *   4. realpath()s the candidate and confirms it lives under
+     *      the plugin's permitted logo root (MyFiles/Public/
+     *      certificate-logos OR the template-editor upload path).
      */
     private static function resolveLogoPath(string $path): ?string
     {
-        if (empty($path)) {
+        if ($path === '' || strpos($path, "\0") !== false) {
             return null;
         }
 
-        // absolute path already
-        if (is_file($path)) {
-            return $path;
+        // Reject remote URLs outright. Logos must be local files.
+        if (preg_match('#^[a-z]+://#i', $path)) {
+            return null;
         }
 
-        // relative to FS root (FS_FOLDER constant)
-        if (defined('FS_FOLDER')) {
-            $candidate = FS_FOLDER . DIRECTORY_SEPARATOR . ltrim($path, '/\\');
-            if (is_file($candidate)) {
+        // Normalise separators and strip traversal fragments.
+        $clean = str_replace(['\\', '..'], ['/', ''], $path);
+        $clean = preg_replace('#/+#', '/', $clean);
+        $clean = ltrim((string) $clean, '/');
+
+        // Extension allowlist — reject SVG, BMP, TIFF, etc.
+        $ext = strtolower((string) pathinfo($clean, PATHINFO_EXTENSION));
+        if (!in_array($ext, self::LOGO_EXT_ALLOWLIST, true)) {
+            return null;
+        }
+
+        if (!defined('FS_FOLDER')) {
+            return null;
+        }
+
+        // Permitted roots. Both realpath()s are evaluated once and
+        // the candidate must fall under AT LEAST one of them.
+        $roots = [
+            realpath(FS_FOLDER . '/MyFiles/Public/certificate-logos'),
+            realpath(FS_FOLDER . '/MyFiles/certificate-logos'),
+            realpath(FS_FOLDER . '/MyFiles/Public'),
+        ];
+        $roots = array_values(array_filter($roots));
+
+        // Relative path: try resolving inside each allowed root.
+        foreach ($roots as $root) {
+            $candidate = realpath($root . DIRECTORY_SEPARATOR . $clean);
+            if ($candidate === false) {
+                continue;
+            }
+            if (strpos($candidate, $root) === 0 && is_file($candidate)) {
                 return $candidate;
+            }
+        }
+
+        // Absolute path: accept only if it already falls under one
+        // of the allowed roots (defence against a template row
+        // holding an absolute /var/www/... value from a legacy
+        // import).
+        if ($path[0] === '/' || preg_match('#^[A-Za-z]:#', $path)) {
+            $abs = realpath($path);
+            if ($abs !== false) {
+                foreach ($roots as $root) {
+                    if (strpos($abs, $root) === 0 && is_file($abs)) {
+                        return $abs;
+                    }
+                }
             }
         }
 
