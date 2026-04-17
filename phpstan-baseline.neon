@@ -1,0 +1,18 @@
+# PHPStan baseline — MoodleManagement v2.0
+#
+# @since 2.0 — V2.0-ACTION-PLAN F12.5 · §F12.5
+#
+# Snapshot of accepted errors at the time of v2.0 release. Adding a
+# new error to this baseline requires:
+#   1. A matching TODO in docs/V2.0-TASK-CHECKLIST.md or a follow-up
+#      issue.
+#   2. Reviewer approval on the release PR.
+#
+# The baseline starts EMPTY for v2.0 — every phpstan level 5 error
+# has been fixed at commit time. This file exists so CI
+# (.github/workflows/ci.yml, F9.9) can include it when future
+# strictness bumps surface legacy findings; the intent is that each
+# release leaves the baseline shorter than it found it.
+
+parameters:
+    ignoreErrors: []

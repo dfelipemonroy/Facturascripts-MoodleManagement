@@ -1,11 +1,14 @@
 # PHPStan configuration for MoodleManagement plugin
 # FacturaScripts 2025.81 · PHP 8.0+
-# Conforms with V2.0-ACTION-PLAN F0.3
+# Conforms with V2.0-ACTION-PLAN F0.3 + F12.5
 #
 # Usage (from plugin root):
 #   vendor/bin/phpstan analyse
 # Or with FS core vendor:
 #   ../../vendor/bin/phpstan analyse
+
+includes:
+    - phpstan-baseline.neon
 
 parameters:
     # Level 5 is the V2.0 DoD target.
