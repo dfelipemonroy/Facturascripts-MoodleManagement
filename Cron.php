@@ -298,33 +298,41 @@ class Cron extends CronClass
         );
 
         foreach ($instances as $instance) {
-            $mapModel = new MoodleCourseMap();
-            $maps = $mapModel->all(
-                [
-                    new DataBaseWhere('idinstance', $instance->id),
-                    new DataBaseWhere('moodle_courseid', 0, '>'),
-                ],
-                [],
-                0,
-                0
-            );
+            $this->courseSyncForInstance($instance);
+        }
+    }
 
+    /**
+     * F6.3 — course-map scanner in chunks. Same shape as
+     * userSyncForInstance; see its docblock for rationale.
+     */
+    private function courseSyncForInstance(MoodleInstance $instance): void
+    {
+        $mapModel = new MoodleCourseMap();
+        $where = [
+            new DataBaseWhere('idinstance', $instance->id),
+            new DataBaseWhere('moodle_courseid', 0, '>'),
+        ];
+        $orderBy = ['id' => 'ASC'];
+        $offset = 0;
+
+        do {
+            $maps = $mapModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
             if (empty($maps)) {
-                continue;
+                break;
             }
 
-            $courseIds = array_map(function ($m) {
+            $courseIds = array_map(static function ($m) {
                 return $m->moodle_courseid;
             }, $maps);
 
             $result = MoodleClient::getCourses($instance, $courseIds);
-
             if (isset($result['exception'])) {
                 Tools::log(self::COURSE_SYNC_JOB)->warning('course-sync-failed', [
-                    '%name%' => $instance->name,
+                    '%name%'    => $instance->name,
                     '%message%' => $result['message'] ?? $result['exception'],
                 ]);
-                continue;
+                break;
             }
 
             $moodleCourses = [];
@@ -338,13 +346,17 @@ class Cron extends CronClass
                 if (!isset($moodleCourses[$map->moodle_courseid])) {
                     continue;
                 }
-
                 MoodleClient::moodleCourseToMap($map, $moodleCourses[$map->moodle_courseid]);
                 $map->last_sync = date('Y-m-d H:i:s');
                 $map->last_error = '';
                 $map->save();
             }
-        }
+
+            if (count($maps) < self::BATCH_SIZE) {
+                break;
+            }
+            $offset += self::BATCH_SIZE;
+        } while (true);
     }
 
     private function reconciliation(): void
@@ -365,96 +377,120 @@ class Cron extends CronClass
 
     private function reconcileUsers(MoodleInstance $instance): void
     {
+        // F6.3 — paginate: chunk the local maps and call the WS once
+        // per chunk. Missing-user marks happen per chunk boundary.
         $mapModel = new MoodleUserMap();
-        $maps = $mapModel->all(
-            [
-                new DataBaseWhere('idinstance', $instance->id),
-                new DataBaseWhere('moodle_userid', 0, '>'),
-            ],
-            [],
-            0,
-            0
-        );
+        $where = [
+            new DataBaseWhere('idinstance', $instance->id),
+            new DataBaseWhere('moodle_userid', 0, '>'),
+        ];
+        $orderBy = ['id' => 'ASC'];
+        $offset = 0;
 
-        if (empty($maps)) {
-            return;
-        }
-
-        $moodleIds = array_map(function ($m) {
-            return $m->moodle_userid;
-        }, $maps);
-
-        $result = MoodleClient::getUsersByField($instance, 'id', $moodleIds);
-        if (isset($result['exception'])) {
-            return;
-        }
-
-        $existingIds = [];
-        foreach ($result as $user) {
-            $existingIds[(int)$user['id']] = true;
-        }
-
-        foreach ($maps as $map) {
-            if (!isset($existingIds[$map->moodle_userid])) {
-                $map->last_error = Tools::lang()->trans('user-not-found-in-moodle');
-                $map->save();
-                Tools::log(self::RECONCILIATION_JOB)->warning('reconcile-user-missing', [
-                    '%userid%' => $map->moodle_userid,
-                    '%instance%' => $instance->name,
-                ]);
+        do {
+            $maps = $mapModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
+            if (empty($maps)) {
+                break;
             }
-        }
+
+            $moodleIds = array_map(static function ($m) {
+                return $m->moodle_userid;
+            }, $maps);
+            $result = MoodleClient::getUsersByField($instance, 'id', $moodleIds);
+            if (isset($result['exception'])) {
+                return;
+            }
+
+            $existingIds = [];
+            foreach ($result as $user) {
+                $existingIds[(int) $user['id']] = true;
+            }
+
+            foreach ($maps as $map) {
+                if (!isset($existingIds[$map->moodle_userid])) {
+                    $map->last_error = Tools::lang()->trans('user-not-found-in-moodle');
+                    $map->save();
+                    Tools::log(self::RECONCILIATION_JOB)->warning('reconcile-user-missing', [
+                        '%userid%'   => $map->moodle_userid,
+                        '%instance%' => $instance->name,
+                    ]);
+                }
+            }
+
+            if (count($maps) < self::BATCH_SIZE) {
+                break;
+            }
+            $offset += self::BATCH_SIZE;
+        } while (true);
     }
 
     private function reconcileEnrolments(MoodleInstance $instance): void
     {
+        // F6.3 — outer loop paginates course maps; inner loop
+        // paginates local enrolments for that course. Each WS call
+        // scoped to a single course so payloads stay small.
         $courseMapModel = new MoodleCourseMap();
-        $courseMaps = $courseMapModel->all(
-            [
-                new DataBaseWhere('idinstance', $instance->id),
-                new DataBaseWhere('moodle_courseid', 0, '>'),
-            ],
-            [],
-            0,
-            0
-        );
+        $cmWhere = [
+            new DataBaseWhere('idinstance', $instance->id),
+            new DataBaseWhere('moodle_courseid', 0, '>'),
+        ];
+        $cmOrder = ['id' => 'ASC'];
+        $cmOffset = 0;
 
-        foreach ($courseMaps as $courseMap) {
-            $enrolledResult = MoodleClient::getEnrolledUsers($instance, $courseMap->moodle_courseid, false);
-            if (isset($enrolledResult['exception'])) {
-                continue;
+        do {
+            $courseMaps = $courseMapModel->all($cmWhere, $cmOrder, $cmOffset, self::BATCH_SIZE);
+            if (empty($courseMaps)) {
+                break;
             }
 
-            $moodleEnrolledIds = [];
-            foreach ($enrolledResult as $user) {
-                $moodleEnrolledIds[(int)$user['id']] = true;
-            }
+            foreach ($courseMaps as $courseMap) {
+                $enrolledResult = MoodleClient::getEnrolledUsers($instance, $courseMap->moodle_courseid, false);
+                if (isset($enrolledResult['exception'])) {
+                    continue;
+                }
 
-            $enrolModel = new MoodleEnrolment();
-            $localEnrolments = $enrolModel->all(
-                [
+                $moodleEnrolledIds = [];
+                foreach ($enrolledResult as $user) {
+                    $moodleEnrolledIds[(int) $user['id']] = true;
+                }
+
+                $enrolModel = new MoodleEnrolment();
+                $enWhere = [
                     new DataBaseWhere('idinstance', $instance->id),
                     new DataBaseWhere('moodle_courseid', $courseMap->moodle_courseid),
                     new DataBaseWhere('status', 'enrolled'),
-                ],
-                [],
-                0,
-                0
-            );
-
-            foreach ($localEnrolments as $enrolment) {
-                if (!isset($moodleEnrolledIds[$enrolment->moodle_userid])) {
-                    $enrolment->status = 'unenrolled';
-                    $enrolment->last_error = Tools::lang()->trans('enrolment-not-found-in-moodle');
-                    $enrolment->last_sync = date('Y-m-d H:i:s');
-                    $enrolment->save();
-                    Tools::log(self::RECONCILIATION_JOB)->warning('reconcile-enrolment-missing', [
-                        '%userid%' => $enrolment->moodle_userid,
-                        '%courseid%' => $enrolment->moodle_courseid,
-                    ]);
-                }
+                ];
+                $enOrder = ['id' => 'ASC'];
+                $enOffset = 0;
+                do {
+                    $localEnrolments = $enrolModel->all($enWhere, $enOrder, $enOffset, self::BATCH_SIZE);
+                    if (empty($localEnrolments)) {
+                        break;
+                    }
+                    foreach ($localEnrolments as $enrolment) {
+                        if (!isset($moodleEnrolledIds[$enrolment->moodle_userid])) {
+                            $enrolment->status = 'unenrolled';
+                            $enrolment->last_error = Tools::lang()->trans('enrolment-not-found-in-moodle');
+                            $enrolment->last_sync = date('Y-m-d H:i:s');
+                            $enrolment->save();
+                            Tools::log(self::RECONCILIATION_JOB)->warning('reconcile-enrolment-missing', [
+                                '%userid%'   => $enrolment->moodle_userid,
+                                '%courseid%' => $enrolment->moodle_courseid,
+                            ]);
+                        }
+                    }
+                    if (count($localEnrolments) < self::BATCH_SIZE) {
+                        break;
+                    }
+                    $enOffset += self::BATCH_SIZE;
+                } while (true);
             }
-        }
+
+            if (count($courseMaps) < self::BATCH_SIZE) {
+                break;
+            }
+            $cmOffset += self::BATCH_SIZE;
+        } while (true);
     }
 
     private function cleanup(): void
@@ -526,40 +562,48 @@ class Cron extends CronClass
         $now = time();
         $warningThreshold = $now + ($warningDays * 86400);
 
+        // F6.3 — paginate enrolments so a deployment with 100k
+        // active enrolments does not load them all into memory.
         $enrolModel = new MoodleEnrolment();
-        $enrolments = $enrolModel->all(
-            [
-                new DataBaseWhere('status', 'enrolled'),
-                new DataBaseWhere('timeend', 0, '>'),
-                new DataBaseWhere('timeend', $warningThreshold, '<='),
-            ],
-            [],
-            0,
-            0
-        );
+        $where = [
+            new DataBaseWhere('status', 'enrolled'),
+            new DataBaseWhere('timeend', 0, '>'),
+            new DataBaseWhere('timeend', $warningThreshold, '<='),
+        ];
+        $orderBy = ['id' => 'ASC'];
+        $offset = 0;
 
-        foreach ($enrolments as $enrolment) {
-            $daysLeft = max(0, (int)ceil(($enrolment->timeend - $now) / 86400));
-
-            if ($enrolment->timeend <= $now) {
-                $enrolment->status = 'unenrolled';
-                $enrolment->notes = Tools::lang()->trans('enrolment-expired');
-                $enrolment->save();
-                Tools::log(self::EXPIRY_CHECK_JOB)->warning('enrolment-expired-auto', [
-                    '%userid%' => $enrolment->moodle_userid,
-                    '%courseid%' => $enrolment->moodle_courseid,
-                ]);
-            } else {
-                // generate renewal estimate if not already created
-                $this->generateRenewalEstimate($enrolment);
-
-                Tools::log(self::EXPIRY_CHECK_JOB)->info('enrolment-expiring-soon', [
-                    '%userid%' => $enrolment->moodle_userid,
-                    '%courseid%' => $enrolment->moodle_courseid,
-                    '%days%' => $daysLeft,
-                ]);
+        do {
+            $enrolments = $enrolModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
+            if (empty($enrolments)) {
+                break;
             }
-        }
+
+            foreach ($enrolments as $enrolment) {
+                $daysLeft = max(0, (int) ceil(($enrolment->timeend - $now) / 86400));
+                if ($enrolment->timeend <= $now) {
+                    $enrolment->status = 'unenrolled';
+                    $enrolment->notes = Tools::lang()->trans('enrolment-expired');
+                    $enrolment->save();
+                    Tools::log(self::EXPIRY_CHECK_JOB)->warning('enrolment-expired-auto', [
+                        '%userid%'   => $enrolment->moodle_userid,
+                        '%courseid%' => $enrolment->moodle_courseid,
+                    ]);
+                } else {
+                    $this->generateRenewalEstimate($enrolment);
+                    Tools::log(self::EXPIRY_CHECK_JOB)->info('enrolment-expiring-soon', [
+                        '%userid%'   => $enrolment->moodle_userid,
+                        '%courseid%' => $enrolment->moodle_courseid,
+                        '%days%'     => $daysLeft,
+                    ]);
+                }
+            }
+
+            if (count($enrolments) < self::BATCH_SIZE) {
+                break;
+            }
+            $offset += self::BATCH_SIZE;
+        } while (true);
     }
 
     /**
