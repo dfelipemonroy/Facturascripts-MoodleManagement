@@ -78,30 +78,49 @@ class EnrolmentWorker extends WorkerClass
             return;
         }
 
-        foreach ($invoice->getLines() as $line) {
-            if (empty($line->idproducto)) {
-                continue;
-            }
+        // F6.6 — wrap the enrolment loop in a single transaction so a
+        // network failure halfway through a multi-line invoice does
+        // not leave half the enrolments persisted (with Moodle-side
+        // state) and the other half unrecorded locally. If any line
+        // throws, everything rolls back and the WorkQueue retries on
+        // the next FacturaCliente.Update event.
+        $db = new \FacturaScripts\Core\Base\DataBase();
+        $db->beginTransaction();
+        try {
+            foreach ($invoice->getLines() as $line) {
+                if (empty($line->idproducto)) {
+                    continue;
+                }
 
-            $courseMap = new MoodleCourseMap();
-            $cmWhere = [new DataBaseWhere('idproducto', $line->idproducto)];
-            if (false === $courseMap->loadFromCode('', $cmWhere)) {
-                continue;
-            }
+                $courseMap = new MoodleCourseMap();
+                $cmWhere = [new DataBaseWhere('idproducto', $line->idproducto)];
+                if (false === $courseMap->loadFromCode('', $cmWhere)) {
+                    continue;
+                }
 
-            $userMap = new MoodleUserMap();
-            $umWhere = [
-                new DataBaseWhere('idcontacto', $contactId),
-                new DataBaseWhere('idinstance', $courseMap->idinstance),
-            ];
-            if (false === $userMap->loadFromCode('', $umWhere)) {
-                Tools::log('MoodleManagement')->warning('no-user-map', [
-                    '%contact%' => $contactId,
-                ]);
-                continue;
-            }
+                $userMap = new MoodleUserMap();
+                $umWhere = [
+                    new DataBaseWhere('idcontacto', $contactId),
+                    new DataBaseWhere('idinstance', $courseMap->idinstance),
+                ];
+                if (false === $userMap->loadFromCode('', $umWhere)) {
+                    Tools::log('MoodleManagement')->warning('no-user-map', [
+                        '%contact%' => $contactId,
+                    ]);
+                    continue;
+                }
 
-            $this->enrolUser($courseMap, $userMap, $invoice, $contactId);
+                $this->enrolUser($courseMap, $userMap, $invoice, $contactId);
+            }
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollback();
+            Tools::log('MoodleManagement')->error('enrolment-transaction-failed', [
+                'invoice'   => (int) $invoice->idfactura,
+                'exception' => get_class($e),
+                'message'   => $e->getMessage(),
+            ]);
+            throw $e;
         }
     }
 
