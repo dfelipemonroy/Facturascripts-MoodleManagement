@@ -125,6 +125,52 @@ The receiver uses `hash_equals` internally — constant-time compare
   `moodle-cron`, `moodle-user-sync`, `moodle-progress-sync`,
   `moodle-webhook`, `certificate-pdf-error`, …
 
+## 6.b Reference bridge (Moodle-side)
+
+Since Moodle core does not emit HTTP webhooks natively, the
+operator must add a thin bridge on the Moodle host. The
+plugin ships a reference CLI script at
+[`scripts/webhook-bridge-example.php`](../scripts/webhook-bridge-example.php)
+that can be wired into a Moodle Event Observer.
+
+Typical Moodle-side wiring (simplified):
+
+```php
+// In local_yourplugin/classes/observer.php
+class observer {
+    public static function enrol_user_created(\core\event\user_enrolment_created $e): void {
+        $payload = json_encode([
+            'userid'    => $e->relateduserid,
+            'courseid'  => $e->courseid,
+            'timestart' => (int) $e->timecreated,
+        ], JSON_UNESCAPED_SLASHES);
+        exec('php /opt/moodle-webhook-bridge.php enrolment_created ' . escapeshellarg($payload));
+    }
+}
+```
+
+And the matching `db/events.php`:
+
+```php
+$observers = [
+    [
+        'eventname' => '\core\event\user_enrolment_created',
+        'callback'  => '\local_yourplugin\observer::enrol_user_created',
+    ],
+];
+```
+
+The bridge script deliberately has **no Moodle dependency** —
+it only needs ext-curl and ext-openssl. Copy it anywhere on
+the Moodle host, edit `$FS_BASE_URL`, `$INSTANCE_ID`, and
+`$SECRET`, and drive it from any shell-exec friendly path.
+
+> For Moodle 4.3+ hosts with Messaging API / webhooks
+> extensions available, prefer a pure-PHP in-process
+> delivery that reuses this script's signing logic and
+> avoids a shell exec. The signing / envelope code is
+> already identical to what the receiver verifies.
+
 ## 7. Stability contract
 
 Event names in this file are part of the v2.0 public contract.
