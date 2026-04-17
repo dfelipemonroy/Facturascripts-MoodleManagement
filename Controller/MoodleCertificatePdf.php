@@ -9,6 +9,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 use FacturaScripts\Core\Base\Controller;
 use FacturaScripts\Core\Model\User;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Audit;
 use FacturaScripts\Plugins\MoodleManagement\Lib\CertificatePdfGenerator;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CspHeader;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\RateLimiter;
@@ -206,17 +207,26 @@ class MoodleCertificatePdf extends Controller
     }
 
     /**
-     * Record a denial to the plugin audit log. Runs silently if the
-     * audit table is not installed yet (F4.4 adds it).
+     * Record a denial to the plugin audit log (F4.4) plus the
+     * operational log. The outcome constants come from Audit::*.
      */
     private function auditDenied(string $actor, string $reason, ?int $certId): void
     {
+        $outcome = $reason === 'rate_limited' ? Audit::RATE_LIMITED : Audit::FORBIDDEN;
+        Audit::record('certificate.download', $outcome, [
+            'operator_nick' => $actor,
+            'target_type'   => 'moodle_certificate',
+            'target_id'     => $certId,
+            'ip'            => $this->request->getClientIp(),
+            'user_agent'    => (string) $this->request->headers->get('User-Agent', ''),
+            'payload'       => ['reason' => $reason],
+        ]);
+
+        // Keep a streamlined entry in the technical log for quick triage.
         Tools::log()->warning('certificate-pdf-denied', [
             'actor'  => $actor,
             'reason' => $reason,
             'cert'   => $certId,
-            'ip'     => $this->request->getClientIp(),
-            'ua'     => substr((string) $this->request->headers->get('User-Agent', ''), 0, 200),
         ]);
     }
 }

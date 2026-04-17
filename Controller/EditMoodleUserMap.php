@@ -22,6 +22,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\EditController;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Audit;
 use FacturaScripts\Plugins\MoodleManagement\Lib\BadgeSyncHelper;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\RateLimiter;
@@ -210,10 +211,17 @@ class EditMoodleUserMap extends EditController
     {
         // F4.2 — guard mutating actions against horizontal IDOR.
         if (in_array($action, self::GUARDED_ACTIONS, true) && !$this->canManageCurrentUserMap()) {
+            $actor = (string) ($this->user->nick ?? 'unknown');
+            Audit::record('usermap.' . $action, Audit::FORBIDDEN, [
+                'operator_nick' => $actor,
+                'target_type'   => 'moodle_user_map',
+                'target_id'     => (int) $this->request->get('code'),
+                'ip'            => $this->request->getClientIp(),
+                'user_agent'    => (string) $this->request->headers->get('User-Agent', ''),
+            ]);
             Tools::log()->warning('usermap-action-forbidden', [
                 'action' => $action,
-                'actor'  => $this->user->nick ?? 'unknown',
-                'target' => $this->request->get('code'),
+                'actor'  => $actor,
             ]);
             $this->response->setStatusCode(403);
             $this->toolBox()->i18nLog()->warning('not-allowed-modify');
@@ -226,6 +234,13 @@ class EditMoodleUserMap extends EditController
             $actor = (string) ($this->user->nick ?? $this->request->getClientIp() ?? 'anon');
             $bucket = 'usermap.' . $action;
             if (!RateLimiter::check($actor, $bucket, $limit)) {
+                Audit::record('usermap.' . $action, Audit::RATE_LIMITED, [
+                    'operator_nick' => $actor,
+                    'target_type'   => 'moodle_user_map',
+                    'target_id'     => (int) $this->request->get('code'),
+                    'ip'            => $this->request->getClientIp(),
+                    'payload'       => ['limit_per_minute' => $limit],
+                ]);
                 Tools::log()->warning('usermap-action-rate-limited', [
                     'action' => $action,
                     'actor'  => $actor,
