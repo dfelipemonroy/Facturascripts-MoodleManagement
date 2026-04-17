@@ -24,6 +24,7 @@ use FacturaScripts\Core\Lib\ExtendedController\EditController;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\BadgeSyncHelper;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\RateLimiter;
 
 class EditMoodleUserMap extends EditController
 {
@@ -176,6 +177,35 @@ class EditMoodleUserMap extends EditController
         'delete-calendar-event',
     ];
 
+    /**
+     * Per-action rate limits (hits allowed per 60 s window, per actor).
+     * See F4.3 · §4.17. Hitting the cap returns 429 with Retry-After.
+     *
+     * Tuning rationale:
+     *   - sync-to-moodle / sync-from-moodle are expensive (WS round-trip
+     *     + potential user-create). Low limit blocks abuse.
+     *   - send-message hits Moodle messaging API per target — strict.
+     *   - send-chat-message is the operator live-chat, higher limit.
+     *   - Note and calendar actions are cheap and hand-driven, relaxed.
+     *
+     * @since 2.0 F4.3
+     * @var array<string, int>
+     */
+    private const ACTION_RATE_LIMITS = [
+        'sync-to-moodle'        => 3,    // = 3 per minute ≈ 180/hour.
+        'sync-from-moodle'      => 3,
+        'sync-badges'           => 5,
+        'send-message'          => 10,
+        'send-chat-message'     => 30,
+        'enrol-batch'           => 5,
+        'unenrol-batch'         => 5,
+        'suspend-batch'         => 5,
+        'create-note'           => 20,
+        'delete-note'           => 20,
+        'create-calendar-event' => 20,
+        'delete-calendar-event' => 20,
+    ];
+
     protected function execPreviousAction($action)
     {
         // F4.2 — guard mutating actions against horizontal IDOR.
@@ -188,6 +218,24 @@ class EditMoodleUserMap extends EditController
             $this->response->setStatusCode(403);
             $this->toolBox()->i18nLog()->warning('not-allowed-modify');
             return false;
+        }
+
+        // F4.3 — rate-limit sensitive actions.
+        if (isset(self::ACTION_RATE_LIMITS[$action])) {
+            $limit = self::ACTION_RATE_LIMITS[$action];
+            $actor = (string) ($this->user->nick ?? $this->request->getClientIp() ?? 'anon');
+            $bucket = 'usermap.' . $action;
+            if (!RateLimiter::check($actor, $bucket, $limit)) {
+                Tools::log()->warning('usermap-action-rate-limited', [
+                    'action' => $action,
+                    'actor'  => $actor,
+                    'limit'  => $limit,
+                ]);
+                $this->response->headers->set('Retry-After', '60');
+                $this->response->setStatusCode(429);
+                $this->toolBox()->i18nLog()->warning('too-many-requests');
+                return false;
+            }
         }
 
         switch ($action) {
