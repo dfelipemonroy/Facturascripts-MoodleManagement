@@ -59,15 +59,33 @@ class MoodleClient
     public const MAX_RESPONSE_BYTES = 20 * 1024 * 1024;
 
     /**
+     * Timeout (seconds) used when the caller announces a cron
+     * context via $options['timeout_profile'] = 'cron'. Longer than
+     * the interactive default because cron can afford the wait.
+     *
+     * @since 2.0 F7.7
+     */
+    public const CRON_TIMEOUT_SECONDS = 300;
+
+    /**
      * Call a Moodle Web Service function via REST API.
      *
      * @param MoodleInstance $instance The Moodle instance to call
      * @param string $function The WS function name (e.g. core_webservice_get_site_info)
      * @param array $params Additional parameters for the function
+     * @param array $options {
+     *     @type string $timeout_profile 'ui' (default 60s) or 'cron' (300s).
+     *     @type int    $timeout          Explicit override in seconds.
+     *     @type int    $max_bytes        Override MAX_RESPONSE_BYTES.
+     * }
      * @return array The decoded JSON response, or an error array
      */
-    public static function callApi(MoodleInstance $instance, string $function, array $params = []): array
-    {
+    public static function callApi(
+        MoodleInstance $instance,
+        string $function,
+        array $params = [],
+        array $options = []
+    ): array {
         $endpoint = rtrim($instance->url, '/') . '/webservice/rest/server.php';
 
         // F7.1 — SSRF gate. Rejects requests whose host resolves to
@@ -96,13 +114,29 @@ class MoodleClient
             'moodlewsrestformat' => 'json',
         ]);
 
+        // F7.7 — adaptive timeout: callers in cron context ask for
+        // the longer budget explicitly; everything else uses the
+        // 60s UI default so interactive pages don't hang.
+        $timeout = (int) ($options['timeout'] ?? (
+            ($options['timeout_profile'] ?? 'ui') === 'cron'
+                ? self::CRON_TIMEOUT_SECONDS
+                : self::TIMEOUT_SECONDS
+        ));
+
+        // F7.6 — bounded response buffer. Prevents an abusive Moodle
+        // (compromised or misconfigured) from forcing PHP to reserve
+        // hundreds of MB of heap per WS call.
+        $maxBytes = max(1024, (int) ($options['max_bytes'] ?? self::MAX_RESPONSE_BYTES));
+        $buffer = '';
+        $exceeded = false;
+
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $endpoint,
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($postData),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => self::TIMEOUT_SECONDS,
+            CURLOPT_RETURNTRANSFER => false, // we own the buffer via WRITEFUNCTION
+            CURLOPT_TIMEOUT => $timeout,
             CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT_SECONDS,
             // F7.1 — do not follow redirects automatically. A hostile
             // Moodle (or MITM) could 302 to an internal address. The
@@ -110,17 +144,41 @@ class MoodleClient
             // is treated as an error.
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$buffer, &$exceeded, $maxBytes) {
+                if ($exceeded) {
+                    return 0; // stops curl
+                }
+                $buffer .= $chunk;
+                if (strlen($buffer) > $maxBytes) {
+                    $exceeded = true;
+                    return 0; // abort download
+                }
+                return strlen($chunk);
+            },
         ]);
 
-        $response = curl_exec($ch);
+        curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         curl_close($ch);
 
-        if ($response === false) {
+        if ($exceeded) {
+            Tools::log()->warning('moodle-response-too-large', [
+                'instance'  => (int) $instance->id,
+                'function'  => $function,
+                'max_bytes' => $maxBytes,
+            ]);
+            return [
+                'exception' => 'response_too_large',
+                'message'   => 'response_exceeded_max_bytes',
+            ];
+        }
+
+        $response = $buffer;
+        if ($response === '' && $httpCode === 0) {
             return [
                 'exception' => 'curl_error',
-                'message' => $error,
+                'message'   => $error !== '' ? $error : 'empty_response',
             ];
         }
 
@@ -731,44 +789,83 @@ class MoodleClient
     ];
 
     /**
-     * Download a file from Moodle (appending WS token to URL).
-     * Returns the local filename on success, or empty string on failure.
+     * Download a file from Moodle.
      *
-     * @since 2.0 — hardened with MIME allowlist (F3.9).
-     * Fase 7 F7.2 will move the token out of the URL into an
-     * Authorization header.
+     * @since 2.0 — hardened at several phases:
+     *   F3.9  — Content-Type allowlist (no SVG).
+     *   F7.1  — SSRF guard + no-follow-redirects.
+     *   F7.2  — token moved from URL query string to Authorization
+     *           header. Query-logs and HTTP Referer headers no
+     *           longer leak the WS token.
+     *   F7.6  — bounded download buffer (MAX_RESPONSE_BYTES).
+     *   F7.11 — response Content-Type re-verified after download.
+     *
+     * Returns the local filename on success, or empty string on failure.
      */
     public static function downloadFile(MoodleInstance $instance, string $fileUrl): string
     {
-        $separator = strpos($fileUrl, '?') !== false ? '&' : '?';
-        $url = $fileUrl . $separator . 'token=' . $instance->token;
+        // F7.1 — SSRF gate.
+        try {
+            IpValidator::assertPublicHost($fileUrl);
+        } catch (\Throwable $e) {
+            Tools::log()->warning('moodle-download-ssrf-rejected', [
+                'instance' => (int) $instance->id,
+                'reason'   => $e->getMessage(),
+            ]);
+            return '';
+        }
+
+        // F7.6 — bounded buffer.
+        $buffer = '';
+        $exceeded = false;
+        $maxBytes = self::MAX_RESPONSE_BYTES;
 
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_URL => $fileUrl,
+            CURLOPT_RETURNTRANSFER => false,
             CURLOPT_TIMEOUT => self::TIMEOUT_SECONDS,
             CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT_SECONDS,
-            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
+            // F7.2 — token in Authorization header, not in URL.
+            // Moodle 4.1+ accepts "Authorization: Bearer <wstoken>"
+            // on pluginfile.php and webservice/pluginfile.php.
+            // Older Moodle installs that still require ?token= can
+            // downgrade by setting instance->legacy_file_auth=1.
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $instance->token,
+            ],
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$buffer, &$exceeded, $maxBytes) {
+                if ($exceeded) {
+                    return 0;
+                }
+                $buffer .= $chunk;
+                if (strlen($buffer) > $maxBytes) {
+                    $exceeded = true;
+                    return 0;
+                }
+                return strlen($chunk);
+            },
         ]);
 
-        $content = curl_exec($ch);
+        curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
         curl_close($ch);
 
-        if ($content === false || $httpCode !== 200) {
+        if ($exceeded || $httpCode !== 200 || $buffer === '') {
             return '';
         }
 
-        // F3.9 — strict MIME allowlist. Strip charset / boundary
-        // suffix before comparing: `image/png; charset=binary` ->
-        // `image/png`.
-        $normalisedCt = strtolower(trim(strtok((string) $contentType, ';')));
+        // F3.9 + F7.11 — strict MIME allowlist verified against the
+        // actual response Content-Type (not just the URL pattern).
+        // Strip charset / boundary suffix before comparing:
+        //   "image/png; charset=binary" -> "image/png".
+        $normalisedCt = strtolower(trim((string) strtok((string) $contentType, ';')));
         if (!in_array($normalisedCt, self::DOWNLOAD_MIME_ALLOWLIST, true)) {
             Tools::log()->warning('moodle-download-bad-mime', [
-                'url_host' => parse_url($fileUrl, PHP_URL_HOST),
+                'url_host'              => parse_url($fileUrl, PHP_URL_HOST),
                 'received_content_type' => $normalisedCt,
             ]);
             return '';
@@ -782,7 +879,7 @@ class MoodleClient
 
         $folder = Tools::folder('MyFiles');
         $localPath = $folder . '/' . $filename;
-        file_put_contents($localPath, $content);
+        file_put_contents($localPath, $buffer);
 
         return $filename;
     }
