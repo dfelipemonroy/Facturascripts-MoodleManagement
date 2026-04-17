@@ -1,0 +1,107 @@
+name: Benchmark
+
+# @since 2.0 — V2.0-ACTION-PLAN F13 · DISCOVERED-07
+#
+# Manual-dispatch performance benchmark over the 4 hot paths
+# identified in docs/QA-PERFORMANCE.md:
+#   dashboard · user_map_page · progress_sync_batch · audit_log_page
+#
+# Seeds 10k contacts + 30k enrolments + 500 audit rows into a fresh
+# MySQL service, runs scripts/benchmark.php run, and uploads the
+# tee'd stdout as an artefact so trends can be plotted across
+# releases.
+#
+# Hard-gate: the harness exits 5 on any scenario exceeding its
+# target (see docs/QA-PERFORMANCE.md). Soft-failure bands are
+# tracked outside CI for now.
+
+on:
+  workflow_dispatch:
+    inputs:
+      php_version:
+        description: "PHP version to benchmark"
+        required: true
+        default: "8.2"
+        type: choice
+        options:
+          - "8.0"
+          - "8.1"
+          - "8.2"
+
+jobs:
+
+  benchmark:
+    name: Benchmark (PHP ${{ inputs.php_version }})
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: bench
+          MYSQL_DATABASE: bench_moodlemanagement
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -pbench"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ inputs.php_version }}
+          extensions: pdo_mysql, mbstring, curl, openssl, dom, libxml
+          coverage: none
+          tools: composer
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h 127.0.0.1 -u root -pbench --silent && break
+            sleep 1
+          done
+          mysql -h 127.0.0.1 -u root -pbench -e "SHOW DATABASES;"
+
+      # The benchmark harness needs a functioning FS core install
+      # with the plugin schema applied. Minimal setup:
+      #   1. Clone FacturaScripts core at the version matching
+      #      min_version (2025.6).
+      #   2. Link this repo into Plugins/MoodleManagement.
+      #   3. Run the FS installer against the mysql service.
+      # For v2.0 the FS install step is a placeholder — the
+      # harness itself runs standalone once FS autoload is
+      # reachable. A full install recipe is tracked for v2.1.
+      - name: Bootstrap FS core (placeholder)
+        run: |
+          echo "::warning::FS core bootstrap is a v2.1 follow-up."
+          echo "Benchmark job currently validates the harness syntax"
+          echo "but the seed/run steps below require FS core present."
+
+      - name: Lint benchmark harness
+        working-directory: Plugins/MoodleManagement
+        # At a minimum, verify the harness is parseable on every PHP
+        # version we support. This gate catches syntax regressions
+        # before a full run is attempted.
+        run: |
+          php -l scripts/benchmark.php
+
+      - name: Seed + run + clean (skipped until FS core bootstrap lands)
+        if: ${{ false }}
+        working-directory: Plugins/MoodleManagement
+        run: |
+          php scripts/benchmark.php seed
+          php scripts/benchmark.php run | tee benchmark-${{ inputs.php_version }}.log
+          php scripts/benchmark.php clean
+
+      - name: Upload benchmark log
+        if: ${{ false }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ inputs.php_version }}-${{ github.run_id }}
+          path: Plugins/MoodleManagement/benchmark-${{ inputs.php_version }}.log
+          retention-days: 90
