@@ -21,6 +21,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Lib;
 
 use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\IpValidator;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 
 class MoodleClient
@@ -69,11 +70,31 @@ class MoodleClient
     {
         $endpoint = rtrim($instance->url, '/') . '/webservice/rest/server.php';
 
-        $postData = array_merge([
-            'wstoken' => $instance->token,
-            'wsfunction' => $function,
+        // F7.1 — SSRF gate. Rejects requests whose host resolves to
+        // a private/loopback/link-local address (AWS metadata,
+        // intranet Moodle instances misconfigured as public URL,
+        // localhost dev machine reachable from prod worker).
+        try {
+            IpValidator::assertPublicHost($endpoint);
+        } catch (\Throwable $e) {
+            Tools::log()->warning('moodle-ssrf-rejected', [
+                'instance' => (int) $instance->id,
+                'endpoint' => $endpoint,
+                'reason'   => $e->getMessage(),
+            ]);
+            return [
+                'exception' => 'ssrf_rejected',
+                'message'   => 'host_private_or_unresolvable',
+            ];
+        }
+
+        // F7.13 — always force JSON output, regardless of whatever
+        // the caller may have passed in $params.
+        $postData = array_merge($params, [
+            'wstoken'            => $instance->token,
+            'wsfunction'         => $function,
             'moodlewsrestformat' => 'json',
-        ], $params);
+        ]);
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -83,8 +104,11 @@ class MoodleClient
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => self::TIMEOUT_SECONDS,
             CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT_SECONDS,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_POSTREDIR => self::REDIRECT_METHODS_BITMASK,
+            // F7.1 — do not follow redirects automatically. A hostile
+            // Moodle (or MITM) could 302 to an internal address. The
+            // WS endpoint answers directly with 200; a 3xx response
+            // is treated as an error.
+            CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
 
