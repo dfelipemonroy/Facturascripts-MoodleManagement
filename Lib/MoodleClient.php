@@ -27,6 +27,17 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 class MoodleClient
 {
     /**
+     * F8.7 — fluent entry point for instance-bound API access.
+     * See {@see \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\BoundClient}.
+     *
+     * @since 2.0
+     */
+    public static function forInstance(MoodleInstance $instance): \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\BoundClient
+    {
+        return new \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\BoundClient($instance);
+    }
+
+    /**
      * F7.21 — per-request cache of course payloads so multiple
      * callers asking for the same course ID inside one request
      * share the WS round-trip. Reset on every PHP process.
