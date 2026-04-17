@@ -503,11 +503,24 @@ class Cron extends CronClass
 
     private function cleanup(): void
     {
-        $this->cleanOrphanedUserMaps();
-        $this->cleanOrphanedEnrolments();
+        // F6.9 — summary counts at the end so operators can follow
+        // cleanup impact in the log without aggregating two lines.
+        $startedAt = microtime(true);
+        $userMapDeleted = $this->cleanOrphanedUserMaps();
+        $enrolmentDeleted = $this->cleanOrphanedEnrolments();
+        $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+
+        Tools::log(self::CLEANUP_JOB)->info('cleanup-done', [
+            'deleted_user_maps'   => $userMapDeleted,
+            'deleted_enrolments'  => $enrolmentDeleted,
+            'elapsed_ms'          => $elapsedMs,
+        ]);
     }
 
-    private function cleanOrphanedUserMaps(): void
+    /**
+     * @return int Number of orphan rows deleted.
+     */
+    private function cleanOrphanedUserMaps(): int
     {
         $db = new DataBase();
         $sql = "SELECT m.id FROM moodle_user_map m"
@@ -516,11 +529,10 @@ class Cron extends CronClass
 
         $rows = $db->select($sql);
         if (empty($rows)) {
-            return;
+            return 0;
         }
 
         $count = 0;
-        $mapModel = new MoodleUserMap();
         foreach ($rows as $row) {
             $map = new MoodleUserMap();
             if ($map->loadFromCode($row['id'])) {
@@ -534,9 +546,13 @@ class Cron extends CronClass
                 '%count%' => $count,
             ]);
         }
+        return $count;
     }
 
-    private function cleanOrphanedEnrolments(): void
+    /**
+     * @return int Number of orphan rows deleted.
+     */
+    private function cleanOrphanedEnrolments(): int
     {
         $db = new DataBase();
         $sql = "SELECT e.id FROM moodle_enrolments e"
@@ -545,7 +561,7 @@ class Cron extends CronClass
 
         $rows = $db->select($sql);
         if (empty($rows)) {
-            return;
+            return 0;
         }
 
         $count = 0;
@@ -562,6 +578,7 @@ class Cron extends CronClass
                 '%count%' => $count,
             ]);
         }
+        return $count;
     }
 
     private function expiryCheck(): void
