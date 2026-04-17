@@ -161,10 +161,22 @@ function loadGroupMembers(groupId, groupName) {
 
     var container = document.getElementById('membersListContainer');
     var groupData = {{ fsc.courseGroupMembers | json_encode | raw }};
-    var usersMap = {};
-    {% for user in enrolledUsers %}
-    usersMap[{{ user.id }}] = '{{ user.fullname | e('js') }} ({{ user.username | e('js') }})';
-    {% endfor %}
+    // F3.6 — load display names as raw strings via JSON; escape at
+    // insertion time rather than at Twig-render time. Avoids the
+    // "|e('js') gives a JS-safe string but HTML-unsafe" trap that
+    // previously allowed <script> in a user fullname to reach
+    // innerHTML untouched.
+    var usersMap = {
+        {% for user in enrolledUsers %}
+        {{ user.id }}: {{ (user.fullname ~ ' (' ~ user.username ~ ')') | json_encode | raw }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    function cgEscapeHtml(t) {
+        var d = document.createElement('div');
+        d.textContent = String(t == null ? '' : t);
+        return d.innerHTML;
+    }
 
     var members = [];
     for (var i = 0; i < groupData.length; i++) {
@@ -175,21 +187,23 @@ function loadGroupMembers(groupId, groupName) {
     }
 
     if (members.length === 0) {
-        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle me-1"></i>{{ trans('no-members') }}</div>';
+        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle me-1"></i>{{ trans('no-members') | e('html') }}</div>';
         return;
     }
 
-    var html = '<table class="table table-sm"><thead><tr><th>{{ trans('user') }}</th><th class="text-end">{{ trans('actions') }}</th></tr></thead><tbody>';
+    var html = '<table class="table table-sm"><thead><tr><th>{{ trans('user') | e('html') }}</th><th class="text-end">{{ trans('actions') | e('html') }}</th></tr></thead><tbody>';
     for (var j = 0; j < members.length; j++) {
         var displayName = usersMap[members[j]] || ('ID: ' + members[j]);
-        html += '<tr><td><i class="fa-solid fa-user me-1"></i>' + displayName + '</td>';
+        var safeMemberId = String(parseInt(members[j], 10) || 0);
+        var safeGroupId = String(parseInt(groupId, 10) || 0);
+        html += '<tr><td><i class="fa-solid fa-user me-1"></i>' + cgEscapeHtml(displayName) + '</td>';
         html += '<td class="text-end">';
         html += '<form method="post" class="d-inline">';
         html += '<input type="hidden" name="action" value="group-remove-member"/>';
-        html += '<input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>';
+        html += '<input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() | e('html') }}"/>';
         html += '<input type="hidden" name="activetab" value="CourseGroups"/>';
-        html += '<input type="hidden" name="group_id" value="' + groupId + '"/>';
-        html += '<input type="hidden" name="member_userid" value="' + members[j] + '"/>';
+        html += '<input type="hidden" name="group_id" value="' + safeGroupId + '"/>';
+        html += '<input type="hidden" name="member_userid" value="' + safeMemberId + '"/>';
         html += '<button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-user-minus"></i></button>';
         html += '</form></td></tr>';
     }
