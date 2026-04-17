@@ -11,6 +11,7 @@
     <file>Extension</file>
     <file>Widget</file>
     <file>Test</file>
+    <file>scripts</file>
     <file>Cron.php</file>
     <file>Init.php</file>
 
@@ -27,6 +28,8 @@
     <rule ref="PSR12">
         <!-- Allow side effects in Init.php (plugin bootstrap) -->
         <exclude-pattern>Init.php</exclude-pattern>
+        <!-- scripts/benchmark.php is a CLI tool; side effects are its purpose -->
+        <exclude-pattern>scripts/*.php</exclude-pattern>
     </rule>
 
     <!-- Line length: 120 soft / 160 hard (FS convention is slightly looser than strict PSR-12) -->
