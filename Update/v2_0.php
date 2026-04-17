@@ -279,4 +279,24 @@ return [
         }
         return $m->addColumnIfMissing('moodle_instances', 'webhook_secret', 'VARCHAR(500) NULL');
     },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F10.2 — course progress columns on moodle_enrolments (MEDIO §6.15)
+    //  Populated by the progressSync cron + CourseCompletedHandler.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F10.2-enrolment-progress' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_enrolments')) {
+            return true;
+        }
+        $m->addColumnIfMissing('moodle_enrolments', 'progress_percent', 'INT NULL DEFAULT 0');
+        $m->addColumnIfMissing('moodle_enrolments', 'completed_modules', 'INT NULL DEFAULT 0');
+        $m->addColumnIfMissing('moodle_enrolments', 'total_modules', 'INT NULL DEFAULT 0');
+        $m->addColumnIfMissing('moodle_enrolments', 'last_activity_at', 'TIMESTAMP NULL');
+        $m->addColumnIfMissing('moodle_enrolments', 'progress_fetched_at', 'TIMESTAMP NULL');
+        $m->addColumnIfMissing('moodle_enrolments', 'completion_date', 'TIMESTAMP NULL');
+        // DOUBLE on MySQL, DOUBLE PRECISION on Postgres; both are 64-bit float.
+        $floatType = $m->isPostgres() ? 'DOUBLE PRECISION NULL' : 'DOUBLE NULL';
+        $m->addColumnIfMissing('moodle_enrolments', 'final_grade', $floatType);
+        return true;
+    },
 ];

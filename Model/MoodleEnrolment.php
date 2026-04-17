@@ -74,6 +74,31 @@ class MoodleEnrolment extends ModelClass
     /** @var string|null */
     public $notes;
 
+    /**
+     * @var int|null 0..100 activity completion percentage, refreshed
+     *               by the F10.2 progress-sync cron.
+     * @since 2.0 — F10.2
+     */
+    public $progress_percent;
+
+    /** @var int|null @since 2.0 — F10.2 */
+    public $completed_modules;
+
+    /** @var int|null @since 2.0 — F10.2 */
+    public $total_modules;
+
+    /** @var string|null @since 2.0 — F10.2 latest module completion timestamp */
+    public $last_activity_at;
+
+    /** @var string|null @since 2.0 — F10.2 when the last WS probe ran */
+    public $progress_fetched_at;
+
+    /** @var string|null @since 2.0 — F10.1 / F10.2 course completion time */
+    public $completion_date;
+
+    /** @var float|null @since 2.0 — F10.2 latest grade (0..100) */
+    public $final_grade;
+
     public function clear(): void
     {
         parent::clear();

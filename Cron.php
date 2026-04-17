@@ -41,6 +41,8 @@ class Cron extends CronClass
     public const RECONCILIATION_JOB = 'moodle-reconciliation';
     public const CLEANUP_JOB = 'moodle-cleanup';
     public const EXPIRY_CHECK_JOB = 'moodle-expiry-check';
+    /** @since 2.0 — F10.2 */
+    public const PROGRESS_SYNC_JOB = 'moodle-progress-sync';
 
     // Schedule intervals (consumed by $job->every()) -----------------
     /** @since 2.0 */
@@ -147,6 +149,12 @@ class Cron extends CronClass
 
         $this->job(self::EXPIRY_CHECK_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
             $lockedRun($lock, self::EXPIRY_CHECK_JOB, function () { $this->expiryCheck(); });
+        });
+
+        // F10.2 — pull activity completion + grade from Moodle into
+        // moodle_enrolments so dashboards don't round-trip per render.
+        $this->job(self::PROGRESS_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
+            $lockedRun($lock, self::PROGRESS_SYNC_JOB, function () { $this->progressSync(); });
         });
     }
 
@@ -742,5 +750,82 @@ class Cron extends CronClass
             '%course%' => $courseMap->fullname,
             '%client%' => $cliente->nombre,
         ]);
+    }
+
+    /**
+     * F10.2 — refresh progress_percent + completed/total modules +
+     * last_activity_at for every active enrolment. Results are stored
+     * directly on moodle_enrolments so dashboards can render in one
+     * SELECT instead of hitting the Moodle WS on every page load.
+     *
+     * Performance:
+     *   - Scans rows in chunks of BATCH_SIZE via paginate().
+     *   - Rows fresher than PROGRESS_REFRESH_SECONDS are skipped so a
+     *     manual cron re-run mid-cycle is cheap.
+     *   - One WS call per enrolment (activities completion). Cost is
+     *     O(enrolments) but bounded to active status only.
+     *
+     * @since 2.0 — F10.2
+     */
+    public const PROGRESS_REFRESH_SECONDS = 3600; // 1h freshness
+
+    private function progressSync(): void
+    {
+        $instanceModel = new MoodleInstance();
+        $instances = $instanceModel->all(
+            [Where::notEq('status', 'inactive'), Where::isNotNull('token')],
+            [],
+            0,
+            0
+        );
+
+        foreach ($instances as $instance) {
+            $this->progressSyncForInstance($instance);
+        }
+    }
+
+    private function progressSyncForInstance(MoodleInstance $instance): void
+    {
+        $enrolmentModel = new MoodleEnrolment();
+        $where = [
+            new DataBaseWhere('idinstance', (int) $instance->id),
+            new DataBaseWhere('moodle_userid', 0, '>'),
+            new DataBaseWhere('moodle_courseid', 0, '>'),
+            new DataBaseWhere('status', 'enrolled'),
+        ];
+
+        $this->paginate($enrolmentModel, $where, ['id' => 'ASC'], function (MoodleEnrolment $enrolment) use ($instance) {
+            // Skip if we refreshed this row recently.
+            if (!empty($enrolment->progress_fetched_at)) {
+                $age = time() - (int) strtotime($enrolment->progress_fetched_at);
+                if ($age < self::PROGRESS_REFRESH_SECONDS) {
+                    return;
+                }
+            }
+
+            $ws = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\Api\CompletionApi::getActivities(
+                $instance,
+                (int) $enrolment->moodle_courseid,
+                (int) $enrolment->moodle_userid
+            );
+            $summary = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\Api\CompletionApi::summariseActivities($ws);
+            if ($summary === null) {
+                Tools::log(self::PROGRESS_SYNC_JOB)->warning('progress-sync-failed', [
+                    '%userid%'   => $enrolment->moodle_userid,
+                    '%courseid%' => $enrolment->moodle_courseid,
+                    '%msg%'      => $ws['message'] ?? ($ws['exception'] ?? 'unknown'),
+                ]);
+                return;
+            }
+
+            $enrolment->completed_modules = (int) $summary['completed'];
+            $enrolment->total_modules = (int) $summary['total'];
+            $enrolment->progress_percent = (int) $summary['percent'];
+            if ($summary['lastActivityAt'] !== null) {
+                $enrolment->last_activity_at = date('Y-m-d H:i:s', (int) $summary['lastActivityAt']);
+            }
+            $enrolment->progress_fetched_at = date('Y-m-d H:i:s');
+            $enrolment->save();
+        });
     }
 }
