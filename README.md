@@ -91,6 +91,122 @@ flowchart LR
 - **Flechas punteadas**: eventos en vigilancia activa para la Fase 6 (cascadas pendientes de cortar).
 - Los cron jobs (`healthCheck`, `userSync`, `courseSync`, `reconciliation`, `cleanup`, `expiryCheck`) consumen los mismos modelos pero se ejecutan en horario propio — no aparecen en este diagrama para mantenerlo legible.
 
+### Capas añadidas en v2.0
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.4 · §9.4`
+>
+> El siguiente diagrama complementa el flujo principal con las
+> piezas introducidas durante la auditoría v2.0: capa de seguridad,
+> endpoint de webhooks, papelera, registros de auditoría y sincronía
+> de progreso académico. Se mantiene en un diagrama aparte para no
+> saturar el canvas principal.
+
+```mermaid
+flowchart TB
+    subgraph EDGE["Capa de entrada"]
+        direction TB
+        HTTP[Request HTTP]
+        WH[POST /ApiMoodleWebhook]
+        PDF[GET /MoodleCertificatePdf]
+    end
+
+    subgraph SEC["Security primitives"]
+        direction TB
+        RL[RateLimiter<br/>F2.10]
+        CSRF[Signed URL<br/>F2.9 HMAC-SHA256]
+        IPV[IpValidator<br/>F7.1 SSRF guard]
+        TC[TokenCipher<br/>F5.12 AES-256-GCM]
+        HSAN[HtmlSanitizer<br/>F2.1]
+        CSP[CspHeader<br/>F2.11]
+    end
+
+    subgraph WHOOK["Webhook pipeline F10.1"]
+        direction TB
+        WV[WebhookVerifier]
+        WD[WebhookDispatcher]
+        WL[(moodle_webhook_log)]
+        subgraph HND["Handlers"]
+            direction TB
+            H1[EnrolmentCreated]
+            H2[EnrolmentDeleted]
+            H3[CourseCompleted]
+            H4[UserUpdated]
+        end
+    end
+
+    subgraph JOBS["Cron jobs (every 6h / 1d)"]
+        direction TB
+        PS[progressSync<br/>F10.2]
+        ES[expiryCheck<br/>F6.10]
+        REC[reconciliation]
+        CLE[cleanup + papelera]
+    end
+
+    subgraph AUDIT["Observability"]
+        direction TB
+        AL[(moodle_audit_log)]
+        BL[BufferedLogger<br/>F10.10]
+        PM[PiiMasker<br/>F8.5]
+    end
+
+    subgraph DATA["Plugin data"]
+        direction TB
+        MI[(moodle_instances<br/>+ webhook_secret<br/>+ username_strategy)]
+        EN2[(moodle_enrolments<br/>+ progress_percent<br/>+ deleted_at)]
+    end
+
+    HTTP --> RL
+    HTTP --> CSRF
+    WH --> WV
+    PDF --> CSRF
+
+    WV --> TC
+    WV --> WL
+    WV --> WD
+    WD --> H1 & H2 & H3 & H4
+
+    H1 & H2 & H3 & H4 --> EN2
+
+    MI -. "AES-256-GCM at rest" .-> TC
+
+    PS --> EN2
+    ES --> EN2
+    REC --> EN2
+    CLE --> EN2
+
+    WV --> AL
+    CSRF --> AL
+    RL --> AL
+    PS --> BL
+    BL --> AL
+    AL -. "pii-masked" .-> PM
+
+    classDef edge fill:#d9e8ff,stroke:#002b70,color:#000;
+    classDef sec fill:#ffe9c2,stroke:#a25100,color:#000;
+    classDef hook fill:#d4edda,stroke:#0c6b2a,color:#000;
+    classDef job fill:#fff4c2,stroke:#b08000,color:#000;
+    classDef audit fill:#f8d7da,stroke:#a02030,color:#000;
+    classDef data fill:#e7d4f5,stroke:#5a2a8a,color:#000;
+    class HTTP,WH,PDF edge
+    class RL,CSRF,IPV,TC,HSAN,CSP sec
+    class WV,WD,WL,H1,H2,H3,H4 hook
+    class PS,ES,REC,CLE job
+    class AL,BL,PM audit
+    class MI,EN2 data
+```
+
+**Notas**:
+- La capa **Security primitives** agrupa los helpers de `Lib/Security/*`
+  introducidos en las Fases 2, 5 y 7. Cualquier controlador expuesto
+  al exterior pasa por al menos uno de ellos.
+- **WebhookDispatcher** mantiene la separación "verificar → auditar →
+  despachar". El registro `moodle_webhook_log` se escribe tanto en
+  éxito como en rechazo, facilitando el triage desde
+  `ListMoodleAuditLog` (F10.3).
+- **BufferedLogger** (F10.10) acumula eventos de los cron loops y
+  los vuelca agrupados, reduciendo I/O de log en fase de alta
+  actividad.
+
 ## Funcionalidades
 
 ### Gestión de Instancias Moodle
@@ -605,6 +721,121 @@ flowchart LR
 - **Solid arrows**: `Model.X.Update`/`Insert`/`Delete` event that fires the corresponding worker.
 - **Dotted arrows**: events tracked for active remediation in Phase 6 (cascades to be cut).
 - Cron jobs (`healthCheck`, `userSync`, `courseSync`, `reconciliation`, `cleanup`, `expiryCheck`) consume the same models but run on their own schedule — omitted here to keep the diagram readable.
+
+### Layers added in v2.0
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.4 · §9.4`
+>
+> The diagram below complements the main flow with the components
+> introduced during the v2.0 audit: the security layer, the
+> webhook endpoint, the trash viewer, audit logs, and the academic
+> progress sync. Kept separate to avoid overloading the main
+> canvas.
+
+```mermaid
+flowchart TB
+    subgraph EDGE["Inbound layer"]
+        direction TB
+        HTTP[HTTP request]
+        WH[POST /ApiMoodleWebhook]
+        PDF[GET /MoodleCertificatePdf]
+    end
+
+    subgraph SEC["Security primitives"]
+        direction TB
+        RL[RateLimiter<br/>F2.10]
+        CSRF[Signed URL<br/>F2.9 HMAC-SHA256]
+        IPV[IpValidator<br/>F7.1 SSRF guard]
+        TC[TokenCipher<br/>F5.12 AES-256-GCM]
+        HSAN[HtmlSanitizer<br/>F2.1]
+        CSP[CspHeader<br/>F2.11]
+    end
+
+    subgraph WHOOK["Webhook pipeline F10.1"]
+        direction TB
+        WV[WebhookVerifier]
+        WD[WebhookDispatcher]
+        WL[(moodle_webhook_log)]
+        subgraph HND["Handlers"]
+            direction TB
+            H1[EnrolmentCreated]
+            H2[EnrolmentDeleted]
+            H3[CourseCompleted]
+            H4[UserUpdated]
+        end
+    end
+
+    subgraph JOBS["Cron jobs (6h / daily)"]
+        direction TB
+        PS[progressSync<br/>F10.2]
+        ES[expiryCheck<br/>F6.10]
+        REC[reconciliation]
+        CLE[cleanup + trash]
+    end
+
+    subgraph AUDIT["Observability"]
+        direction TB
+        AL[(moodle_audit_log)]
+        BL[BufferedLogger<br/>F10.10]
+        PM[PiiMasker<br/>F8.5]
+    end
+
+    subgraph DATA["Plugin data"]
+        direction TB
+        MI[(moodle_instances<br/>+ webhook_secret<br/>+ username_strategy)]
+        EN2[(moodle_enrolments<br/>+ progress_percent<br/>+ deleted_at)]
+    end
+
+    HTTP --> RL
+    HTTP --> CSRF
+    WH --> WV
+    PDF --> CSRF
+
+    WV --> TC
+    WV --> WL
+    WV --> WD
+    WD --> H1 & H2 & H3 & H4
+
+    H1 & H2 & H3 & H4 --> EN2
+
+    MI -. "AES-256-GCM at rest" .-> TC
+
+    PS --> EN2
+    ES --> EN2
+    REC --> EN2
+    CLE --> EN2
+
+    WV --> AL
+    CSRF --> AL
+    RL --> AL
+    PS --> BL
+    BL --> AL
+    AL -. "pii-masked" .-> PM
+
+    classDef edge fill:#d9e8ff,stroke:#002b70,color:#000;
+    classDef sec fill:#ffe9c2,stroke:#a25100,color:#000;
+    classDef hook fill:#d4edda,stroke:#0c6b2a,color:#000;
+    classDef job fill:#fff4c2,stroke:#b08000,color:#000;
+    classDef audit fill:#f8d7da,stroke:#a02030,color:#000;
+    classDef data fill:#e7d4f5,stroke:#5a2a8a,color:#000;
+    class HTTP,WH,PDF edge
+    class RL,CSRF,IPV,TC,HSAN,CSP sec
+    class WV,WD,WL,H1,H2,H3,H4 hook
+    class PS,ES,REC,CLE job
+    class AL,BL,PM audit
+    class MI,EN2 data
+```
+
+**Notes**:
+- The **Security primitives** group gathers the helpers under
+  `Lib/Security/*` introduced in Phases 2, 5, and 7. Any
+  externally-exposed controller runs through at least one of them.
+- **WebhookDispatcher** keeps the "verify → audit → dispatch"
+  separation. `moodle_webhook_log` captures every request
+  (accepted or rejected) for triage via `ListMoodleAuditLog`
+  (F10.3).
+- **BufferedLogger** (F10.10) batches cron loop events and flushes
+  them in bulk, reducing log I/O during high-activity windows.
 
 ## Features
 
