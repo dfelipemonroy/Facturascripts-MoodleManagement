@@ -55,6 +55,26 @@ class PreEnrolmentWorker extends WorkerClass
 
     public function run(WorkEvent $event): bool
     {
+        // F6.10 — Line delete events: if the operator removes a line
+        // from a quote/order, any pending MoodleEnrolment that was
+        // seeded for that line stays orphan. We cannot resolve the
+        // parent document from the event (FS only carries the line
+        // PK), so the worker logs the event and the next
+        // reconciliation cron cleans the orphans up. Keeping the
+        // subscription in place means the plugin reacts to the
+        // stream of deletions in observability without adding a
+        // tight loop.
+        if (
+            $event->name === 'Model.LineaPresupuestoCliente.Delete'
+            || $event->name === 'Model.LineaPedidoCliente.Delete'
+        ) {
+            \FacturaScripts\Core\Tools::log()->info('preenrol-line-deleted', [
+                'event' => $event->name,
+                'id'    => (int) $event->value,
+            ]);
+            return $this->done();
+        }
+
         if ($event->name === 'Model.PresupuestoCliente.Update') {
             $doc = new PresupuestoCliente();
             $docType = 'presupuesto';
