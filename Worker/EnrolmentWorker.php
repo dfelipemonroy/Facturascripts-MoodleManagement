@@ -92,6 +92,23 @@ class EnrolmentWorker extends WorkerClass
                     continue;
                 }
 
+                // F7.9 — one invoice line = one (user, course) Moodle
+                // enrolment. Moodle disallows the same user being
+                // enrolled twice in the same course, so `cantidad > 1`
+                // on a single line maps to a single seat for the
+                // billing contact. Pack-style multi-seat products
+                // must ship one line per seat (documented in README
+                // "Known limitations"). We log a warning when this
+                // assumption is violated so operators spot configs
+                // that expect seat multiplication.
+                if (!empty($line->cantidad) && (float) $line->cantidad > 1) {
+                    Tools::log('MoodleManagement')->info('enrol-cantidad-gt-1', [
+                        'invoice' => (int) $invoice->idfactura,
+                        'line'    => (int) ($line->idlinea ?? 0),
+                        'qty'     => (float) $line->cantidad,
+                    ]);
+                }
+
                 $courseMap = new MoodleCourseMap();
                 $cmWhere = [new DataBaseWhere('idproducto', $line->idproducto)];
                 if (false === $courseMap->loadFromCode('', $cmWhere)) {

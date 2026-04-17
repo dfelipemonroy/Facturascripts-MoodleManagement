@@ -695,6 +695,15 @@ class MoodleClient
             'lastnamephonetic' => '',
             'middlename' => '',
             'alternatename' => '',
+            // F7.19 — when the payload feeds create_users, Moodle
+            // honours preferences[].auth_forcepasswordchange so
+            // the first login forces a password reset. update_users
+            // ignores the preference silently, so sending it on
+            // every call is free. Opt-out with `$data = contactToMoodleUser(...);
+            // unset($data['preferences']);` at the call site.
+            'preferences' => [
+                ['type' => 'auth_forcepasswordchange', 'value' => '1'],
+            ],
         ];
 
         if (!empty($contact->telefono1)) {
