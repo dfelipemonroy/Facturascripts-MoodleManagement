@@ -794,7 +794,12 @@ class Cron extends CronClass
             new DataBaseWhere('status', 'enrolled'),
         ];
 
-        $this->paginate($enrolmentModel, $where, ['id' => 'ASC'], function (MoodleEnrolment $enrolment) use ($instance) {
+        // F10.10 — batch log lines through a buffered logger so a
+        // 1000-row progress sweep emits at most one Tools::log() call
+        // per level instead of 1000.
+        $log = new \FacturaScripts\Plugins\MoodleManagement\Lib\Logger\BufferedLogger(self::PROGRESS_SYNC_JOB, 50);
+
+        $this->paginate($enrolmentModel, $where, ['id' => 'ASC'], function (MoodleEnrolment $enrolment) use ($instance, $log) {
             // Skip if we refreshed this row recently.
             if (!empty($enrolment->progress_fetched_at)) {
                 $age = time() - (int) strtotime($enrolment->progress_fetched_at);
@@ -810,7 +815,7 @@ class Cron extends CronClass
             );
             $summary = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\Api\CompletionApi::summariseActivities($ws);
             if ($summary === null) {
-                Tools::log(self::PROGRESS_SYNC_JOB)->warning('progress-sync-failed', [
+                $log->warning('progress-sync-failed', [
                     '%userid%'   => $enrolment->moodle_userid,
                     '%courseid%' => $enrolment->moodle_courseid,
                     '%msg%'      => $ws['message'] ?? ($ws['exception'] ?? 'unknown'),
@@ -827,5 +832,10 @@ class Cron extends CronClass
             $enrolment->progress_fetched_at = date('Y-m-d H:i:s');
             $enrolment->save();
         });
+
+        // BufferedLogger auto-flushes in __destruct, but call it
+        // explicitly so any residual events land before the next
+        // instance starts.
+        $log->flush();
     }
 }
