@@ -1,4 +1,4 @@
-# MoodleManagement v1.2
+# MoodleManagement v2.0
 
 Plugin para FacturaScripts que permite gestionar plataformas Moodle directamente desde el ERP. Conecta tu sistema de facturación con tu LMS mediante la API REST de Moodle.
 
@@ -473,6 +473,25 @@ El sistema de mensajería permite comunicación bidireccional entre FacturaScrip
 - El auto-refresh del chat consulta la API de Moodle cada 5 segundos; se pausa automáticamente cuando la pestaña del navegador no está visible
 - El badge de la barra de navegación se actualiza cada 30 segundos
 
+## Limitaciones conocidas (v2.0)
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.1 · §9.1`
+
+| Ámbito            | Limitación                                                                                     | Seguimiento |
+|-------------------|------------------------------------------------------------------------------------------------|-------------|
+| Webhooks          | El receptor espera payloads en el formato interno definido por el plugin (ver `docs/EVENTS.md`). Moodle no emite webhooks por defecto; se requiere un mediador (Event Observer + curl).                         | v2.1 — cliente de referencia en PHP incluido en docs. |
+| Papelera          | La papelera (F10.4) permite restaurar o purgar, pero la eliminación desde las vistas principales sigue siendo física. Para soft-delete masivo, marcar `deleted_at` desde SQL o vía worker.                       | v2.1 — hook `execBeforeDelete` en modelos. |
+| Dashboard         | El dashboard cachea el payload durante 60 s (F10.9). Tras una sincronización masiva, usar `?refresh=1` para forzar una lectura fresca.                                                                           | Documentado en-place. |
+| Username alias    | El modo `random_alias` solo aplica al crear cuentas nuevas. Los usuarios ya mapeados con nombre derivado conservan su username (para cambiarlo se debe des-enrolar, renombrar en Moodle y re-mapear).            | v2.1 — asistente de renombrado. |
+| Localización      | Las traducciones cubren ES variantes + EN + FR + PT (PT/BR) + IT + DE + CA + GL + EU + CA-VL + PL + CS. El resto hace fallback a inglés.                                                                        | Open PR — idiomas adicionales vía pull request. |
+| Navegadores       | Chart.js 4.x (F3.1) requiere Chrome/Edge últimos 2, Firefox últimos 2, Safari 16+. IE11 no soportado.                                                                                                           | Constraint formalizado en `docs/SUPPORTED-VERSIONS.md`. |
+| Moodle mínimo     | Moodle 4.1 LTS. Instancias 4.0 marcadas `status=unsupported` automáticamente; versiones < 4.0 bloqueadas (ver `MoodleClient::MIN_MOODLE_RELEASE`).                                                              | Política estable. |
+| MoodleClient      | Clase god (~1600 LOC) con superficie legacy. Fase 8 creó facades namespaced (`Lib/Moodle/Api/*`) pero la migración de llamadores es gradual.                                                                     | v2.2 — deprecación de llamadas directas tras periodo 6 meses. |
+| Certificados      | El generador PDF usa Cezpdf (dependencia de FS core) con plantillas ROT50/Template simples. Plantillas HTML/CSS full están en el backlog.                                                                        | v2.1 — renderer Twig → wkhtmltopdf. |
+| Concurrencia      | Los locks cooperativos (`Lib/Cron/Lock`) usan `GET_LOCK`/`pg_try_advisory_lock`. Si el motor es SQLite (solo tests), los locks son no-ops.                                                                       | By design — SQLite es solo para tests. |
+
+Ver también: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md), [`docs/UPGRADE.md`](UPGRADE.md), [`docs/SUPPORTED-VERSIONS.md`](docs/SUPPORTED-VERSIONS.md).
+
 ## Idiomas soportados
 
 Español (ES, AR, CL, CO, CR, DO, EC, GT, MX, PA, PE, UY), Inglés, Francés, Portugués (PT, BR), Italiano, Alemán, Catalán, Gallego, Euskera, Valenciano, Polaco y Checo.
@@ -494,7 +513,7 @@ LGPL v3 - GNU Lesser General Public License
 
 ---
 
-# MoodleManagement v1.2
+# MoodleManagement v2.0
 
 FacturaScripts plugin for managing Moodle platforms directly from your ERP. Connect your billing system with your LMS through the Moodle REST API.
 
@@ -968,6 +987,25 @@ The messaging system enables bidirectional communication between FacturaScripts 
 - Only conversations involving the WS user can be read (no access to third-party conversations)
 - Chat auto-refresh queries the Moodle API every 5 seconds; it pauses automatically when the browser tab is not visible
 - The navbar badge refreshes every 30 seconds
+
+## Known Limitations (v2.0)
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.1 · §9.1`
+
+| Area             | Limitation                                                                                                   | Tracking |
+|------------------|--------------------------------------------------------------------------------------------------------------|----------|
+| Webhooks         | The receiver expects payloads in the plugin's internal format (see `docs/EVENTS.md`). Moodle does not emit webhooks natively; a bridge (Event Observer + curl) is required. | v2.1 — reference PHP bridge in docs. |
+| Trash            | The trash viewer (F10.4) supports restore/purge but the primary List views still perform physical delete. For bulk soft-delete, set `deleted_at` via SQL or a dedicated worker. | v2.1 — `execBeforeDelete` hook in models. |
+| Dashboard        | The dashboard caches its payload for 60 s (F10.9). After a bulk sync use `?refresh=1` to force a fresh read. | Documented in-place. |
+| Username alias   | `random_alias` applies only to newly created accounts. Users already mapped with a name-based username keep it — to change, un-enrol, rename in Moodle, and re-map. | v2.1 — rename wizard. |
+| Localisation     | Translations cover ES variants + EN + FR + PT(PT/BR) + IT + DE + CA + GL + EU + CA-VL + PL + CS. Missing locales fall back to English. | Open PR — additional languages welcome. |
+| Browsers         | Chart.js 4.x (F3.1) requires Chrome/Edge latest 2, Firefox latest 2, Safari 16+. IE11 is not supported.     | Constraint formalised in `docs/SUPPORTED-VERSIONS.md`. |
+| Minimum Moodle   | Moodle 4.1 LTS. Instances on 4.0 are flagged `status=unsupported` automatically; < 4.0 is blocked (see `MoodleClient::MIN_MOODLE_RELEASE`). | Stable policy. |
+| MoodleClient     | Legacy god class (~1600 LOC). Fase 8 introduced namespaced facades (`Lib/Moodle/Api/*`); caller migration is gradual. | v2.2 — direct-call deprecation after 6-month grace period. |
+| Certificates     | The PDF generator uses Cezpdf (FS core dep) with ROT50/Template simple skins. Full HTML/CSS templates are backlogged. | v2.1 — Twig + wkhtmltopdf renderer. |
+| Concurrency      | Cooperative locks (`Lib/Cron/Lock`) use `GET_LOCK` / `pg_try_advisory_lock`. Under SQLite (tests only) the locks are no-ops. | By design — SQLite is test-only. |
+
+See also: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md), [`UPGRADE.md`](UPGRADE.md), [`docs/SUPPORTED-VERSIONS.md`](docs/SUPPORTED-VERSIONS.md).
 
 ## Supported Languages
 
