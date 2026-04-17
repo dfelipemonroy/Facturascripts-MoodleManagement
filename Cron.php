@@ -150,6 +150,15 @@ class Cron extends CronClass
         });
     }
 
+    /** F6.11 — cache key prefix for per-instance health probes. */
+    private const HEALTH_CACHE_PREFIX = 'mm:health:';
+
+    /** F6.11 — cache TTL for health probe results. 60 s is long
+     *  enough to dedupe the hourly cron against any dashboard or
+     *  Setting page that also probes the instance; short enough
+     *  that a real outage is visible within a minute. */
+    private const HEALTH_CACHE_TTL = 60;
+
     private function healthCheck(): void
     {
         $instanceModel = new MoodleInstance();
@@ -161,6 +170,15 @@ class Cron extends CronClass
         );
 
         foreach ($instances as $instance) {
+            // F6.11 — if a recent probe result sits in cache, skip
+            // the WS round-trip. Pages or dashboards that already
+            // ran a check this minute persist the outcome there.
+            $cacheKey = self::HEALTH_CACHE_PREFIX . (int) $instance->id;
+            $cached = Tools::cache()->get($cacheKey);
+            if (is_array($cached) && isset($cached['ts']) && (time() - (int) $cached['ts']) < self::HEALTH_CACHE_TTL) {
+                continue;
+            }
+
             $result = MoodleClient::testConnection($instance);
 
             if (isset($result['exception'])) {
@@ -170,11 +188,13 @@ class Cron extends CronClass
                     '%name%' => $instance->name,
                     '%message%' => $instance->last_error,
                 ]);
+                Tools::cache()->set($cacheKey, ['ts' => time(), 'ok' => false], self::HEALTH_CACHE_TTL);
                 continue;
             }
 
             MoodleClient::applySiteInfo($instance, $result);
             $instance->save();
+            Tools::cache()->set($cacheKey, ['ts' => time(), 'ok' => true], self::HEALTH_CACHE_TTL);
         }
     }
 
