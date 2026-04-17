@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    ListMoodleTrashCohort — soft-deleted moodle_cohorts rows.
+    @since 2.0 — V2.0-ACTION-PLAN F10.4 · §6.17
+-->
+<view>
+    <columns>
+        <column name="deleted-at" order="100">
+            <widget type="datetime" fieldname="deleted_at"/>
+        </column>
+        <column name="moodle-instance" order="110">
+            <widget type="select" fieldname="idinstance">
+                <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+            </widget>
+        </column>
+        <column name="name" order="120">
+            <widget type="text" fieldname="name"/>
+        </column>
+        <column name="idnumber" order="130">
+            <widget type="text" fieldname="idnumber"/>
+        </column>
+    </columns>
+    <rows>
+        <row type="actions">
+            <button label="restore" action="mm-restore" type="action" icon="fa-solid fa-trash-can-arrow-up" color="success"/>
+            <button label="purge" action="mm-purge" type="action" icon="fa-solid fa-xmark" color="danger" confirm="true"/>
+        </row>
+    </rows>
+</view>
