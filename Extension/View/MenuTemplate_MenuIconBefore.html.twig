@@ -4,6 +4,24 @@
    loaded once via the menu extension so it is available on every
    FS page the plugin might render content on. #}
 <script src="{{ asset('Plugins/MoodleManagement/Assets/JS/mm-actions.js') }}" defer></script>
+{# F3.5 — expose plugin-owned translation strings to JS callers.
+   Keep this map small: only keys referenced by Assets/JS/* or
+   inline scripts that build user-facing text. Twig autoescapes
+   via |json_encode + |e('js'), safe to inline. #}
+<script>
+window.FS_I18N = window.FS_I18N || {};
+(function (map) {
+    var extra = {
+        'certificate-not-saved-yet': {{ trans('certificate-not-saved-yet') | json_encode | raw }},
+        'common-error':              {{ trans('action-failed') | json_encode | raw }}
+    };
+    for (var k in extra) {
+        if (Object.prototype.hasOwnProperty.call(extra, k) && !(k in map)) {
+            map[k] = extra[k];
+        }
+    }
+})(window.FS_I18N);
+</script>
 <li class="nav-item" title="{{ trans('moodle-conversations') }}" id="moodleChatNavItem">
     <a class="nav-link" href="ListMoodleConversation" aria-label="{{ trans('moodle-conversations') }}">
         <i class="fa-solid fa-comments" aria-hidden="true"></i>
