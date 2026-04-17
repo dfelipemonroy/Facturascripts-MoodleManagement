@@ -61,7 +61,7 @@ for the full scope (166 findings across 13 phases).
 
 ### Changed
 - `README.md` updated (bilingual ES/EN) with the 6 refinements.
-- `docs/BRAINSTORMING.md` documents technical decisions for each refinement.
+- `.docs-dev/BRAINSTORMING.md` documents technical decisions for each refinement (moved out of `docs/` in F11.7 so the release ZIP stays slim; still tracked in the repo).
 
 ---
 

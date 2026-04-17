@@ -1,0 +1,39 @@
+# MoodleManagement plugin — archive attributes.
+#
+# @since 2.0 — V2.0-ACTION-PLAN F11.7 · §9.8
+#
+# `export-ignore` instructs `git archive` (the command FS uses to
+# build the distribution ZIP) to omit the listed paths. Internal
+# development docs, CI config, and test fixtures stay in the repo
+# but do not bloat the release artefact.
+
+# Development-only documentation. Ship with the repo, not with
+# the ZIP.
+.docs-dev/      export-ignore
+docs/V2.0-ACTION-PLAN.md    export-ignore
+docs/V2.0-TASK-CHECKLIST.md export-ignore
+docs/DEAD-CODE-AUDIT.md     export-ignore
+
+# Test suite — shipped to the repo (CI runs it) but excluded from
+# the user-facing distribution ZIP, where it only adds weight.
+Test/           export-ignore
+phpunit.xml.dist       export-ignore
+phpstan.neon.dist      export-ignore
+phpcs.xml.dist         export-ignore
+.php-cs-fixer.dist.php export-ignore
+.editorconfig          export-ignore
+.gitattributes         export-ignore
+.gitignore             export-ignore
+.github/               export-ignore
+
+# Text attributes — normalise line endings in the repo to LF while
+# allowing Windows tooling to check out CRLF when configured.
+*.php       text eol=lf
+*.twig      text eol=lf
+*.xml       text eol=lf
+*.js        text eol=lf
+*.css       text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.neon      text eol=lf
