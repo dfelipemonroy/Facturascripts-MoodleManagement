@@ -49,6 +49,14 @@ class MoodleInstance extends ModelClass
      */
     public $webhook_secret;
 
+    /**
+     * @var string  Username-generation strategy applied when
+     *              onboarding new contacts to this Moodle.
+     *              One of: 'name_based' (default), 'random_alias'.
+     * @since 2.0 — F10.5
+     */
+    public $username_strategy;
+
     /** @var string */
     public $status;
 
@@ -116,6 +124,7 @@ class MoodleInstance extends ModelClass
         $this->onboarding_course_id = null;
         $this->onboarding_cohort_id = null;
         $this->onboarding_welcome_message = null;
+        $this->username_strategy = 'name_based';
         $this->creation_date = date('Y-m-d H:i:s');
     }
 

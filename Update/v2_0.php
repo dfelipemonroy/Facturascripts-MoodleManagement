@@ -299,4 +299,21 @@ return [
         $m->addColumnIfMissing('moodle_enrolments', 'final_grade', $floatType);
         return true;
     },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F10.5 — per-instance username strategy (BAJO §6.18)
+    //  Allows operators to pick between:
+    //    - 'name_based'   (default, backwards-compatible)
+    //    - 'random_alias' (opaque mu_<hex>, for PII-sensitive sites)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F10.5-username-strategy' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances')) {
+            return true;
+        }
+        return $m->addColumnIfMissing(
+            'moodle_instances',
+            'username_strategy',
+            "VARCHAR(20) NOT NULL DEFAULT 'name_based'"
+        );
+    },
 ];

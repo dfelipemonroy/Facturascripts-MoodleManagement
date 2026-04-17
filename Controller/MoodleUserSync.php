@@ -137,7 +137,10 @@ class MoodleUserSync extends ListController
                     $map->moodle_userid = $existing[0]['id'];
                     $map->moodle_username = $existing[0]['username'] ?? '';
                 } else {
-                    $userData['username'] = MoodleClient::generateUsername($contact);
+                    // F10.5 — route through UsernameGenerator so the
+                    // per-instance strategy (name_based | random_alias)
+                    // is honoured here, not only in background workers.
+                    $userData['username'] = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\UsernameGenerator::unique($contact, $instance);
                     $userData['createpassword'] = 1;
                     $result = MoodleClient::createUser($instance, $userData);
 

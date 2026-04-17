@@ -423,8 +423,10 @@ class EditMoodleUserMap extends EditController
                 $model->moodle_userid = $existing[0]['id'];
                 $model->moodle_username = $existing[0]['username'] ?? '';
             } else {
-                // Create new user in Moodle
-                $userData['username'] = MoodleClient::generateUsername($contact);
+                // Create new user in Moodle — route through
+                // UsernameGenerator so F10.5 random_alias strategy is
+                // honoured when the admin has enabled it.
+                $userData['username'] = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\UsernameGenerator::unique($contact, $instance);
                 $userData['createpassword'] = 1;
                 $result = MoodleClient::createUser($instance, $userData);
 

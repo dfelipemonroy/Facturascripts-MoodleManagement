@@ -23,10 +23,26 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
  * dependency (MoodleClient delegates here) once every caller has
  * migrated.
  *
+ * F10.5 adds a second strategy: `random_alias`, which returns an
+ * opaque token instead of leaking the contact's name as username.
+ * Per-instance opt-in via MoodleInstance::$username_strategy.
+ *
  * @since 2.0 — V2.0-ACTION-PLAN F8.1 split · §1.4
  */
 final class UsernameGenerator
 {
+    public const STRATEGY_NAME_BASED   = 'name_based';
+    public const STRATEGY_RANDOM_ALIAS = 'random_alias';
+
+    /** Prefix for the opaque alias strategy. Helps operators tell the
+     *  plugin's accounts apart from Moodle-native ones when scrolling
+     *  user admin screens. */
+    private const ALIAS_PREFIX = 'mu_';
+
+    /** Random suffix length in hex chars (1 char = 4 bits of entropy).
+     *  12 hex chars ≈ 48 bits — collision-unlikely across 100k users. */
+    private const ALIAS_BYTES = 6;
+
     /**
      * Normalised candidate (no uniqueness check). See
      * {@see MoodleClient::generateUsername()} for the full rules.
@@ -43,7 +59,44 @@ final class UsernameGenerator
      */
     public static function unique(Contacto $contact, MoodleInstance $instance): string
     {
+        if (self::strategyFor($instance) === self::STRATEGY_RANDOM_ALIAS) {
+            return self::randomAlias();
+        }
         return MoodleClient::generateUniqueUsername($contact, $instance);
+    }
+
+    /**
+     * Returns a fresh opaque alias like "mu_8d42c1f93b7a".
+     *
+     * Entropy comes from random_bytes(). On systems without a CSPRNG
+     * (unlikely on PHP 8.0+), we fall back to a hashed microtime —
+     * less secure but good enough to keep username generation moving.
+     * Operators should verify /dev/urandom is available via F10.7.
+     */
+    public static function randomAlias(): string
+    {
+        try {
+            $hex = bin2hex(random_bytes(self::ALIAS_BYTES));
+        } catch (\Throwable $e) {
+            $hex = substr(sha1((string) microtime(true) . (string) getmypid()), 0, self::ALIAS_BYTES * 2);
+        }
+        return self::ALIAS_PREFIX . $hex;
+    }
+
+    /**
+     * Resolves the strategy for the given instance. Defaults to
+     * name-based when the column is missing (pre-F10.5 installs) or
+     * holds an unknown value.
+     */
+    public static function strategyFor(MoodleInstance $instance): string
+    {
+        if (property_exists($instance, 'username_strategy')) {
+            $value = (string) $instance->username_strategy;
+            if ($value === self::STRATEGY_RANDOM_ALIAS) {
+                return self::STRATEGY_RANDOM_ALIAS;
+            }
+        }
+        return self::STRATEGY_NAME_BASED;
     }
 
     private function __construct()

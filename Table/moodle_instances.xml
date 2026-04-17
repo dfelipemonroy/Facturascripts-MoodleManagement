@@ -24,6 +24,11 @@
         <type>character varying(500)</type>
     </column>
     <column>
+        <name>username_strategy</name>
+        <type>character varying(20)</type>
+        <default>'name_based'</default>
+    </column>
+    <column>
         <name>status</name>
         <type>character varying(20)</type>
     </column>
