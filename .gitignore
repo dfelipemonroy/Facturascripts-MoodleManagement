@@ -10,6 +10,11 @@ docs/*
 !docs/SUPPORTED-VERSIONS.md
 !docs/TROUBLESHOOTING.md
 !docs/EVENTS.md
+!docs/QA-SMOKE-TEST.md
+!docs/QA-V1-REGRESSION.md
+!docs/QA-PERFORMANCE.md
+!docs/QA-OWASP-ZAP.md
+!docs/RELEASE-CHECKLIST.md
 
 vendor/
 .phpunit.cache/
