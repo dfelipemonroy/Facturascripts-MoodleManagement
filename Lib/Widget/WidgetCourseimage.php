@@ -75,9 +75,11 @@ class WidgetCourseimage extends BaseWidget
                 . Tools::trans('no-product-images') . '</div></div>';
         }
 
-        // render image picker grid
+        // F3.11 — inline `style=""` and `onchange` removed.
+        // Highlighting is handled by Assets/JS/widget-courseimage.js
+        // listening on `change` events within `.mm-img-picker`.
         $html = '<div class="mb-3">' . $labelHtml;
-        $html .= '<div class="d-flex flex-wrap gap-2 mt-1">';
+        $html .= '<div class="d-flex flex-wrap gap-2 mt-1 mm-img-picker">';
 
         foreach ($images as $img) {
             $url = $this->getFileUrl($img->idfile);
@@ -85,16 +87,19 @@ class WidgetCourseimage extends BaseWidget
                 continue;
             }
 
-            $checked = ((int)$this->value === $img->idfile) ? ' checked' : '';
-            $border = ((int)$this->value === $img->idfile) ? 'border-primary border-2' : 'border';
+            $isSelected = (int) $this->value === $img->idfile;
+            $checked = $isSelected ? ' checked' : '';
+            $borderClasses = $isSelected ? 'card border-primary border-2 mm-img-picker-card'
+                                         : 'card border mm-img-picker-card';
             $radioId = 'cover_' . $img->idfile;
 
-            $html .= '<label for="' . $radioId . '" class="d-inline-block cursor-pointer" style="cursor:pointer;">'
-                . '<input type="radio" name="' . $this->fieldname . '" id="' . $radioId . '"'
-                . ' value="' . $img->idfile . '"' . $checked
-                . ' class="d-none" onchange="this.closest(\'.d-flex\').querySelectorAll(\'.card\').forEach(c=>c.classList.remove(\'border-primary\',\'border-2\'));this.closest(\'label\').querySelector(\'.card\').classList.add(\'border-primary\',\'border-2\')"/>'
-                . '<div class="card ' . $border . '" style="width:100px;height:100px;overflow:hidden;">'
-                . '<img src="' . $url . '" class="w-100 h-100" style="object-fit:cover;" alt=""/>'
+            $html .= '<label for="' . $radioId . '" class="mm-img-picker-label">'
+                . '<input type="radio" name="' . htmlspecialchars($this->fieldname, ENT_QUOTES, 'UTF-8') . '"'
+                . ' id="' . htmlspecialchars($radioId, ENT_QUOTES, 'UTF-8') . '"'
+                . ' value="' . (int) $img->idfile . '"' . $checked
+                . ' class="d-none"/>'
+                . '<div class="' . $borderClasses . '">'
+                . '<img src="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="mm-img-picker-thumb" alt=""/>'
                 . '</div>'
                 . '</label>';
         }

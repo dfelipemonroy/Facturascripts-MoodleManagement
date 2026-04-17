@@ -125,6 +125,43 @@
 }
 
 /* -------------------------------------------------------------
+ *  Widget — course image picker (Lib/Widget/WidgetCourseimage).
+ *  @since 2.0 F3.11 — extracted from inline style/onchange.
+ * ----------------------------------------------------------- */
+.mm-img-picker-label {
+    display: inline-block;
+    cursor: pointer;
+}
+.mm-img-picker-card {
+    width: 100px;
+    height: 100px;
+    overflow: hidden;
+}
+.mm-img-picker-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* -------------------------------------------------------------
+ *  Skeleton loader placeholders — F3.12.
+ * ----------------------------------------------------------- */
+.mm-skeleton {
+    background: linear-gradient(90deg, #eef0f2 25%, #f7f8fa 50%, #eef0f2 75%);
+    background-size: 200% 100%;
+    animation: mm-skel 1.2s linear infinite;
+    border-radius: 4px;
+    display: inline-block;
+}
+.mm-skeleton--line { height: 12px; width: 80%; margin: 4px 0; }
+.mm-skeleton--title { height: 20px; width: 40%; margin: 6px 0; }
+.mm-skeleton--card { height: 100px; width: 100%; }
+@keyframes mm-skel {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* -------------------------------------------------------------
  *  Miscellaneous helpers
  * ----------------------------------------------------------- */
 .mm-cursor-pointer { cursor: pointer; }

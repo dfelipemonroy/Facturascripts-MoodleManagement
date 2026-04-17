@@ -4,6 +4,9 @@
    loaded once via the menu extension so it is available on every
    FS page the plugin might render content on. #}
 <script src="{{ asset('Plugins/MoodleManagement/Assets/JS/mm-actions.js') }}" defer></script>
+{# F3.11 — image picker highlighter for WidgetCourseimage; loaded
+   globally so the widget works on any product detail page. #}
+<script src="{{ asset('Plugins/MoodleManagement/Assets/JS/widget-courseimage.js') }}" defer></script>
 {# F3.5 — expose plugin-owned translation strings to JS callers.
    Keep this map small: only keys referenced by Assets/JS/* or
    inline scripts that build user-facing text. Twig autoescapes
