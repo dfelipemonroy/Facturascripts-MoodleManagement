@@ -22,6 +22,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Lib;
 use FacturaScripts\Core\Lib\Email\NewMail;
 use FacturaScripts\Core\Lib\Email\TextBlock;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Logger\PiiMasker;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 
 /**
@@ -98,22 +99,28 @@ class ExpiryNotifier
             if ($mail->send()) {
                 $enrolment->markThresholdNotified($threshold);
                 $enrolment->save();
+                // F8.5 — PII-safe log line. The operator still sees
+                // which contact was emailed (by id) but no raw email
+                // address ends up on disk.
                 $log->notice('expiry-email-sent', [
-                    '%email%' => $contacto->email,
-                    '%course%' => $courseName,
-                    '%days%' => $threshold,
+                    'contact_id' => (int) ($contacto->idcontacto ?? 0),
+                    'email'      => PiiMasker::email($contacto->email),
+                    'course'     => $courseName,
+                    'days'       => $threshold,
                 ]);
                 return true;
             }
 
             $log->warning('expiry-email-failed', [
-                '%email%' => $contacto->email,
+                'contact_id' => (int) ($contacto->idcontacto ?? 0),
+                'email'      => PiiMasker::email($contacto->email),
             ]);
             return false;
         } catch (\Throwable $e) {
             $log->warning('expiry-email-failed', [
-                '%email%' => $contacto->email,
-                '%error%' => $e->getMessage(),
+                'contact_id' => (int) ($contacto->idcontacto ?? 0),
+                'email'      => PiiMasker::email($contacto->email),
+                'error'      => $e->getMessage(),
             ]);
             return false;
         }
