@@ -102,9 +102,43 @@ class MoodleCourseCategory extends ModelClass
         return parent::test();
     }
 
+    /**
+     * Columns that {@see codeModelAll()} will accept as the
+     * `$fieldCode` projection. Anything outside this allowlist
+     * collapses back to the primary key.
+     *
+     * F5.6 — hardens the method against SQL injection, since the
+     * parameter can be supplied by callers that forward user input
+     * (CodeModel::all('field', ...) from autocomplete widgets).
+     *
+     * @since 2.0 F5.6 · §5.3
+     * @var string[]
+     */
+    private const CODE_MODEL_ALLOWED_FIELDS = [
+        'id',
+        'idinstance',
+        'moodle_categoryid',
+        'codfamilia',
+        'name',
+        'parent_categoryid',
+        'source',
+    ];
+
     public function codeModelAll(string $fieldCode = ''): array
     {
-        $field = empty($fieldCode) ? static::primaryColumn() : $fieldCode;
+        // F5.6 — SQL injection hardening: whitelist the column name
+        // before splicing it into the query. Unknown / crafted
+        // values silently fall back to the primary key.
+        if ($fieldCode === '' || !in_array($fieldCode, self::CODE_MODEL_ALLOWED_FIELDS, true)) {
+            $field = static::primaryColumn();
+        } else {
+            $field = $fieldCode;
+        }
+        // Extra belt-and-braces: only accept [a-z0-9_] identifiers.
+        if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $field)) {
+            $field = static::primaryColumn();
+        }
+
         $results = [];
         $sql = "SELECT DISTINCT " . $field . " AS code, "
             . "CONCAT(name, ' (', moodle_categoryid, ')') AS description "
