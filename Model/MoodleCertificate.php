@@ -9,6 +9,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Model;
 use FacturaScripts\Core\Model\Base\ModelClass;
 use FacturaScripts\Core\Model\Base\ModelTrait;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Enum\CertificateStatus;
 
 class MoodleCertificate extends ModelClass
 {
@@ -113,6 +114,42 @@ class MoodleCertificate extends ModelClass
         $instance = new MoodleInstance();
         $instance->loadFromCode($this->idinstance);
         return $instance;
+    }
+
+    /**
+     * Lifecycle state derived from `date_expire`.
+     *
+     * Maps to the `CertificateStatus` enum:
+     *   - Empty / future date       -> ACTIVE
+     *   - Date in the past          -> EXPIRED
+     *
+     * Revocation is tracked separately once the audit-driven
+     * `revoked_at` column lands in Fase 10.
+     *
+     * @since 2.0
+     */
+    public function derivedStatus(): string
+    {
+        if (empty($this->date_expire)) {
+            return CertificateStatus::ACTIVE;
+        }
+        $exp = strtotime((string) $this->date_expire);
+        if ($exp === false) {
+            return CertificateStatus::ACTIVE;
+        }
+        return $exp < time() ? CertificateStatus::EXPIRED : CertificateStatus::ACTIVE;
+    }
+
+    /**
+     * Bootstrap contextual class used by ListMoodleCertificate row
+     * highlighting. Drives the colour of the list row without any
+     * additional SQL or widget configuration.
+     *
+     * @since 2.0 — V2.0-ACTION-PLAN F3.8 · §3.11
+     */
+    public function color(): string
+    {
+        return CertificateStatus::bootstrapContext($this->derivedStatus());
     }
 
 }
