@@ -1,0 +1,135 @@
+name: CI
+
+# @since 2.0 — V2.0-ACTION-PLAN F9.9
+#
+# Runs on every push / PR affecting the MoodleManagement plugin.
+# Three parallel jobs:
+#   - lint           PHPCS + PHP-CS-Fixer dry-run
+#   - analyse        PHPStan level 5
+#   - test           PHPUnit unit + integration (SQLite, in-memory)
+#
+# Matrix covers PHP 8.0, 8.1, 8.2 (plugin min_version is PHP 8.0+).
+
+on:
+  push:
+    branches:
+      - main
+      - 'v2.0-dev'
+      - 'v2.0/**'
+    paths:
+      - 'Plugins/MoodleManagement/**'
+  pull_request:
+    branches:
+      - main
+      - 'v2.0-dev'
+    paths:
+      - 'Plugins/MoodleManagement/**'
+  workflow_dispatch:
+
+jobs:
+
+  lint:
+    name: Lint (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.0', '8.2']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer, cs2pr
+
+      - name: Install dev tooling
+        working-directory: Plugins/MoodleManagement
+        run: |
+          composer require --dev --no-progress --no-interaction \
+            "squizlabs/php_codesniffer:^3.7" \
+            "friendsofphp/php-cs-fixer:^3.40"
+
+      - name: PHPCS (PSR-12)
+        working-directory: Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpcs --report=checkstyle | cs2pr
+
+      - name: PHP-CS-Fixer (dry-run)
+        working-directory: Plugins/MoodleManagement
+        run: |
+          vendor/bin/php-cs-fixer fix --dry-run --diff --no-interaction
+
+  analyse:
+    name: Static analysis (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.0', '8.2']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Install PHPStan
+        working-directory: Plugins/MoodleManagement
+        run: |
+          composer require --dev --no-progress --no-interaction \
+            "phpstan/phpstan:^1.10"
+
+      - name: PHPStan level 5
+        working-directory: Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpstan analyse --no-progress --error-format=github
+
+  test:
+    name: PHPUnit (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.0', '8.1', '8.2']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: xdebug
+          extensions: pdo_sqlite, mbstring, dom, libxml, openssl
+
+      - name: Install PHPUnit
+        working-directory: Plugins/MoodleManagement
+        run: |
+          composer require --dev --no-progress --no-interaction \
+            "phpunit/phpunit:^9.6"
+
+      - name: Run unit tests
+        working-directory: Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpunit --testsuite=Unit --no-coverage --colors=never
+
+      - name: Run integration tests
+        working-directory: Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpunit --testsuite=Integration --no-coverage --colors=never
+
+      - name: Run coverage report (PHP 8.2 only)
+        if: matrix.php == '8.2'
+        working-directory: Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml --colors=never
+
+      - name: Upload coverage artifact (PHP 8.2 only)
+        if: matrix.php == '8.2'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: Plugins/MoodleManagement/coverage.xml
+          retention-days: 30
