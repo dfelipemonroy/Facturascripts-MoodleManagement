@@ -499,6 +499,22 @@ class Cron extends CronClass
         }
     }
 
+    /**
+     * Cache-key prefix used to signal PreEnrolmentWorker that a
+     * given PresupuestoCliente id was auto-created by this cron and
+     * does NOT need to be scanned for pending enrolments — the
+     * matching MoodleEnrolment already exists with idpresupuesto
+     * pointing at it.
+     *
+     * Without this guard the PresupuestoCliente save() issued below
+     * would bounce back to PreEnrolmentWorker (Cron.php §1.2 per
+     * audit), which would then try to seed pending enrolments and
+     * potentially re-emit further events.
+     *
+     * @since 2.0 F6.2 · §1.2
+     */
+    private const SKIP_PREENROL_PREFIX = 'mm:pre-enrol-skip:presupuesto:';
+
     private function generateRenewalEstimate(MoodleEnrolment $enrolment): void
     {
         // skip if a renewal estimate already exists for this enrolment
@@ -540,6 +556,15 @@ class Cron extends CronClass
             ]);
             return;
         }
+
+        // F6.2 — tag the just-saved estimate so PreEnrolmentWorker
+        // skips it. TTL is intentionally generous (300 s) to cover
+        // queue back-pressure; the worker deletes the key on read.
+        Tools::cache()->set(
+            self::SKIP_PREENROL_PREFIX . (int) $presupuesto->idpresupuesto,
+            true,
+            300
+        );
 
         // add the course product line
         $producto = $courseMap->getProducto();

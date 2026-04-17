@@ -43,11 +43,31 @@ class PreEnrolmentWorker extends WorkerClass
      *                         depending on $event->name.
      * @return bool True once $this->done() is called.
      */
+    /**
+     * Cache-key prefix used by Cron::generateRenewalEstimate() to
+     * signal this worker that a given Presupuesto PK was created
+     * by the renewal cron and does not need re-processing. Must
+     * match the constant in Cron.php.
+     *
+     * @since 2.0 F6.2 · §1.2
+     */
+    private const SKIP_PREENROL_PREFIX = 'mm:pre-enrol-skip:presupuesto:';
+
     public function run(WorkEvent $event): bool
     {
         if ($event->name === 'Model.PresupuestoCliente.Update') {
             $doc = new PresupuestoCliente();
             $docType = 'presupuesto';
+
+            // F6.2 — cut the renewal cascade: if Cron:: generate-
+            // RenewalEstimate() flagged this id, consume the flag
+            // and bail out. Any enrolments linked to it were
+            // already persisted by the cron itself.
+            $skipKey = self::SKIP_PREENROL_PREFIX . (int) $event->value;
+            if (\FacturaScripts\Core\Tools::cache()->get($skipKey)) {
+                \FacturaScripts\Core\Tools::cache()->delete($skipKey);
+                return $this->done();
+            }
         } elseif ($event->name === 'Model.PedidoCliente.Update') {
             $doc = new PedidoCliente();
             $docType = 'pedido';
