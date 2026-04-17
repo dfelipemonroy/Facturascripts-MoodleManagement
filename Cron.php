@@ -58,6 +58,51 @@ class Cron extends CronClass
      */
     public const BATCH_SIZE = 500;
 
+    /**
+     * Iterate a FS ModelClass in fixed-size chunks instead of loading
+     * the whole result set into memory. The callback receives each
+     * row; return false to stop iteration early.
+     *
+     * Replaces the dangerous `$model->all($where, $order, 0, 0)`
+     * pattern flagged by audit §1.6: a client with 50k user_map
+     * rows would otherwise load all of them into PHP memory.
+     *
+     * @param object   $model   Fresh ModelClass instance.
+     * @param array    $where   DataBaseWhere/Where clauses.
+     * @param array    $orderBy Order-by array (keep stable to avoid
+     *                          row-skip when rows mutate mid-scan).
+     * @param callable $visitor fn($row):void|bool
+     * @return int              Number of rows visited.
+     * @since 2.0 F6.3
+     */
+    protected function paginate(object $model, array $where, array $orderBy, callable $visitor): int
+    {
+        $offset = 0;
+        $visited = 0;
+        // Ensure a stable order; default to ascending by PK.
+        if (empty($orderBy) && method_exists($model, 'primaryColumn')) {
+            $orderBy = [$model::primaryColumn() => 'ASC'];
+        }
+        while (true) {
+            $rows = $model->all($where, $orderBy, $offset, self::BATCH_SIZE);
+            if (empty($rows)) {
+                break;
+            }
+            foreach ($rows as $row) {
+                $stop = $visitor($row);
+                $visited++;
+                if ($stop === false) {
+                    return $visited;
+                }
+            }
+            if (count($rows) < self::BATCH_SIZE) {
+                break;
+            }
+            $offset += self::BATCH_SIZE;
+        }
+        return $visited;
+    }
+
     public function run(): void
     {
         $job = $this->job(self::JOB_NAME);
@@ -136,35 +181,44 @@ class Cron extends CronClass
         );
 
         foreach ($instances as $instance) {
-            $mapModel = new MoodleUserMap();
-            $maps = $mapModel->all(
-                [
-                    new DataBaseWhere('idinstance', $instance->id),
-                    new DataBaseWhere('moodle_userid', 0, '>'),
-                ],
-                [],
-                0,
-                0
-            );
+            $this->userSyncForInstance($instance);
+        }
+    }
 
+    /**
+     * F6.3 — process a single instance's user maps in chunks of
+     * self::BATCH_SIZE. Each chunk triggers exactly one Moodle WS
+     * call (scoped to the moodle IDs present in the chunk), so
+     * memory usage is bounded regardless of total map count.
+     */
+    private function userSyncForInstance(MoodleInstance $instance): void
+    {
+        $customFieldsMap = $instance->getCustomFieldsMap();
+        $mapModel = new MoodleUserMap();
+        $where = [
+            new DataBaseWhere('idinstance', $instance->id),
+            new DataBaseWhere('moodle_userid', 0, '>'),
+        ];
+        $orderBy = ['id' => 'ASC'];
+        $offset = 0;
+
+        do {
+            $maps = $mapModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
             if (empty($maps)) {
-                continue;
+                break;
             }
 
-            $customFieldsMap = $instance->getCustomFieldsMap();
-
-            $moodleIds = array_map(function ($m) {
+            $moodleIds = array_map(static function ($m) {
                 return $m->moodle_userid;
             }, $maps);
 
             $result = MoodleClient::getUsersByField($instance, 'id', $moodleIds);
-
             if (isset($result['exception'])) {
                 Tools::log(self::USER_SYNC_JOB)->warning('user-sync-failed', [
-                    '%name%' => $instance->name,
+                    '%name%'    => $instance->name,
                     '%message%' => $result['message'] ?? $result['exception'],
                 ]);
-                continue;
+                break;
             }
 
             $moodleUsers = [];
@@ -176,52 +230,61 @@ class Cron extends CronClass
                 if (!isset($moodleUsers[$map->moodle_userid])) {
                     continue;
                 }
-
-                $moodleUser = $moodleUsers[$map->moodle_userid];
-
-                // Incremental sync: skip if Moodle user hasn't changed since last sync
-                $moodleModified = $moodleUser['timemodified'] ?? null;
-                $lastSyncTs = $map->last_sync ? strtotime($map->last_sync) : 0;
-                if ($moodleModified && (int)$moodleModified <= $lastSyncTs && $map->sync_direction === 'moodle_to_fs') {
-                    continue;
-                }
-
-                $contact = $map->getContacto();
-                if (empty($contact->idcontacto)) {
-                    continue;
-                }
-
-                // Resolve conflict direction based on priority
-                $priority = $map->getEffectivePriority();
-
-                if ($map->sync_direction === 'bidirectional') {
-                    $winner = MoodleClient::resolveConflict(
-                        $priority,
-                        $contact->fechaalta,
-                        $moodleModified
-                    );
-
-                    if ($winner === 'moodle') {
-                        MoodleClient::moodleUserToContact($contact, $moodleUser, $customFieldsMap);
-                        $contact->save();
-                    } else {
-                        $userData = MoodleClient::contactToMoodleUser($contact, $customFieldsMap);
-                        MoodleClient::updateUser($instance, $map->moodle_userid, $userData);
-                    }
-                } elseif ($map->sync_direction === 'moodle_to_fs') {
-                    MoodleClient::moodleUserToContact($contact, $moodleUser, $customFieldsMap);
-                    $contact->save();
-                } elseif ($map->sync_direction === 'fs_to_moodle') {
-                    $userData = MoodleClient::contactToMoodleUser($contact, $customFieldsMap);
-                    MoodleClient::updateUser($instance, $map->moodle_userid, $userData);
-                }
-
-                $map->moodle_username = $moodleUser['username'] ?? $map->moodle_username;
-                $map->last_sync = date('Y-m-d H:i:s');
-                $map->last_error = '';
-                $map->save();
+                $this->syncOneUserMap($map, $moodleUsers[$map->moodle_userid], $instance, $customFieldsMap);
             }
+
+            if (count($maps) < self::BATCH_SIZE) {
+                break;
+            }
+            $offset += self::BATCH_SIZE;
+        } while (true);
+    }
+
+    /**
+     * Applies conflict-resolution + persistence for a single map row.
+     * Extracted from userSync loop to keep paginate-friendly variants
+     * small and testable (Fase 9 will cover with unit tests).
+     */
+    private function syncOneUserMap(
+        MoodleUserMap $map,
+        array $moodleUser,
+        MoodleInstance $instance,
+        array $customFieldsMap
+    ): void {
+        $moodleModified = $moodleUser['timemodified'] ?? null;
+        $lastSyncTs = $map->last_sync ? strtotime($map->last_sync) : 0;
+        if ($moodleModified && (int) $moodleModified <= $lastSyncTs && $map->sync_direction === 'moodle_to_fs') {
+            return;
         }
+
+        $contact = $map->getContacto();
+        if (empty($contact->idcontacto)) {
+            return;
+        }
+
+        $priority = $map->getEffectivePriority();
+
+        if ($map->sync_direction === 'bidirectional') {
+            $winner = MoodleClient::resolveConflict($priority, $contact->fechaalta, $moodleModified);
+            if ($winner === 'moodle') {
+                MoodleClient::moodleUserToContact($contact, $moodleUser, $customFieldsMap);
+                $contact->save();
+            } else {
+                $userData = MoodleClient::contactToMoodleUser($contact, $customFieldsMap);
+                MoodleClient::updateUser($instance, $map->moodle_userid, $userData);
+            }
+        } elseif ($map->sync_direction === 'moodle_to_fs') {
+            MoodleClient::moodleUserToContact($contact, $moodleUser, $customFieldsMap);
+            $contact->save();
+        } elseif ($map->sync_direction === 'fs_to_moodle') {
+            $userData = MoodleClient::contactToMoodleUser($contact, $customFieldsMap);
+            MoodleClient::updateUser($instance, $map->moodle_userid, $userData);
+        }
+
+        $map->moodle_username = $moodleUser['username'] ?? $map->moodle_username;
+        $map->last_sync = date('Y-m-d H:i:s');
+        $map->last_error = '';
+        $map->save();
     }
 
     private function courseSync(): void
