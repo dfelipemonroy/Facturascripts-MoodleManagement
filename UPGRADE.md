@@ -1,11 +1,8 @@
 # Upgrade Guide
 
 This document describes how to upgrade between major versions of the
-MoodleManagement plugin.
-
-> **Note**: During v2.0 remediation (active), this is a **working
-> skeleton**. Each phase of `docs/V2.0-ACTION-PLAN.md` will append its
-> concrete migration steps and rollback instructions here.
+MoodleManagement plugin. Everything below is **finalised** for the
+v2.0 release (F11.8, 2026-04-17).
 
 ---
 
@@ -30,22 +27,32 @@ MoodleManagement plugin.
 
 ## 1.x → 2.0
 
-**Target release**: `v2.0.0` (currently unreleased — see
-`docs/V2.0-ACTION-PLAN.md`).
+**Target release**: `v2.0.0` (tag applied at the end of Fase 12).
 **Estimated downtime**: 2–5 minutes for DB migration + token re-cipher.
 
 ### 1.1 Breaking changes
 
-_To be finalised per phase_. Expected areas of breakage:
+Final list for v2.0. Every item is mitigated by an idempotent
+migration in `Update/v2_0.php` unless noted otherwise.
 
-| Area                       | Change                                                                  | Mitigation                                         |
-|----------------------------|-------------------------------------------------------------------------|----------------------------------------------------|
-| `MoodleClient` (Fase 8)    | God-class split into `Lib/Moodle/Api/*`. Facade retained for BC.        | No action required for plugin users.               |
-| `moodle_instances.token`   | Column widened to `VARCHAR(500)` and encrypted at rest (AES-256-GCM).  | One-shot migration re-ciphers existing tokens.     |
-| `moodle_enrolments.idfactura` | `ON DELETE CASCADE` → `ON DELETE SET NULL` + `idfactura_archived`.    | Fiscal trail preserved even if invoice is deleted. |
-| `createViews()`            | Now called from `init()` (fresh install) as well as `update()`.          | No action. Existing installs re-run safely.        |
-| Cookies                    | Gain `HttpOnly`, `Secure`, `SameSite=Lax`. JS can no longer read them.  | Wizard state briefly resets after upgrade.         |
-| Twig `|raw`                | Removed from chat/notes/course content. User HTML now sanitised.         | Historic rows sanitised by one-shot migration.     |
+| Area                              | Change                                                                                           | Mitigation                                             |
+|-----------------------------------|--------------------------------------------------------------------------------------------------|--------------------------------------------------------|
+| `MoodleClient` (Fase 8)           | God class split into `Lib/Moodle/*` + `Lib/Moodle/Api/*`. Facade retained for BC.                | No action for plugin users; new callers use facades.   |
+| `moodle_instances.token`          | Widened to `VARCHAR(500)` and encrypted at rest (AES-256-GCM via `TokenCipher`).                 | `2.0.0-F5.11` + `2.0.0-F5.12-token-cipher` re-cipher.   |
+| `moodle_instances.webhook_secret` | New `VARCHAR(500)` column for F10.1 HMAC key. NULL disables the endpoint.                        | `2.0.0-F10.1-webhook-secret`.                          |
+| `moodle_instances.username_strategy` | New `VARCHAR(20)` defaulting `'name_based'`. Enables `random_alias` (F10.5).                   | `2.0.0-F10.5-username-strategy`.                       |
+| `moodle_enrolments.idfactura`     | `ON DELETE CASCADE` → `ON DELETE SET NULL` + new `idfactura_archived`.                           | Fiscal trail preserved even if invoice is deleted.     |
+| `moodle_enrolments` progress cols | New `progress_percent`, `completed_modules`, `total_modules`, `last_activity_at`, `progress_fetched_at`, `completion_date`, `final_grade`. | `2.0.0-F10.2-enrolment-progress`.                      |
+| `moodle_enrolments` / `user_map` / `cohorts` | New `deleted_at` column for soft-delete + papelera.                                   | `2.0.0-F5.20-soft-delete`.                             |
+| `moodle_user_map.badge_sync_needed` | New TINYINT flag. BadgeSyncWorker rebound from `Save` → `Insert` to cut the F6.1 cascade.       | `2.0.0-F6.1-badge-sync-needed`.                        |
+| `contactos.mm_last_modified`      | New TIMESTAMP used by F7.4 conflict resolver.                                                   | `2.0.0-F7.4-contacto-mm-last-modified`.                |
+| New tables                        | `moodle_audit_log` (F4.4), `moodle_webhook_log` (F10.1), `moodle_schema_version` (F5.1).         | Created by `Init::bootstrapSchema()` + FS XML install. |
+| FK index catalogue                | 8 new secondary indexes on FK columns (user_map / enrolments / course_map / certificates).       | `2.0.0-F5.3-fk-indexes`.                               |
+| `createViews()`                   | Now called from `init()` (fresh install) as well as `update()`.                                  | No action; idempotent.                                 |
+| Cookies                           | `HttpOnly`, `Secure`, `SameSite=Lax` added to `mm_wizard_type` (F2.6).                           | Wizard state briefly resets after upgrade.             |
+| Twig `|raw`                       | Removed from chat/notes/course content. User HTML sanitised via `Lib/Security/HtmlSanitizer`.   | Historic rows render unchanged (sanitiser is display-time). |
+| Chart.js                          | Bumped 2.9 → 4.x (F3.1). Dashboard options schema rewritten.                                     | IE11 dropped; Safari ≥ 16 required.                    |
+| MoodleClient::MIN_MOODLE_RELEASE | Bumped to `'4.1'` (F7.18). Older instances flip to `status=unsupported`.                         | Upgrade Moodle before plugin, or acknowledge the flag. |
 
 ### 1.2 Pre-flight checklist
 
@@ -61,14 +68,29 @@ _To be finalised per phase_. Expected areas of breakage:
 2. Replace the `Plugins/MoodleManagement` folder contents with the v2.0
    release ZIP.
 3. From FS admin: **Plugins → Update**. This triggers
-   `Init::update()`, which runs `Update/v2.0.sql` idempotently:
-   - Adds indexes (see §F5.3).
-   - Widens `token` column.
-   - Adds `mm_last_modified` on `contactos`.
-   - Seeds default certificate template.
-   - Creates `moodle_schema_version`, `moodle_audit_log`,
-     `moodle_webhook_log`, `moodle_cron_state` tables.
-   - Re-ciphers tokens via `TokenCipher::encryptAll()`.
+   `Init::update()`, which runs `Update/v2_0.php` idempotently in
+   a single pass. Each migration is keyed by a version tag stored
+   in `moodle_schema_version`. The full order is:
+   - `2.0.0-F5.3-fk-indexes` — 8 FK secondary indexes.
+   - `2.0.0-F5.5-idfactura-archived` — add preserved column.
+   - `2.0.0-F5.8-instance-name-unique` — UNIQUE on instance name.
+   - `2.0.0-F5.11-token-varchar-500` — widen token column.
+   - `2.0.0-F5.12-token-cipher` — re-cipher existing tokens.
+   - `2.0.0-F5.14-enrolment-status-check` — CHECK constraint.
+   - `2.0.0-F5.15-created-updated-by` — audit columns.
+   - `2.0.0-F5.18-cert-unique-hash` — UNIQUE on certificate hash.
+   - `2.0.0-F5.20-soft-delete` — `deleted_at` on 3 tables.
+   - `2.0.0-F5.10-collation-utf8mb4` — collation unification (MySQL).
+   - `2.0.0-F5.7-cohorts-codgrupo-fk` — FK to `gruposclientes`.
+   - `2.0.0-F5.22-role-map-timestamps` — created_at/updated_at.
+   - `2.0.0-F6.1-badge-sync-needed` — explicit resync flag.
+   - `2.0.0-F7.4-contacto-mm-last-modified` — contact sync marker.
+   - `2.0.0-F10.1-webhook-secret` — webhook HMAC key column.
+   - `2.0.0-F10.2-enrolment-progress` — progress columns.
+   - `2.0.0-F10.5-username-strategy` — name_based / random_alias.
+   Plus `Init::bootstrapSchema()`:
+   - `createViews()` — `moodle_course_categories_view`.
+   - `seedDefaultCertificateTemplate()` — one row if missing.
 4. Run: **Tools → Cron** once. Verify each cron logs `ok`.
 5. Smoke test:
    - Dashboard renders without console errors.
@@ -93,7 +115,29 @@ If the upgrade completed but a regression appears post-hoc, see
 
 ### 1.5 Known issues during upgrade
 
-_(Populated during Fase 12 QA.)_
+Compiled from the v2.0 remediation plan and ongoing staging runs.
+
+| Symptom                                                               | Likely cause                                                                       | Action                                                                                                     |
+|-----------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `token-cipher-decrypt-failed` after upgrade                           | `FS_COOKIES_EXPIRE` rotated between backup and upgrade.                             | Restore tokens from the sealed envelope (step 1.2) and re-save via the instance Edit form.                |
+| `moodle-migrations-failed` with "Duplicate key"                       | Partial previous run; DDL applied but version tag wasn't stored.                    | Insert the missing version tag into `moodle_schema_version` and re-run Plugins → Update.                   |
+| Instance flips to `status=unsupported` post-upgrade                   | Remote Moodle < 4.1 (F7.18).                                                       | Upgrade the Moodle site to 4.1 LTS or acknowledge and keep the downgraded status.                          |
+| Dashboard counts look stale for ~1 minute                             | F10.9 60 s cache; benign.                                                          | Append `?refresh=1` or wait.                                                                               |
+| Wizard shows empty step 1 after login                                 | F2.6 moved the `mm_wizard_type` cookie to HttpOnly/Secure/SameSite.                 | Re-submit step 1; the wizard re-populates its state.                                                       |
+| `ssrf_rejected` on a private Moodle                                   | F7.1 IP validator rejects RFC1918 / loopback / link-local.                          | Route the plugin through a hostname that resolves to a public IP (split-DNS or a TLS-terminating proxy).   |
+| `progress_fetched_at` never populates                                 | Cron not draining.                                                                 | Ensure `moodle-progress-sync` job is scheduled (see `docs/EVENTS.md`).                                     |
+
+### 1.6 Post-upgrade verification
+
+Run through this checklist before re-opening the site:
+
+- [ ] `SELECT version FROM moodle_schema_version ORDER BY applied_at DESC LIMIT 1;` returns the latest tag.
+- [ ] `SELECT COUNT(*) FROM moodle_instances WHERE token NOT LIKE 'mm2g:%'` returns 0 (all tokens re-ciphered).
+- [ ] Dashboard renders with Chart.js 4 (no console warnings about 2.x APIs).
+- [ ] Health check cron runs at least once and every instance lists `status=active`.
+- [ ] Audit log viewer loads (`/ListMoodleAuditLog` — admin only).
+- [ ] Trash viewer loads (`/ListMoodleTrash`).
+- [ ] A manual webhook test returns HTTP 200 when sent with a valid HMAC — see `docs/EVENTS.md` §5.
 
 ---
 
@@ -229,4 +273,4 @@ _See V2.0-ACTION-PLAN §F3.14._
 
 ---
 
-*Last updated: 2026-04-17 · v2.0 kickoff (working skeleton)*
+*Last updated: 2026-04-17 · finalised in V2.0-ACTION-PLAN F11.8.*
