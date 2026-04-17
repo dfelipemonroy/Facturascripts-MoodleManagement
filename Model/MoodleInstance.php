@@ -41,6 +41,14 @@ class MoodleInstance extends ModelClass
     /** @var string */
     public $token;
 
+    /**
+     * @var string|null Shared secret (HMAC key) used to verify inbound
+     *                  webhook requests. Stored cipher-wrapped via
+     *                  TokenCipher. NULL disables the webhook endpoint.
+     * @since 2.0 — F10.1
+     */
+    public $webhook_secret;
+
     /** @var string */
     public $status;
 

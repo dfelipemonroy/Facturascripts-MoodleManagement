@@ -266,4 +266,17 @@ return [
         }
         return $m->addColumnIfMissing('contactos', 'mm_last_modified', 'TIMESTAMP NULL');
     },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F10.1 — webhook shared secret per instance (MEDIO §6.14)
+    //  Column stores the TokenCipher-wrapped secret used as HMAC key
+    //  for inbound /ApiMoodleWebhook requests. NULL ⇒ webhooks
+    //  disabled for the instance.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F10.1-webhook-secret' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances')) {
+            return true;
+        }
+        return $m->addColumnIfMissing('moodle_instances', 'webhook_secret', 'VARCHAR(500) NULL');
+    },
 ];

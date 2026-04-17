@@ -20,6 +20,10 @@
         <type>character varying(200)</type>
     </column>
     <column>
+        <name>webhook_secret</name>
+        <type>character varying(500)</type>
+    </column>
+    <column>
         <name>status</name>
         <type>character varying(20)</type>
     </column>
