@@ -8,6 +8,7 @@ docs/*
 !docs/DEAD-CODE-AUDIT.md
 !docs/PHP-INI-HARDENING.md
 !docs/SUPPORTED-VERSIONS.md
+!docs/TROUBLESHOOTING.md
 
 vendor/
 .phpunit.cache/
