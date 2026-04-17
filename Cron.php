@@ -24,6 +24,7 @@ use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Template\CronClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Where;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cron\Lock;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Dinamic\Model\PresupuestoCliente;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
@@ -105,40 +106,47 @@ class Cron extends CronClass
 
     public function run(): void
     {
-        $job = $this->job(self::JOB_NAME);
-        $job->every(self::EVERY_HOUR);
-        $job->run(function () {
-            $this->healthCheck();
+        // F6.4 — wrap every job in a cooperative advisory lock so
+        // overlapping triggers (system crontab + hosting beacon,
+        // concurrent manual runs) don't race on the same rows.
+        // Fail-fast: if the lock is held, the second caller skips
+        // silently and logs a single INFO line instead of stacking.
+        $lock = new Lock();
+
+        $lockedRun = static function (Lock $lock, string $job, callable $fn): void {
+            if (!$lock->acquire('mm.' . $job)) {
+                Tools::log($job)->info('cron-skip-locked');
+                return;
+            }
+            try {
+                $fn();
+            } finally {
+                $lock->release('mm.' . $job);
+            }
+        };
+
+        $this->job(self::JOB_NAME)->every(self::EVERY_HOUR)->run(function () use ($lock, $lockedRun) {
+            $lockedRun($lock, self::JOB_NAME, function () { $this->healthCheck(); });
         });
 
-        $syncJob = $this->job(self::USER_SYNC_JOB);
-        $syncJob->every(self::EVERY_6_HOURS);
-        $syncJob->run(function () {
-            $this->userSync();
+        $this->job(self::USER_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
+            $lockedRun($lock, self::USER_SYNC_JOB, function () { $this->userSync(); });
         });
 
-        $courseJob = $this->job(self::COURSE_SYNC_JOB);
-        $courseJob->every(self::EVERY_6_HOURS);
-        $courseJob->run(function () {
-            $this->courseSync();
+        $this->job(self::COURSE_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
+            $lockedRun($lock, self::COURSE_SYNC_JOB, function () { $this->courseSync(); });
         });
 
-        $reconJob = $this->job(self::RECONCILIATION_JOB);
-        $reconJob->every(self::EVERY_DAY);
-        $reconJob->run(function () {
-            $this->reconciliation();
+        $this->job(self::RECONCILIATION_JOB)->every(self::EVERY_DAY)->run(function () use ($lock, $lockedRun) {
+            $lockedRun($lock, self::RECONCILIATION_JOB, function () { $this->reconciliation(); });
         });
 
-        $cleanupJob = $this->job(self::CLEANUP_JOB);
-        $cleanupJob->every(self::EVERY_DAY);
-        $cleanupJob->run(function () {
-            $this->cleanup();
+        $this->job(self::CLEANUP_JOB)->every(self::EVERY_DAY)->run(function () use ($lock, $lockedRun) {
+            $lockedRun($lock, self::CLEANUP_JOB, function () { $this->cleanup(); });
         });
 
-        $expiryJob = $this->job(self::EXPIRY_CHECK_JOB);
-        $expiryJob->every(self::EVERY_6_HOURS);
-        $expiryJob->run(function () {
-            $this->expiryCheck();
+        $this->job(self::EXPIRY_CHECK_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
+            $lockedRun($lock, self::EXPIRY_CHECK_JOB, function () { $this->expiryCheck(); });
         });
     }
 
