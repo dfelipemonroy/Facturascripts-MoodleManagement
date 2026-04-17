@@ -167,6 +167,33 @@ ALTER TABLE moodle_enrolments
 
 See [`docs/V2.0-ACTION-PLAN.md`](docs/V2.0-ACTION-PLAN.md) §F5.23.
 
+### 5.1 Schema type conventions (v2.0)
+
+The v2.0 migrations (`Update/v2_0.php`) observe the following
+conventions so operators auditing the schema can predict column
+semantics at a glance (F5.16, F5.17, F5.19):
+
+| Category                                           | Choice              | Why                                                       |
+|----------------------------------------------------|---------------------|-----------------------------------------------------------|
+| FS-native timestamps (rows tracked by the plugin) | `TIMESTAMP`         | Integrates with FS `DateTime` widgets and SQL functions.  |
+| Moodle epoch columns (timestart, timeend, …)      | `INTEGER`           | Matches the Moodle WS payload; rendered via `WidgetMoodleTimestamp`. |
+| Long free-form prose (notes, last_error, custom_fields_map) | `TEXT`       | Unbounded operator input; MySQL stores InnoDB off-page with negligible overhead. |
+| Free-form short labels / identifiers              | `VARCHAR(<=200)`    | Keeps in-row, supports equality indexes.                 |
+| Monetary values                                    | N/A in plugin tables | All money lives in FS core (`facturascli.total`).         |
+
+**F5.19 (DECIMAL review)**: the plugin does not own any
+monetary column. Money propagates through `facturascli`, which
+is governed by FS core conventions.
+
+### 5.2 Idempotent seeds
+
+Every seed executed by `Init::bootstrapSchema()` (F5.2 default
+certificate template) is guarded by an existence check before
+insert, so re-running the plugin installer does not duplicate
+rows. F5.21 therefore applies to any future seed: use either
+`INSERT IGNORE` or an up-front `SELECT` as
+`seedDefaultCertificateTemplate()` does.
+
 ---
 
 ## 6. Performance — webserver configuration
