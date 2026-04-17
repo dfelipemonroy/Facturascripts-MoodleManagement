@@ -129,7 +129,10 @@
 <script>
 (function() {
     var currentFilter = 'all';
-    var refreshInterval = 10000;
+    // F3.3 — polling with exponential backoff.
+    var refreshBaseMs = 10000;
+    var refreshMaxMs = 300000;
+    var refreshDelay = refreshBaseMs;
     var refreshTimer = null;
     var availableUsers = [];
 
@@ -246,12 +249,16 @@
         var indicator = document.getElementById('refreshIndicator');
         if (indicator) indicator.classList.remove('d-none');
 
-        fetch('ListMoodleConversation?action=load-conversations', {
+        return fetch('ListMoodleConversation?action=load-conversations', {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            if (!r.ok) { throw new Error('http_' + r.status); }
+            return r.json();
+        })
         .then(function(data) {
             if (indicator) indicator.classList.add('d-none');
+            refreshDelay = refreshBaseMs;
             if (!data.conversations) return;
 
             var totalBadge = document.getElementById('totalUnreadBadge');
@@ -282,18 +289,26 @@
         })
         .catch(function() {
             if (indicator) indicator.classList.add('d-none');
+            refreshDelay = Math.min(refreshDelay * 2, refreshMaxMs);
         });
+    }
+
+    // F3.3 — backoff-aware self-rescheduling timer.
+    function scheduleNext() {
+        refreshTimer = setTimeout(function () {
+            refreshConversations().finally(scheduleNext);
+        }, refreshDelay);
     }
 
     function startRefresh() {
         if (!refreshTimer) {
-            refreshTimer = setInterval(refreshConversations, refreshInterval);
+            scheduleNext();
         }
     }
 
     function stopRefresh() {
         if (refreshTimer) {
-            clearInterval(refreshTimer);
+            clearTimeout(refreshTimer);
             refreshTimer = null;
         }
     }

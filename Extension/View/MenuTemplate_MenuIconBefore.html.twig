@@ -35,12 +35,22 @@
         }
     }
 
+    // F3.3 — polling with exponential backoff.
+    // Baseline 30 s; doubles on failure up to 10 min.
+    var unreadBaseMs = 30000;
+    var unreadMaxMs = 600000;
+    var unreadDelay = unreadBaseMs;
+
     function fetchUnread() {
-        fetch('ListMoodleConversation?action=get-unread-count', {
+        return fetch('ListMoodleConversation?action=get-unread-count', {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            if (!r.ok) { throw new Error('http_' + r.status); }
+            return r.json();
+        })
         .then(function(data) {
+            unreadDelay = unreadBaseMs;
             var badge = document.getElementById('moodleChatBadge');
             if (!badge) return;
             if (data.unread && data.unread > 0) {
@@ -50,19 +60,25 @@
                 badge.classList.add('d-none');
             }
         })
-        .catch(function() {});
+        .catch(function() {
+            unreadDelay = Math.min(unreadDelay * 2, unreadMaxMs);
+        });
+    }
+
+    function scheduleUnread() {
+        setTimeout(function () {
+            fetchUnread().finally(scheduleUnread);
+        }, unreadDelay);
     }
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             repositionChatIcon();
-            fetchUnread();
+            fetchUnread().finally(scheduleUnread);
         });
     } else {
         repositionChatIcon();
-        fetchUnread();
+        fetchUnread().finally(scheduleUnread);
     }
-
-    setInterval(fetchUnread, 30000);
 })();
 </script>

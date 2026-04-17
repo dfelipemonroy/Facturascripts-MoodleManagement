@@ -107,7 +107,15 @@ document.addEventListener('DOMContentLoaded', function() {
     var serviceUserId = {{ serviceUserId | default(0) }};
     var contactName = '{{ contactName | e('js') }}';
     var lastMessageCount = {{ messages | length }};
-    var refreshInterval = 5000; // 5 seconds
+    // F3.3 — polling with exponential backoff.
+    // - Baseline 5 s between successful fetches.
+    // - On failure (network error or non-2xx), the delay doubles up
+    //   to 5 min so a prolonged backend outage does not drown the
+    //   server with retries.
+    // - Resets to baseline on the next successful response.
+    var refreshBaseMs = 5000;
+    var refreshMaxMs = 300000;
+    var refreshDelay = refreshBaseMs;
     var refreshTimer = null;
 
     function formatDate(timestamp) {
@@ -152,13 +160,19 @@ document.addEventListener('DOMContentLoaded', function() {
         var indicator = document.getElementById('chatRefreshIndicator');
         if (indicator) indicator.classList.remove('d-none');
 
-        fetch('EditMoodleUserMap?code=' + encodeURIComponent(code) + '&action=load-chat-messages', {
+        return fetch('EditMoodleUserMap?code=' + encodeURIComponent(code) + '&action=load-chat-messages', {
             method: 'GET',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(function(response) { return response.json(); })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('http_' + response.status);
+            }
+            return response.json();
+        })
         .then(function(data) {
             if (indicator) indicator.classList.add('d-none');
+            refreshDelay = refreshBaseMs;   // F3.3 — reset on success.
 
             if (data.error || !data.messages) return;
 
@@ -190,19 +204,30 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(function() {
             if (indicator) indicator.classList.add('d-none');
+            // F3.3 — double the wait on failure; cap at refreshMaxMs.
+            refreshDelay = Math.min(refreshDelay * 2, refreshMaxMs);
         });
     }
 
-    // Start auto-refresh only when chat tab is visible
+    // F3.3 — Start auto-refresh with exponential backoff.
+    // Uses a self-rescheduling setTimeout so the next invocation only
+    // happens after the current one has resolved, giving the backoff
+    // logic a chance to adjust the next delay.
+    function scheduleNext() {
+        refreshTimer = setTimeout(function () {
+            refreshChat().finally(scheduleNext);
+        }, refreshDelay);
+    }
+
     function startRefresh() {
         if (!refreshTimer) {
-            refreshTimer = setInterval(refreshChat, refreshInterval);
+            scheduleNext();
         }
     }
 
     function stopRefresh() {
         if (refreshTimer) {
-            clearInterval(refreshTimer);
+            clearTimeout(refreshTimer);
             refreshTimer = null;
         }
     }
