@@ -169,4 +169,37 @@ See [`docs/V2.0-ACTION-PLAN.md`](docs/V2.0-ACTION-PLAN.md) §F5.23.
 
 ---
 
-*Last updated: 2026-04-16 · v2.0 kickoff (working skeleton)*
+## 6. Performance — webserver configuration
+
+v2.0 ships new static assets under `Plugins/MoodleManagement/Assets/`.
+FacturaScripts itself does not emit long-lived `Cache-Control`
+headers for plugin assets, so configure your webserver to cache
+them aggressively — filenames are versioned with the release tag,
+so `max-age=604800` (7 days) is safe.
+
+### Apache
+
+```apache
+<LocationMatch "^/Plugins/MoodleManagement/Assets/">
+    Header set Cache-Control "public, max-age=604800, immutable"
+</LocationMatch>
+```
+
+### Nginx
+
+```nginx
+location ~* ^/Plugins/MoodleManagement/Assets/ {
+    add_header Cache-Control "public, max-age=604800, immutable" always;
+}
+```
+
+The `immutable` directive is optional but recommended: once the
+admin deploys a new release, asset filenames change (or an entry
+in `MyFiles/routes.json` is refreshed), so the browser is never
+asked to revalidate mid-session.
+
+_See V2.0-ACTION-PLAN §F3.14._
+
+---
+
+*Last updated: 2026-04-17 · v2.0 kickoff (working skeleton)*
