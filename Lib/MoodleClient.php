@@ -27,6 +27,16 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 class MoodleClient
 {
     /**
+     * F7.21 — per-request cache of course payloads so multiple
+     * callers asking for the same course ID inside one request
+     * share the WS round-trip. Reset on every PHP process.
+     *
+     * @since 2.0
+     * @var array<int, array<int, array>>  keyed [instanceId][courseId]
+     */
+    private static $courseCache = [];
+
+    /**
      * Default HTTP timeout (seconds) for synchronous (UI) Moodle API calls.
      * Cron jobs may override via $timeout parameter (see Fase 7 F7.7).
      *
@@ -464,6 +474,54 @@ class MoodleClient
             $params["options[ids][$i]"] = $id;
         }
         return self::callApi($instance, 'core_course_get_courses', $params);
+    }
+
+    /**
+     * F7.21 — fetch a single course by id with per-request cache.
+     * Repeated calls for the same (instance, courseId) inside one
+     * request share the WS round-trip. Used by the dashboard,
+     * widgets, and reconciliation scanners that previously issued
+     * redundant getCourses calls.
+     *
+     * @since 2.0
+     * @return array|null Course payload on success; null on miss.
+     */
+    public static function getCourseById(MoodleInstance $instance, int $courseId): ?array
+    {
+        $iid = (int) $instance->id;
+        if ($iid <= 0 || $courseId <= 0) {
+            return null;
+        }
+        if (isset(self::$courseCache[$iid][$courseId])) {
+            return self::$courseCache[$iid][$courseId];
+        }
+        $result = self::getCourses($instance, [$courseId]);
+        if (isset($result['exception']) || empty($result)) {
+            return null;
+        }
+        $course = $result[0] ?? null;
+        if (is_array($course)) {
+            self::$courseCache[$iid][$courseId] = $course;
+        }
+        return $course;
+    }
+
+    /**
+     * Admin utility — wipe the per-request course cache. Callers
+     * that mutate a course (e.g. update metadata, duplicate) use
+     * this to avoid returning stale data from the same request.
+     */
+    public static function resetCourseCache(?int $instanceId = null, ?int $courseId = null): void
+    {
+        if ($instanceId === null) {
+            self::$courseCache = [];
+            return;
+        }
+        if ($courseId === null) {
+            unset(self::$courseCache[$instanceId]);
+            return;
+        }
+        unset(self::$courseCache[$instanceId][$courseId]);
     }
 
     /**
