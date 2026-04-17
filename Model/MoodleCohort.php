@@ -22,10 +22,12 @@ namespace FacturaScripts\Plugins\MoodleManagement\Model;
 use FacturaScripts\Core\Model\Base\ModelClass;
 use FacturaScripts\Core\Model\Base\ModelTrait;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Model\SoftDeleteTrait;
 
 class MoodleCohort extends ModelClass
 {
     use ModelTrait;
+    use SoftDeleteTrait;
 
     /** @var int */
     public $id;
@@ -62,6 +64,13 @@ class MoodleCohort extends ModelClass
 
     /** @var string */
     public $creation_date;
+
+    /**
+     * @var string|null Soft-delete marker (F5.20 + F13 DISCOVERED-02).
+     *                  Non-null means the row is in the papelera.
+     * @since 2.0
+     */
+    public $deleted_at;
 
     public function clear(): void
     {

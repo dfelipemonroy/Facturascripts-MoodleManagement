@@ -124,14 +124,23 @@ class ListMoodleTrash extends ListController
             Tools::log()->notice('mm-trash-restored', ['entity' => $entity, 'id' => $id]);
         } elseif ($verb === 'purge') {
             // Require the row to be ALREADY soft-deleted before purging.
-            $rows = $db->select('SELECT id FROM ' . $table
-                . ' WHERE id = ' . $db->var2str($id)
-                . ' AND deleted_at IS NOT NULL');
-            if (empty($rows)) {
+            // Route through forcePhysicalDelete() on the model (added
+            // by SoftDeleteTrait in F13 DISCOVERED-02) so FS events
+            // fire normally; the raw DELETE path left the Model.<X>
+            // .Delete event silent, which downstream subscribers may
+            // depend on.
+            $model = $this->modelForEntity($entity);
+            if ($model === null || false === $model->loadFromCode((string) $id)) {
+                Tools::log()->warning('mm-trash-purge-not-found', ['entity' => $entity, 'id' => $id]);
+                return true;
+            }
+            if (!method_exists($model, 'isTrashed') || !$model->isTrashed()) {
                 Tools::log()->warning('mm-trash-purge-not-deleted', ['entity' => $entity, 'id' => $id]);
                 return true;
             }
-            $ok = $db->exec('DELETE FROM ' . $table . ' WHERE id = ' . $db->var2str($id));
+            $ok = method_exists($model, 'forcePhysicalDelete')
+                ? $model->forcePhysicalDelete()
+                : (bool) $db->exec('DELETE FROM ' . $table . ' WHERE id = ' . $db->var2str($id));
             Audit::record('trash.purge', $ok ? Audit::OK : Audit::ERROR, [
                 'operator_nick' => $this->user->nick ?? null,
                 'target_type'   => $entity,
@@ -156,6 +165,27 @@ class ListMoodleTrash extends ListController
                 return 'moodle_enrolments';
             case 'cohort':
                 return 'moodle_cohorts';
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Return an empty model instance for the allow-listed entity, or
+     * null when the entity tag is unknown. Used by handleRestoreOrPurge
+     * to route through `forcePhysicalDelete()` instead of raw SQL.
+     *
+     * @since 2.0 — F13 DISCOVERED-02
+     */
+    private function modelForEntity(string $entity): ?object
+    {
+        switch ($entity) {
+            case 'usermap':
+                return new \FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap();
+            case 'enrolment':
+                return new \FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment();
+            case 'cohort':
+                return new \FacturaScripts\Plugins\MoodleManagement\Model\MoodleCohort();
             default:
                 return null;
         }

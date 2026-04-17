@@ -11,11 +11,13 @@ use FacturaScripts\Core\Model\Base\ModelClass;
 use FacturaScripts\Core\Model\Base\ModelTrait;
 use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Model\SoftDeleteTrait;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 
 class MoodleEnrolment extends ModelClass
 {
     use ModelTrait;
+    use SoftDeleteTrait;
 
     /** @var int */
     public $id;
@@ -98,6 +100,13 @@ class MoodleEnrolment extends ModelClass
 
     /** @var float|null @since 2.0 — F10.2 latest grade (0..100) */
     public $final_grade;
+
+    /**
+     * @var string|null Soft-delete marker (F5.20 + F13 DISCOVERED-02).
+     *                  Non-null means the row is in the papelera.
+     * @since 2.0
+     */
+    public $deleted_at;
 
     public function clear(): void
     {

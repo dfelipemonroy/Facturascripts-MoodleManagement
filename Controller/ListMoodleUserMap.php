@@ -19,6 +19,7 @@
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
+use FacturaScripts\Core\DataSrc\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
@@ -55,5 +56,19 @@ class ListMoodleUserMap extends ListController
             ['code' => 'moodle_to_fs', 'description' => Tools::trans('moodle-to-fs')],
         ];
         $this->addFilterSelect('ListMoodleUserMap', 'sync_direction', 'sync-direction', 'sync_direction', $directions);
+
+        // F13 DISCOVERED-02 — hide soft-deleted rows by default.
+        // Operators who need to see trashed rows use /ListMoodleTrash.
+        $this->addFilterSelectWhere('ListMoodleUserMap', 'state', [
+            [
+                'label' => Tools::lang()->trans('active'),
+                'where' => [new DataBaseWhere('deleted_at', null, 'IS')],
+                'default' => true,
+            ],
+            [
+                'label' => Tools::lang()->trans('all'),
+                'where' => [],
+            ],
+        ]);
     }
 }

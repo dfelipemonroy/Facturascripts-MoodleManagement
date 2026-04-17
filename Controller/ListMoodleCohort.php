@@ -58,6 +58,19 @@ class ListMoodleCohort extends ListController
 
         $this->addFilterCheckbox('ListMoodleCohort', 'sync_active', 'sync-active', 'sync_active');
 
+        // F13 DISCOVERED-02 — hide soft-deleted rows by default.
+        $this->addFilterSelectWhere('ListMoodleCohort', 'state', [
+            [
+                'label' => Tools::lang()->trans('active'),
+                'where' => [new DataBaseWhere('deleted_at', null, 'IS')],
+                'default' => true,
+            ],
+            [
+                'label' => Tools::lang()->trans('all'),
+                'where' => [],
+            ],
+        ]);
+
         $this->addButton('ListMoodleCohort', [
             'action' => 'import-cohorts-from-moodle',
             'icon' => 'fa-solid fa-download',

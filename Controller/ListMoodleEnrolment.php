@@ -6,6 +6,7 @@
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
+use FacturaScripts\Core\DataSrc\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
 use FacturaScripts\Core\Tools;
 
@@ -49,6 +50,19 @@ class ListMoodleEnrolment extends ListController
         $this->addFilterAutocomplete('ListMoodleEnrolment', 'idcontacto', 'contact', 'idcontacto', 'contactos', 'idcontacto', 'descripcion');
 
         $this->addFilterSelect('ListMoodleEnrolment', 'idinstance', 'moodle-instance', 'idinstance', $this->getInstanceValues());
+
+        // F13 DISCOVERED-02 — hide soft-deleted rows by default.
+        $this->addFilterSelectWhere('ListMoodleEnrolment', 'state', [
+            [
+                'label' => Tools::lang()->trans('active'),
+                'where' => [new DataBaseWhere('deleted_at', null, 'IS')],
+                'default' => true,
+            ],
+            [
+                'label' => Tools::lang()->trans('all'),
+                'where' => [],
+            ],
+        ]);
     }
 
     protected function execPreviousAction($action)

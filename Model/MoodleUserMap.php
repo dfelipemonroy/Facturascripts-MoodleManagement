@@ -23,10 +23,12 @@ use FacturaScripts\Core\Model\Base\ModelClass;
 use FacturaScripts\Core\Model\Base\ModelTrait;
 use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Model\SoftDeleteTrait;
 
 class MoodleUserMap extends ModelClass
 {
     use ModelTrait;
+    use SoftDeleteTrait;
 
     /** @var int */
     public $id;
@@ -57,6 +59,15 @@ class MoodleUserMap extends ModelClass
 
     /** @var string */
     public $creation_date;
+
+    /**
+     * @var string|null ISO timestamp; non-null marks the row as
+     *                  soft-deleted (F5.20 column + F13 DISCOVERED-02
+     *                  trait wiring). The papelera (F10.4) surfaces
+     *                  these rows for restore or purge.
+     * @since 2.0 — F13 DISCOVERED-02
+     */
+    public $deleted_at;
 
     public function clear(): void
     {
