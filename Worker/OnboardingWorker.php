@@ -233,6 +233,19 @@ class OnboardingWorker extends WorkerClass
         }
 
         $contact = $map->getContacto();
+
+        // F7.12 — respect contact unsubscribe / GDPR marketing opt-out
+        // before sending a transactional-ish welcome message. FS core
+        // stores the flag as Contacto::$noenviarmail (FS 2024+) or
+        // ::$noemail (legacy); we honour either.
+        $noEmail = !empty($contact->noenviarmail) || !empty($contact->noemail);
+        if ($noEmail) {
+            Tools::log('MoodleManagement')->info('onboarding-welcome-skip-noemail', [
+                'userid'  => (int) $map->moodle_userid,
+                'contact' => (int) ($contact->idcontacto ?? 0),
+            ]);
+            return;
+        }
         $text = str_replace(
             ['%name%', '%username%', '%site%'],
             [
