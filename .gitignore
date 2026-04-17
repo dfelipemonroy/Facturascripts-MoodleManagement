@@ -1,9 +1,11 @@
 # Ignore all internal docs by default...
 # Using docs/* (not docs/) so that selective !docs/<file> exceptions work.
 docs/*
-# ...but keep the v2.0 plan and checklist version-controlled.
+# ...but keep the v2.0 plan, checklist and the dead-code audit
+# note version-controlled.
 !docs/V2.0-ACTION-PLAN.md
 !docs/V2.0-TASK-CHECKLIST.md
+!docs/DEAD-CODE-AUDIT.md
 
 vendor/
 .phpunit.cache/

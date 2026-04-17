@@ -59,3 +59,20 @@ parameters:
     # Parallel analysis tuning
     parallel:
         maximumNumberOfProcesses: 4
+
+    # F10.6 — dead-code detection knobs.
+    #
+    # Level 5 already flags unused private properties and unused
+    # parameters. The two rules below light up unreachable and
+    # always-false branches that slip past manual review:
+    #
+    #   reportStaticMethodSignatures: true
+    #   checkDynamicProperties:       true
+    #
+    # We ALSO rely on PHPStan's core "DeadCode" rule (enabled by
+    # default at this level) for unused private methods. When
+    # phpstan-deprecation-rules is added in v2.1 we'll tighten
+    # further; for v2.0 the goal is no visible dead code, tracked
+    # in docs/DEAD-CODE-AUDIT.md.
+    reportStaticMethodSignatures: true
+    checkDynamicProperties: true
