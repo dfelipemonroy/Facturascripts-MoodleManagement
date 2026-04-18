@@ -87,6 +87,17 @@ class MoodleCertificatePdf extends Controller
      */
     private function serveCertificate(?User $user): void
     {
+        // FS 2025.9 compat — this controller writes a binary PDF
+        // straight into the response, it never renders a Twig
+        // template. FS auto-renders a template matching the
+        // controller class name unless we opt out explicitly;
+        // failing to do so raises
+        //   "Unable to find template 'MoodleCertificatePdf.html.twig'"
+        // on every hit.
+        if (method_exists($this, 'setTemplate')) {
+            $this->setTemplate(false);
+        }
+
         // F2.11 — tight CSP on PDF responses.
         CspHeader::apply($this->response, [
             'script-src' => "'none'",

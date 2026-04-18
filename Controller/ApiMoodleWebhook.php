@@ -78,6 +78,7 @@ class ApiMoodleWebhook extends Controller
     public function publicCore(&$response): void
     {
         parent::publicCore($response);
+        $this->disableTwigRender();
         $this->handle();
     }
 
@@ -90,7 +91,21 @@ class ApiMoodleWebhook extends Controller
     public function privateCore(&$response, $user, $permissions): void
     {
         parent::privateCore($response, $user, $permissions);
+        $this->disableTwigRender();
         $this->handle();
+    }
+
+    /**
+     * FS 2025.9 compat — this controller returns a JSON body, never
+     * a Twig template. Without opting out explicitly, FS throws
+     *   "Unable to find template 'ApiMoodleWebhook.html.twig'"
+     * after the handler sets content.
+     */
+    private function disableTwigRender(): void
+    {
+        if (method_exists($this, 'setTemplate')) {
+            $this->setTemplate(false);
+        }
     }
 
     // ────────────────────────────────────────────────────────────────
