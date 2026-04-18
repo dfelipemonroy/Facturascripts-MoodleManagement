@@ -64,9 +64,14 @@ class ApiMoodleWebhook extends Controller
     public function getPageData(): array
     {
         $data = parent::getPageData();
-        $data['menu'] = 'admin';   // hidden from UI, admin-scoped
+        $data['menu'] = 'admin';
         $data['title'] = 'moodle-webhook';
         $data['icon'] = 'fa-solid fa-arrow-right-arrow-left';
+        // Resource endpoint (POST-only JSON API). The previous
+        // "hidden from UI, admin-scoped" comment was aspirational —
+        // FS still showed the entry in the admin menu until this
+        // flag was set.
+        $data['showonmenu'] = false;
         return $data;
     }
 

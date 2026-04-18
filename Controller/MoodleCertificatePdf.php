@@ -54,6 +54,11 @@ class MoodleCertificatePdf extends Controller
         $data['menu'] = 'moodle';
         $data['title'] = 'certificate-pdf';
         $data['icon'] = 'fa-solid fa-file-pdf';
+        // This controller is a resource endpoint (returns PDF bytes
+        // or 404), never a navigable page. Hide from the main menu
+        // so operators don't land on the "Registro no encontrado"
+        // default view when they click the entry with no `code`.
+        $data['showonmenu'] = false;
         return $data;
     }
 
