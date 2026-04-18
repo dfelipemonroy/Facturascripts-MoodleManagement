@@ -135,6 +135,25 @@ which must close before `v2.0.0` is tagged.
 ### Security
 - **All 16 CRITICAL findings from the first-iteration audit closed**
   — full list in `SECURITY.md` §Security posture.
+- **Stability gates pass Fase 19 (2026-04-18)**:
+  - PHPCS PSR-12: 0 errors, 0 warnings.
+  - PHPStan level 5: 0 errors (baseline 285 entries, all FS-core
+    magic-property access).
+  - PHP-CS-Fixer: 0 diffs after auto-apply.
+  - PHPUnit: 168/168 tests, 281 assertions, zero failures on PHP
+    8.0.30 / 8.1.34 / 8.2.30.
+  - **INT-06** · `UsernameGenerator::unique` pre-insert probe for
+    `random_alias` strategy (up to 5 attempts).
+  - **FE-12** · `maxlength` on four textareas (CourseGroups,
+    CourseMessaging, UserNotes, UserChat).
+  - **BE-04 rev 2** · Reconciliation aborts after 3 consecutive
+    suspect empties to avoid DoS'ing a genuinely sick Moodle with
+    one probe per course.
+  - Documentation sweep: `CLAUDE.md` reflects post-audit state,
+    `SECURITY.md` lists every new primitive, `docs/EVENTS.md`
+    documents worker execution order, six individual ADR files
+    materialised under `docs/adr/`.
+
 - **Second-iteration audit Fase 18 (2026-04-17) LOW + INFO + migrated worked** (34 items — 7 code-fixed, 27 deferred/verified with rationale; see `docs/V2.0-POST-AUDIT-PLAN.md` §FASE 18 for per-item status):
   - **STD-02** · `facturascripts.ini::min_version` 2025.6 → 2025.8.
   - **STD-10** · `.editorconfig` `[*.html.twig]` section added.
