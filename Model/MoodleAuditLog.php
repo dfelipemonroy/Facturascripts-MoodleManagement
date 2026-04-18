@@ -63,6 +63,16 @@ class MoodleAuditLog extends ModelClass
     /** @var string */
     public $created_at;
 
+    /**
+     * @var string|null SEC-14 — sha256 of content-defining fields.
+     */
+    public $row_hash;
+
+    /**
+     * @var string|null SEC-14 — best-effort previous-row hash chain.
+     */
+    public $prev_hash;
+
     public function clear(): void
     {
         parent::clear();

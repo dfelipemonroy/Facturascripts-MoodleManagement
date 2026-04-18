@@ -84,6 +84,11 @@ class MoodleUserMap extends ModelClass
      */
     public $updated_by;
 
+    /**
+     * @var int F6.1 — flag set by BadgeSyncWorker to schedule re-sync.
+     */
+    public $badge_sync_needed;
+
     public function clear(): void
     {
         parent::clear();

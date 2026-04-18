@@ -105,6 +105,11 @@ class MoodleInstance extends ModelClass
      */
     public $updated_by;
 
+    /**
+     * @var int BE-06 — consecutive health-probe failure streak.
+     */
+    public $health_fail_count;
+
     public function clear(): void
     {
         parent::clear();

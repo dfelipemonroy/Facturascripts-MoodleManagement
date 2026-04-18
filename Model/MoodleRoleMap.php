@@ -40,6 +40,16 @@ class MoodleRoleMap extends ModelClass
     /** @var string */
     public $creation_date;
 
+    /**
+     * @var string|null F5.22 — insert timestamp.
+     */
+    public $created_at;
+
+    /**
+     * @var string|null F5.22 — last-touch timestamp.
+     */
+    public $updated_at;
+
     public function clear(): void
     {
         parent::clear();

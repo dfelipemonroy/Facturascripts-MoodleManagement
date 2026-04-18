@@ -97,6 +97,11 @@ class MoodleEnrolment extends ModelClass
      */
     public $updated_by;
 
+    /**
+     * @var string|null F5.5 — original idfactura preserved after fiscal archive.
+     */
+    public $idfactura_archived;
+
     public function clear(): void
     {
         parent::clear();
