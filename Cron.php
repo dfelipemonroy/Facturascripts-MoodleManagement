@@ -624,66 +624,96 @@ class Cron extends CronClass
     }
 
     /**
+     * Maximum orphan rows removed per cron run per table. Bounded so a
+     * one-off backlog cannot freeze the DB with a single massive DELETE.
+     *
+     * @since 2.0 — BE-08 (2026-04-17)
+     */
+    private const ORPHAN_CLEANUP_LIMIT = 1000;
+
+    /**
      * @return int Number of orphan rows deleted.
+     *
+     * BE-08 (2026-04-17) — previous implementation selected every
+     * orphan id, then instantiated one Model per row just to call
+     * `delete()`. That is O(N) round-trips for no semantic benefit
+     * (orphaned rows have no contact, therefore no subscriber cares
+     * about the Model.<X>.Delete event). Replace with a single
+     * parametrised `DELETE … WHERE id IN (…)` capped at
+     * `ORPHAN_CLEANUP_LIMIT` rows per cron run.
      */
     private function cleanOrphanedUserMaps(): int
     {
-        $db = new DataBase();
-        $sql = "SELECT m.id FROM moodle_user_map m"
-            . " LEFT JOIN contactos c ON m.idcontacto = c.idcontacto"
-            . " WHERE c.idcontacto IS NULL";
-
-        $rows = $db->select($sql);
-        if (empty($rows)) {
-            return 0;
-        }
-
-        $count = 0;
-        foreach ($rows as $row) {
-            $map = new MoodleUserMap();
-            if ($map->loadFromCode($row['id'])) {
-                $map->delete();
-                $count++;
-            }
-        }
-
-        if ($count > 0) {
-            Tools::log(self::CLEANUP_JOB)->notice('cleanup-orphaned-user-maps', [
-                '%count%' => $count,
-            ]);
-        }
-        return $count;
+        return $this->bulkDeleteOrphans(
+            'moodle_user_map',
+            'cleanup-orphaned-user-maps'
+        );
     }
 
     /**
      * @return int Number of orphan rows deleted.
+     *
+     * BE-08 — same treatment as `cleanOrphanedUserMaps`.
      */
     private function cleanOrphanedEnrolments(): int
     {
-        $db = new DataBase();
-        $sql = "SELECT e.id FROM moodle_enrolments e"
-            . " LEFT JOIN contactos c ON e.idcontacto = c.idcontacto"
-            . " WHERE c.idcontacto IS NULL";
+        return $this->bulkDeleteOrphans(
+            'moodle_enrolments',
+            'cleanup-orphaned-enrolments'
+        );
+    }
 
-        $rows = $db->select($sql);
+    /**
+     * Bulk-delete rows in `$table` whose `idcontacto` is not found in
+     * `contactos`. Returns the number of deletions. Uses two queries
+     * (SELECT ids, DELETE IN (…)) for cross-database portability:
+     * MySQL forbids referencing the target table inside the subquery
+     * of a DELETE, and SQLite lacks JOIN-based DELETE.
+     *
+     * @since 2.0 — BE-08 (2026-04-17)
+     */
+    private function bulkDeleteOrphans(string $table, string $tagOnSuccess): int
+    {
+        $db = new DataBase();
+
+        // Fetch at most ORPHAN_CLEANUP_LIMIT ids so a huge backlog
+        // drains gradually across cron cycles rather than locking
+        // the table for minutes.
+        $selectSql = 'SELECT m.id FROM ' . $table . ' m'
+            . ' LEFT JOIN contactos c ON m.idcontacto = c.idcontacto'
+            . ' WHERE c.idcontacto IS NULL'
+            . ' LIMIT ' . self::ORPHAN_CLEANUP_LIMIT;
+
+        $rows = $db->select($selectSql);
         if (empty($rows)) {
             return 0;
         }
 
-        $count = 0;
+        $ids = [];
         foreach ($rows as $row) {
-            $enrolment = new MoodleEnrolment();
-            if ($enrolment->loadFromCode($row['id'])) {
-                $enrolment->delete();
-                $count++;
+            $id = (int) ($row['id'] ?? 0);
+            if ($id > 0) {
+                $ids[] = $id;
             }
         }
-
-        if ($count > 0) {
-            Tools::log(self::CLEANUP_JOB)->notice('cleanup-orphaned-enrolments', [
-                '%count%' => $count,
-            ]);
+        if ($ids === []) {
+            return 0;
         }
+
+        $deleteSql = 'DELETE FROM ' . $table
+            . ' WHERE id IN (' . implode(',', $ids) . ')';
+        if (!$db->exec($deleteSql)) {
+            Tools::log(self::CLEANUP_JOB)->warning('cleanup-bulk-delete-failed', [
+                'table' => $table,
+                'count' => count($ids),
+            ]);
+            return 0;
+        }
+
+        $count = count($ids);
+        Tools::log(self::CLEANUP_JOB)->notice($tagOnSuccess, [
+            '%count%' => $count,
+        ]);
         return $count;
     }
 
