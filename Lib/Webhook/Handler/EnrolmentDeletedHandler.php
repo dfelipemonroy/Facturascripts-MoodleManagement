@@ -9,7 +9,7 @@ declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Lib\Webhook\Handler;
 
-use FacturaScripts\Core\DataSrc\DataBaseWhere;
+use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Enum\EnrolmentStatus;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;

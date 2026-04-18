@@ -48,8 +48,8 @@ final class EnrolmentCreatedHandler
         // Resolve FS contact via user map.
         $userMap = new MoodleUserMap();
         $where = [
-            new \FacturaScripts\Core\DataSrc\DataBaseWhere('idinstance', (int) $instance->id),
-            new \FacturaScripts\Core\DataSrc\DataBaseWhere('moodle_userid', $userid),
+            new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('idinstance', (int) $instance->id),
+            new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('moodle_userid', $userid),
         ];
         if (false === $userMap->loadFromCode('', $where)) {
             Tools::log()->notice('mm-webhook-enrol-created-no-usermap', [
@@ -62,8 +62,8 @@ final class EnrolmentCreatedHandler
         // Resolve FS course via course map.
         $courseMap = new MoodleCourseMap();
         $where = [
-            new \FacturaScripts\Core\DataSrc\DataBaseWhere('idinstance', (int) $instance->id),
-            new \FacturaScripts\Core\DataSrc\DataBaseWhere('moodle_courseid', $courseid),
+            new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('idinstance', (int) $instance->id),
+            new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('moodle_courseid', $courseid),
         ];
         if (false === $courseMap->loadFromCode('', $where)) {
             Tools::log()->notice('mm-webhook-enrol-created-no-coursemap', [
@@ -76,8 +76,8 @@ final class EnrolmentCreatedHandler
         // Upsert the enrolment record.
         $enrolment = new MoodleEnrolment();
         $where = [
-            new \FacturaScripts\Core\DataSrc\DataBaseWhere('idcontacto', (int) $userMap->idcontacto),
-            new \FacturaScripts\Core\DataSrc\DataBaseWhere('idcourse_map', (int) $courseMap->id),
+            new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('idcontacto', (int) $userMap->idcontacto),
+            new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('idcourse_map', (int) $courseMap->id),
         ];
         if (false === $enrolment->loadFromCode('', $where)) {
             $enrolment->clear();

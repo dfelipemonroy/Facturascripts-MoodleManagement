@@ -9,7 +9,7 @@ declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Lib\Webhook\Handler;
 
-use FacturaScripts\Core\DataSrc\DataBaseWhere;
+use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 

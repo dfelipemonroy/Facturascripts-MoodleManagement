@@ -259,7 +259,7 @@ class MoodleCertificatePdf extends Controller
         // Any Contacto with codcliente == this cliente.
         try {
             $contactModel = new \FacturaScripts\Dinamic\Model\Contacto();
-            $rows = $contactModel->all([new \FacturaScripts\Core\DataSrc\DataBaseWhere('codcliente', $cliente->codcliente)], ['idcontacto' => 'ASC'], 0, 0);
+            $rows = $contactModel->all([new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('codcliente', $cliente->codcliente)], ['idcontacto' => 'ASC'], 0, 0);
         } catch (\Throwable $e) {
             Tools::log()->warning('certificate-pdf-contact-lookup-failed', [
                 'cliente' => (string) $cliente->codcliente,

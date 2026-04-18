@@ -77,11 +77,11 @@ class ListMoodleAuditLog extends ListController
 
         $this->addFilterSelectWhere('ListMoodleAuditLog', 'outcome', [
             ['label' => '------', 'where' => []],
-            ['label' => 'ok',            'where' => [new \FacturaScripts\Core\DataSrc\DataBaseWhere('outcome', 'ok')]],
-            ['label' => 'forbidden',     'where' => [new \FacturaScripts\Core\DataSrc\DataBaseWhere('outcome', 'forbidden')]],
-            ['label' => 'rate-limited',  'where' => [new \FacturaScripts\Core\DataSrc\DataBaseWhere('outcome', 'rate_limited')]],
-            ['label' => 'bad-signature', 'where' => [new \FacturaScripts\Core\DataSrc\DataBaseWhere('outcome', 'bad_signature')]],
-            ['label' => 'error',         'where' => [new \FacturaScripts\Core\DataSrc\DataBaseWhere('outcome', 'error')]],
+            ['label' => 'ok',            'where' => [new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('outcome', 'ok')]],
+            ['label' => 'forbidden',     'where' => [new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('outcome', 'forbidden')]],
+            ['label' => 'rate-limited',  'where' => [new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('outcome', 'rate_limited')]],
+            ['label' => 'bad-signature', 'where' => [new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('outcome', 'bad_signature')]],
+            ['label' => 'error',         'where' => [new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('outcome', 'error')]],
         ]);
 
         // Disable create + delete — audit table is append-only.
@@ -100,8 +100,8 @@ class ListMoodleAuditLog extends ListController
 
         $this->addFilterSelectWhere('ListMoodleWebhookLog', 'signature_ok', [
             ['label' => '------', 'where' => []],
-            ['label' => 'signature-ok',  'where' => [new \FacturaScripts\Core\DataSrc\DataBaseWhere('signature_ok', true)]],
-            ['label' => 'signature-bad', 'where' => [new \FacturaScripts\Core\DataSrc\DataBaseWhere('signature_ok', false)]],
+            ['label' => 'signature-ok',  'where' => [new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('signature_ok', true)]],
+            ['label' => 'signature-bad', 'where' => [new \FacturaScripts\Core\Base\DataBase\DataBaseWhere('signature_ok', false)]],
         ]);
 
         $this->setSettings('ListMoodleWebhookLog', 'btnNew', false);

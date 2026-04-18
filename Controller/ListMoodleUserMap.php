@@ -22,7 +22,7 @@ declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
-use FacturaScripts\Core\DataSrc\DataBaseWhere;
+use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
