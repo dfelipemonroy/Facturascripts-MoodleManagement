@@ -23,7 +23,6 @@ $finder = PhpCsFixer\Finder::create()
     ->in(__DIR__ . '/Lib')
     ->in(__DIR__ . '/Worker')
     ->in(__DIR__ . '/Extension')
-    ->in(__DIR__ . '/Widget')
     ->in(__DIR__ . '/Test')
     ->append([
         __DIR__ . '/Cron.php',

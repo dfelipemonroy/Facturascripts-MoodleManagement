@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -79,9 +80,9 @@ final class SignedUrl
      *
      * @param string $resource Stable identifier for the endpoint
      *                         ("certificate-pdf", "report-html", ...).
-     * @param int    $id       Resource numeric identifier.
-     * @param int    $ttlSeconds Lifetime of the signed URL; clamped
-     *                           to [60, 60*60*24*30] (1 min - 30 days).
+     * @param int $id Resource numeric identifier.
+     * @param int $ttlSeconds Lifetime of the signed URL; clamped
+     *                        to [60, 60*60*24*30] (1 min - 30 days).
      * @return array{exp:int, v:int, sig:string} Signature parts to
      *                                           append to the URL.
      */
@@ -98,13 +99,13 @@ final class SignedUrl
      * Verify a signed URL payload.
      *
      * @param string $resource Same string used at sign time.
-     * @param int    $id       Resource id.
-     * @param int    $exp      `exp` query parameter.
-     * @param string $sig      `sig` query parameter.
-     * @param int|null $now    Override clock in tests.
-     * @param int    $version  `v` query parameter. Defaults to 1 so
-     *                         pre-SEC-05 URLs (no `v=`) keep working.
-     * @return bool            True iff signature is valid AND not expired.
+     * @param int $id Resource id.
+     * @param int $exp `exp` query parameter.
+     * @param string $sig `sig` query parameter.
+     * @param int|null $now Override clock in tests.
+     * @param int $version `v` query parameter. Defaults to 1 so
+     *                     pre-SEC-05 URLs (no `v=`) keep working.
+     * @return bool True iff signature is valid AND not expired.
      */
     public static function verify(
         string $resource,
@@ -140,9 +141,9 @@ final class SignedUrl
         $parts = self::sign($resource, $id, $ttlSeconds);
         return http_build_query([
             'code' => $id,
-            'exp'  => $parts['exp'],
-            'v'    => $parts['v'],
-            'sig'  => $parts['sig'],
+            'exp' => $parts['exp'],
+            'v' => $parts['v'],
+            'sig' => $parts['sig'],
         ]);
     }
 

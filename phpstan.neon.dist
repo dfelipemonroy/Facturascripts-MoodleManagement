@@ -27,7 +27,6 @@ parameters:
         - Lib
         - Worker
         - Extension
-        - Widget
         - Cron.php
         - Init.php
 

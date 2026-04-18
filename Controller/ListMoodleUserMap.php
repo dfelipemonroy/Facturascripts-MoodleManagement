@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -37,7 +38,7 @@ class ListMoodleUserMap extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addView('ListMoodleUserMap', 'MoodleUserMap', 'moodle-user-mappings', 'fa-solid fa-users-between-lines')
             ->addSearchFields(['moodle_username'])

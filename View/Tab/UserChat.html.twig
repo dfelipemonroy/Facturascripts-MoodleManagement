@@ -77,7 +77,7 @@
                     <input type="hidden" name="activetab" value="UserChat"/>
                     <div class="flex-grow-1">
                         {# F3.2 — Enter-submit handled by mm-actions.js via data-mm-enter-submit #}
-                        <textarea id="chatInput" name="chat_message" class="form-control mm-chat-textarea" rows="1" placeholder="{{ trans('type-your-message') }}" required
+                        <textarea id="chatInput" name="chat_message" class="form-control mm-chat-textarea" rows="1" maxlength="4000" placeholder="{{ trans('type-your-message') }}" required
                                   data-mm-enter-submit="1"></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary rounded-circle mm-chat-send-btn" title="{{ trans('send-message') }}">

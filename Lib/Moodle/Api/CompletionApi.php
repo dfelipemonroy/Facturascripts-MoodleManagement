@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -90,10 +91,10 @@ final class CompletionApi
         }
         $percent = $total > 0 ? (int) floor(($completed / $total) * 100) : 0;
         return [
-            'completed'       => $completed,
-            'total'           => $total,
-            'percent'         => max(0, min(100, $percent)),
-            'lastActivityAt'  => $lastActivity,
+            'completed' => $completed,
+            'total' => $total,
+            'percent' => max(0, min(100, $percent)),
+            'lastActivityAt' => $lastActivity,
         ];
     }
 

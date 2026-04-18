@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -34,7 +35,7 @@ class EditProducto
 {
     protected function createViews(): Closure
     {
-        return function () {
+        return function (): void {
             $this->addListView('ListMoodleCourseMap', 'MoodleCourseMap', 'moodle-courses', 'fa-solid fa-graduation-cap')
                 ->addOrderBy(['last_sync'], 'last-sync', 2)
                 ->addSearchFields(['shortname', 'fullname']);
@@ -43,7 +44,7 @@ class EditProducto
 
     public function loadData(): Closure
     {
-        return function ($viewName, $view) {
+        return function ($viewName, $view): void {
             if ($viewName === 'ListMoodleCourseMap') {
                 $mainView = $this->getMainViewName();
                 $idproducto = $this->getViewModelValue($mainView, 'idproducto');
@@ -59,7 +60,7 @@ class EditProducto
 
     public function execAfterAction(): Closure
     {
-        return function ($action) {
+        return function ($action): void {
             if (!in_array($action, ['edit', 'insert'], true)) {
                 return;
             }
@@ -69,12 +70,12 @@ class EditProducto
             // F8.3 — extract every field through getViewModelValue
             // (public API). No reaching into $this->views[...]->model.
             ProductoMoodleDecorator::syncCourseMap([
-                'idproducto'    => (int) $this->getViewModelValue($mainView, 'idproducto'),
-                'is_course'     => (bool) $this->getViewModelValue($mainView, 'moodle_course'),
-                'referencia'    => (string) $this->getViewModelValue($mainView, 'referencia'),
-                'descripcion'   => (string) $this->getViewModelValue($mainView, 'descripcion'),
+                'idproducto' => (int) $this->getViewModelValue($mainView, 'idproducto'),
+                'is_course' => (bool) $this->getViewModelValue($mainView, 'moodle_course'),
+                'referencia' => (string) $this->getViewModelValue($mainView, 'referencia'),
+                'descripcion' => (string) $this->getViewModelValue($mainView, 'descripcion'),
                 'observaciones' => (string) $this->getViewModelValue($mainView, 'observaciones'),
-                'precio'        => (float) $this->getViewModelValue($mainView, 'precio'),
+                'precio' => (float) $this->getViewModelValue($mainView, 'precio'),
             ]);
         };
     }

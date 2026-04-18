@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -26,16 +27,16 @@ final class PayloadValidatorTest extends TestCase
     public function testEnrolmentCreatedHappyPath(): void
     {
         $out = PayloadValidator::validate('enrolment_created', [
-            'userid'   => 7,
+            'userid' => 7,
             'courseid' => 42,
             'timestart' => 1700000000,
-            'timeend'   => 1800000000,
+            'timeend' => 1800000000,
         ]);
         self::assertSame([
-            'userid'    => 7,
-            'courseid'  => 42,
+            'userid' => 7,
+            'courseid' => 42,
             'timestart' => 1700000000,
-            'timeend'   => 1800000000,
+            'timeend' => 1800000000,
         ], $out);
     }
 
@@ -51,7 +52,7 @@ final class PayloadValidatorTest extends TestCase
     public function testEnrolmentCreatedRejectsStringNonNumericUserId(): void
     {
         self::assertNull(PayloadValidator::validate('enrolment_created', [
-            'userid'   => 'abc',
+            'userid' => 'abc',
             'courseid' => 1,
         ]));
     }
@@ -59,7 +60,7 @@ final class PayloadValidatorTest extends TestCase
     public function testEnrolmentCreatedAcceptsDigitString(): void
     {
         $out = PayloadValidator::validate('enrolment_created', [
-            'userid'   => '7',
+            'userid' => '7',
             'courseid' => '42',
         ]);
         self::assertSame(7, $out['userid']);
@@ -71,18 +72,18 @@ final class PayloadValidatorTest extends TestCase
     public function testCourseCompletedRejectsNonNumericGrade(): void
     {
         self::assertNull(PayloadValidator::validate('course_completed', [
-            'userid'   => 1,
+            'userid' => 1,
             'courseid' => 2,
-            'grade'    => 'A',
+            'grade' => 'A',
         ]));
     }
 
     public function testCourseCompletedCoercesGradeToFloat(): void
     {
         $out = PayloadValidator::validate('course_completed', [
-            'userid'   => 1,
+            'userid' => 1,
             'courseid' => 2,
-            'grade'    => '87.5',
+            'grade' => '87.5',
         ]);
         self::assertSame(87.5, $out['grade']);
     }
@@ -90,9 +91,9 @@ final class PayloadValidatorTest extends TestCase
     public function testUserUpdatedStripsOverlongStrings(): void
     {
         $out = PayloadValidator::validate('user_updated', [
-            'userid'   => 3,
+            'userid' => 3,
             'username' => str_repeat('x', 300),
-            'email'    => 'valid@example.com',
+            'email' => 'valid@example.com',
         ]);
         self::assertArrayNotHasKey('username', $out);
         self::assertSame('valid@example.com', $out['email']);
@@ -101,7 +102,7 @@ final class PayloadValidatorTest extends TestCase
     public function testUserUpdatedRejectsNonStringField(): void
     {
         self::assertNull(PayloadValidator::validate('user_updated', [
-            'userid'   => 3,
+            'userid' => 3,
             'username' => ['nested' => 'array'],
         ]));
     }

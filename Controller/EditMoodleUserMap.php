@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -81,7 +82,7 @@ class EditMoodleUserMap extends EditController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         parent::createViews();
 
@@ -102,7 +103,7 @@ class EditMoodleUserMap extends EditController
         $this->addHtmlView('UserCalendar', 'Tab/UserCalendar', 'MoodleUserMap', 'moodle-calendar', 'fa-solid fa-calendar-days');
     }
 
-    protected function loadData($viewName, $view)
+    protected function loadData($viewName, $view): void
     {
         switch ($viewName) {
             case 'ListMoodleEnrolment':
@@ -195,16 +196,16 @@ class EditMoodleUserMap extends EditController
      * @var array<string, int>
      */
     private const ACTION_RATE_LIMITS = [
-        'sync-to-moodle'        => 3,    // = 3 per minute ≈ 180/hour.
-        'sync-from-moodle'      => 3,
-        'sync-badges'           => 5,
-        'send-message'          => 10,
-        'send-chat-message'     => 30,
-        'enrol-batch'           => 5,
-        'unenrol-batch'         => 5,
-        'suspend-batch'         => 5,
-        'create-note'           => 20,
-        'delete-note'           => 20,
+        'sync-to-moodle' => 3,    // = 3 per minute ≈ 180/hour.
+        'sync-from-moodle' => 3,
+        'sync-badges' => 5,
+        'send-message' => 10,
+        'send-chat-message' => 30,
+        'enrol-batch' => 5,
+        'unenrol-batch' => 5,
+        'suspend-batch' => 5,
+        'create-note' => 20,
+        'delete-note' => 20,
         'create-calendar-event' => 20,
         'delete-calendar-event' => 20,
     ];
@@ -216,14 +217,14 @@ class EditMoodleUserMap extends EditController
             $actor = (string) ($this->user->nick ?? 'unknown');
             Audit::record('usermap.' . $action, Audit::FORBIDDEN, [
                 'operator_nick' => $actor,
-                'target_type'   => 'moodle_user_map',
-                'target_id'     => (int) $this->request->get('code'),
-                'ip'            => $this->request->getClientIp(),
-                'user_agent'    => (string) $this->request->headers->get('User-Agent', ''),
+                'target_type' => 'moodle_user_map',
+                'target_id' => (int) $this->request->get('code'),
+                'ip' => $this->request->getClientIp(),
+                'user_agent' => (string) $this->request->headers->get('User-Agent', ''),
             ]);
             Tools::log()->warning('usermap-action-forbidden', [
                 'action' => $action,
-                'actor'  => $actor,
+                'actor' => $actor,
             ]);
             $this->response->setStatusCode(403);
             $this->toolBox()->i18nLog()->warning('not-allowed-modify');
@@ -238,15 +239,15 @@ class EditMoodleUserMap extends EditController
             if (!RateLimiter::check($actor, $bucket, $limit)) {
                 Audit::record('usermap.' . $action, Audit::RATE_LIMITED, [
                     'operator_nick' => $actor,
-                    'target_type'   => 'moodle_user_map',
-                    'target_id'     => (int) $this->request->get('code'),
-                    'ip'            => $this->request->getClientIp(),
-                    'payload'       => ['limit_per_minute' => $limit],
+                    'target_type' => 'moodle_user_map',
+                    'target_id' => (int) $this->request->get('code'),
+                    'ip' => $this->request->getClientIp(),
+                    'payload' => ['limit_per_minute' => $limit],
                 ]);
                 Tools::log()->warning('usermap-action-rate-limited', [
                     'action' => $action,
-                    'actor'  => $actor,
-                    'limit'  => $limit,
+                    'actor' => $actor,
+                    'limit' => $limit,
                 ]);
                 $this->response->headers->set('Retry-After', '60');
                 $this->response->setStatusCode(429);
@@ -358,7 +359,8 @@ class EditMoodleUserMap extends EditController
 
         // Secondary: any contact of that Cliente.
         $contacto = new \FacturaScripts\Dinamic\Model\Contacto();
-        if ($contacto->loadFromCode($model->idcontacto)
+        if (
+            $contacto->loadFromCode($model->idcontacto)
             && (string) $contacto->codcliente === $userCodcliente
         ) {
             return true;
@@ -621,7 +623,8 @@ class EditMoodleUserMap extends EditController
             $errorcode = strtolower($result['errorcode'] ?? '');
             $message = strtolower($result['message'] ?? '');
             // No conversation yet — show empty chat ready for first message
-            if (str_contains($errorcode, 'conversationdoesntexist')
+            if (
+                str_contains($errorcode, 'conversationdoesntexist')
                 || str_contains($errorcode, 'conversation')
                 || str_contains($message, 'conversation')
                 || str_contains($message, 'conversación')

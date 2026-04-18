@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -52,7 +53,7 @@ final class EnrolmentCreatedHandler
         ];
         if (false === $userMap->loadFromCode('', $where)) {
             Tools::log()->notice('mm-webhook-enrol-created-no-usermap', [
-                'instance_id'   => (int) $instance->id,
+                'instance_id' => (int) $instance->id,
                 'moodle_userid' => $userid,
             ]);
             return;
@@ -66,7 +67,7 @@ final class EnrolmentCreatedHandler
         ];
         if (false === $courseMap->loadFromCode('', $where)) {
             Tools::log()->notice('mm-webhook-enrol-created-no-coursemap', [
-                'instance_id'     => (int) $instance->id,
+                'instance_id' => (int) $instance->id,
                 'moodle_courseid' => $courseid,
             ]);
             return;

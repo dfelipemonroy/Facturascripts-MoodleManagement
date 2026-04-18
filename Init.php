@@ -204,9 +204,9 @@ class Init extends InitClass
             return;
         }
         $db->exec(
-            "INSERT INTO moodle_certificate_templates (name, is_default, primary_color, accent_color, notes) VALUES ("
+            'INSERT INTO moodle_certificate_templates (name, is_default, primary_color, accent_color, notes) VALUES ('
             . "'Default', 1, '#0056A3', '#D9B440', 'Seeded by v2.0 install (F5.2)'"
-            . ")"
+            . ')'
         );
     }
 }

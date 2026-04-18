@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -62,10 +63,10 @@ final class Lock
      *
      * @param string $name Lock identifier. Namespaced ("mm.userSync")
      *                     to avoid collisions with other plugins.
-     * @param int    $timeoutSec How long to wait when the lock is
-     *                           held by another session. Default 0 =
-     *                           fail fast so the cron skips rather
-     *                           than stacking.
+     * @param int $timeoutSec How long to wait when the lock is
+     *                        held by another session. Default 0 =
+     *                        fail fast so the cron skips rather
+     *                        than stacking.
      * @return bool True if acquired, false otherwise.
      */
     public function acquire(string $name, int $timeoutSec = 0): bool
@@ -112,7 +113,7 @@ final class Lock
             }
         } catch (\Throwable $e) {
             Tools::log()->warning('mm-lock-release-failed', [
-                'name'    => $name,
+                'name' => $name,
                 'message' => $e->getMessage(),
             ]);
         }

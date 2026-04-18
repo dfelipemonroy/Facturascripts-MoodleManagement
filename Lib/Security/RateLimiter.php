@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -45,12 +46,12 @@ final class RateLimiter
      * Register a single hit and return whether the caller is still
      * within the allowed rate.
      *
-     * @param string|int $actor        Stable identifier (user nick,
-     *                                 IP, signed-url tag, …).
-     * @param string     $action       Bucket name, e.g. "pdf.download".
-     * @param int        $maxPerMinute Allowed hits per 60-second window.
-     * @return bool                    True if under the limit; false
-     *                                 if the caller should be throttled.
+     * @param string|int $actor Stable identifier (user nick,
+     *                          IP, signed-url tag, …).
+     * @param string $action Bucket name, e.g. "pdf.download".
+     * @param int $maxPerMinute Allowed hits per 60-second window.
+     * @return bool True if under the limit; false
+     *              if the caller should be throttled.
      */
     public static function check($actor, string $action, int $maxPerMinute): bool
     {
@@ -95,18 +96,18 @@ final class RateLimiter
         $now = time();
         if (!is_array($data) || ($data['reset'] ?? 0) <= $now) {
             return [
-                'count'     => 0,
-                'limit'     => $maxPerMinute,
+                'count' => 0,
+                'limit' => $maxPerMinute,
                 'remaining' => $maxPerMinute,
-                'reset_at'  => $now + self::WINDOW_SECONDS,
+                'reset_at' => $now + self::WINDOW_SECONDS,
             ];
         }
         $count = (int) ($data['count'] ?? 0);
         return [
-            'count'     => $count,
-            'limit'     => $maxPerMinute,
+            'count' => $count,
+            'limit' => $maxPerMinute,
             'remaining' => max(0, $maxPerMinute - $count),
-            'reset_at'  => (int) ($data['reset'] ?? $now + self::WINDOW_SECONDS),
+            'reset_at' => (int) ($data['reset'] ?? $now + self::WINDOW_SECONDS),
         ];
     }
 

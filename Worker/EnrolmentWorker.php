@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -83,7 +84,7 @@ class EnrolmentWorker extends WorkerClass
         if (!IdempotencyGuard::beginOnce($idemKey, 3600)) {
             Tools::log('MoodleManagement')->info('enrol-skipped-duplicate', [
                 'invoice' => (int) $invoice->idfactura,
-                'pagada'  => $invoice->pagada ? 1 : 0,
+                'pagada' => $invoice->pagada ? 1 : 0,
             ]);
             return $this->done();
         }
@@ -130,8 +131,8 @@ class EnrolmentWorker extends WorkerClass
                 if (!empty($line->cantidad) && (float) $line->cantidad > 1) {
                     Tools::log('MoodleManagement')->info('enrol-cantidad-gt-1', [
                         'invoice' => (int) $invoice->idfactura,
-                        'line'    => (int) ($line->idlinea ?? 0),
-                        'qty'     => (float) $line->cantidad,
+                        'line' => (int) ($line->idlinea ?? 0),
+                        'qty' => (float) $line->cantidad,
                     ]);
                 }
 
@@ -159,9 +160,9 @@ class EnrolmentWorker extends WorkerClass
         } catch (\Throwable $e) {
             $db->rollback();
             Tools::log('MoodleManagement')->error('enrolment-transaction-failed', [
-                'invoice'   => (int) $invoice->idfactura,
+                'invoice' => (int) $invoice->idfactura,
                 'exception' => get_class($e),
-                'message'   => $e->getMessage(),
+                'message' => $e->getMessage(),
             ]);
             throw $e;
         }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -24,7 +25,6 @@ namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\EditController;
 use FacturaScripts\Core\Tools;
-
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
@@ -46,7 +46,7 @@ class EditMoodleCohort extends EditController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         parent::createViews();
 
@@ -56,7 +56,7 @@ class EditMoodleCohort extends EditController
             ->addSearchFields(['moodle_username']);
     }
 
-    protected function loadData($viewName, $view)
+    protected function loadData($viewName, $view): void
     {
         if ($viewName === 'ListMoodleUserMap') {
             $idinstance = $this->getViewModelValue($this->getMainViewName(), 'idinstance');
@@ -196,12 +196,12 @@ class EditMoodleCohort extends EditController
     {
         // Find all mapped users whose contact is linked to a customer in this group
         $db = $this->dataBase;
-        $sql = "SELECT m.moodle_userid FROM moodle_user_map m"
-            . " INNER JOIN contactos c ON c.idcontacto = m.idcontacto"
-            . " INNER JOIN clientes cl ON cl.codcliente = c.codcliente"
-            . " WHERE cl.codgrupo = " . $db->var2str($model->codgrupo)
-            . " AND m.idinstance = " . $db->var2str($model->idinstance)
-            . " AND m.moodle_userid > 0";
+        $sql = 'SELECT m.moodle_userid FROM moodle_user_map m'
+            . ' INNER JOIN contactos c ON c.idcontacto = m.idcontacto'
+            . ' INNER JOIN clientes cl ON cl.codcliente = c.codcliente'
+            . ' WHERE cl.codgrupo = ' . $db->var2str($model->codgrupo)
+            . ' AND m.idinstance = ' . $db->var2str($model->idinstance)
+            . ' AND m.moodle_userid > 0';
 
         $rows = $db->select($sql);
         if (empty($rows)) {

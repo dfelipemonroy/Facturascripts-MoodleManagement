@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -67,7 +68,7 @@ class BadgeSyncWorker extends WorkerClass
                 $db->exec('UPDATE moodle_user_map SET badge_sync_needed = 0 WHERE id = ' . (int) $map->id);
             } catch (\Throwable $e) {
                 Tools::log()->warning('badge-sync-flag-clear-failed', [
-                    'id'      => (int) $map->id,
+                    'id' => (int) $map->id,
                     'message' => $e->getMessage(),
                 ]);
             }

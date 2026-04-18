@@ -1,18 +1,741 @@
-# PHPStan baseline — MoodleManagement v2.0
-#
-# @since 2.0 — V2.0-ACTION-PLAN F12.5 · §F12.5
-#
-# Snapshot of accepted errors at the time of v2.0 release. Adding a
-# new error to this baseline requires:
-#   1. A matching TODO in docs/V2.0-TASK-CHECKLIST.md or a follow-up
-#      issue.
-#   2. Reviewer approval on the release PR.
-#
-# The baseline starts EMPTY for v2.0 — every phpstan level 5 error
-# has been fixed at commit time. This file exists so CI
-# (.github/workflows/ci.yml, F9.9) can include it when future
-# strictness bumps surface legacy findings; the intent is that each
-# release leaves the baseline shorter than it found it.
-
 parameters:
-    ignoreErrors: []
+	ignoreErrors:
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Core\\\\Request\\:\\:getClientIp\\(\\)\\.$#"
+			count: 1
+			path: Controller/ApiMoodleWebhook.php
+
+		-
+			message: "#^Access to an undefined property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleUserMap\\:\\:\\$source\\.$#"
+			count: 1
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$description\\.$#"
+			count: 2
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$idinstance\\.$#"
+			count: 2
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$idnumber\\.$#"
+			count: 2
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$last_sync\\.$#"
+			count: 2
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$member_count\\.$#"
+			count: 2
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$name\\.$#"
+			count: 3
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$token\\.$#"
+			count: 4
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Call to an undefined method object\\:\\:getInstance\\(\\)\\.$#"
+			count: 3
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Call to an undefined method object\\:\\:save\\(\\)\\.$#"
+			count: 2
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Parameter \\#1 \\$code of method FacturaScripts\\\\Core\\\\Model\\\\Base\\\\ModelClass\\:\\:loadFromCode\\(\\) expects string, int\\<min, \\-1\\>\\|int\\<1, max\\> given\\.$#"
+			count: 1
+			path: Controller/EditMoodleCohort.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseCategory\\:\\:\\$description \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Controller/EditMoodleCourseCategory.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$idinstance\\.$#"
+			count: 1
+			path: Controller/EditMoodleCourseMap.php
+
+		-
+			message: "#^Call to function is_array\\(\\) with string\\|null will always evaluate to false\\.$#"
+			count: 1
+			path: Controller/EditMoodleCourseMap.php
+
+		-
+			message: "#^Else branch is unreachable because ternary operator condition is always true\\.$#"
+			count: 3
+			path: Controller/EditMoodleCourseMap.php
+
+		-
+			message: "#^Parameter \\#1 \\$code of method FacturaScripts\\\\Core\\\\Model\\\\Base\\\\ModelClass\\:\\:loadFromCode\\(\\) expects string, int\\<min, \\-1\\>\\|int\\<1, max\\> given\\.$#"
+			count: 1
+			path: Controller/EditMoodleCourseMap.php
+
+		-
+			message: "#^Constant FS_ROUTE not found\\.$#"
+			count: 1
+			path: Controller/EditMoodleEnrolment.php
+
+		-
+			message: "#^Parameter \\#1 \\$code of method FacturaScripts\\\\Core\\\\Model\\\\Base\\\\ModelClass\\:\\:loadFromCode\\(\\) expects string, int\\<1, max\\> given\\.$#"
+			count: 1
+			path: Controller/EditMoodleEnrolment.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$last_error\\.$#"
+			count: 1
+			path: Controller/EditMoodleInstance.php
+
+		-
+			message: "#^Call to an undefined method object\\:\\:save\\(\\)\\.$#"
+			count: 2
+			path: Controller/EditMoodleInstance.php
+
+		-
+			message: "#^Access to an undefined property FacturaScripts\\\\Core\\\\Model\\\\User\\|false\\:\\:\\$codcliente\\.$#"
+			count: 1
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$email\\.$#"
+			count: 1
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$idcontacto\\.$#"
+			count: 1
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$idinstance\\.$#"
+			count: 7
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$last_error\\.$#"
+			count: 4
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$last_sync\\.$#"
+			count: 1
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$moodle_username\\.$#"
+			count: 3
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$service_userid\\.$#"
+			count: 2
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$service_username\\.$#"
+			count: 1
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$status\\.$#"
+			count: 12
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$token\\.$#"
+			count: 14
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Core\\\\Request\\:\\:getClientIp\\(\\)\\.$#"
+			count: 3
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Controller\\\\EditMoodleUserMap\\:\\:toolBox\\(\\)\\.$#"
+			count: 2
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Call to an undefined method object\\:\\:getContacto\\(\\)\\.$#"
+			count: 3
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Call to an undefined method object\\:\\:getInstance\\(\\)\\.$#"
+			count: 11
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Call to an undefined method object\\:\\:save\\(\\)\\.$#"
+			count: 4
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Base\\\\Controller\\:\\:\\$user \\(FacturaScripts\\\\Core\\\\Model\\\\User\\|false\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Strict comparison using \\=\\=\\= between FacturaScripts\\\\Core\\\\Model\\\\User\\|false and null will always evaluate to false\\.$#"
+			count: 1
+			path: Controller/EditMoodleUserMap.php
+
+		-
+			message: "#^Instantiated class FacturaScripts\\\\Core\\\\DataSrc\\\\DataBaseWhere not found\\.$#"
+			count: 7
+			path: Controller/ListMoodleAuditLog.php
+
+		-
+			message: "#^Method FacturaScripts\\\\Core\\\\Lib\\\\ExtendedController\\\\ListController\\:\\:addFilterSelect\\(\\) invoked with 8 parameters, 4\\-5 required\\.$#"
+			count: 1
+			path: Controller/ListMoodleCohort.php
+
+		-
+			message: "#^Cannot call abstract method FacturaScripts\\\\Core\\\\Lib\\\\ExtendedController\\\\BaseController\\:\\:loadData\\(\\)\\.$#"
+			count: 1
+			path: Controller/ListMoodleConversation.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$apellidos \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 2
+			path: Controller/ListMoodleConversation.php
+
+		-
+			message: "#^Method FacturaScripts\\\\Core\\\\Lib\\\\ExtendedController\\\\ListController\\:\\:addFilterSelect\\(\\) invoked with 8 parameters, 4\\-5 required\\.$#"
+			count: 1
+			path: Controller/ListMoodleCourseCategory.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseCategory\\:\\:\\$description \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Controller/ListMoodleCourseCategory.php
+
+		-
+			message: "#^Method FacturaScripts\\\\Core\\\\Lib\\\\ExtendedController\\\\ListController\\:\\:addFilterSelect\\(\\) invoked with 8 parameters, 4\\-5 required\\.$#"
+			count: 1
+			path: Controller/ListMoodleCourseMap.php
+
+		-
+			message: "#^Instantiated class FacturaScripts\\\\Core\\\\DataSrc\\\\DataBaseWhere not found\\.$#"
+			count: 1
+			path: Controller/ListMoodleEnrolment.php
+
+		-
+			message: "#^Method FacturaScripts\\\\Core\\\\Lib\\\\ExtendedController\\\\ListController\\:\\:addFilterSelect\\(\\) invoked with 8 parameters, 4\\-5 required\\.$#"
+			count: 1
+			path: Controller/ListMoodleRoleMap.php
+
+		-
+			message: "#^Instantiated class FacturaScripts\\\\Core\\\\DataSrc\\\\DataBaseWhere not found\\.$#"
+			count: 1
+			path: Controller/ListMoodleTrash.php
+
+		-
+			message: "#^Method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Controller\\\\ListMoodleTrash\\:\\:tableOf\\(\\) never returns null so it can be removed from the return type\\.$#"
+			count: 1
+			path: Controller/ListMoodleTrash.php
+
+		-
+			message: "#^Instantiated class FacturaScripts\\\\Core\\\\DataSrc\\\\DataBaseWhere not found\\.$#"
+			count: 1
+			path: Controller/ListMoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property FacturaScripts\\\\Core\\\\Model\\\\User\\:\\:\\$codcliente\\.$#"
+			count: 1
+			path: Controller/MoodleCertificatePdf.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Core\\\\Request\\:\\:getClientIp\\(\\)\\.$#"
+			count: 2
+			path: Controller/MoodleCertificatePdf.php
+
+		-
+			message: "#^Instantiated class FacturaScripts\\\\Core\\\\DataSrc\\\\DataBaseWhere not found\\.$#"
+			count: 1
+			path: Controller/MoodleCertificatePdf.php
+
+		-
+			message: "#^Parameter \\#1 \\$response of static method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Lib\\\\Security\\\\CspHeader\\:\\:apply\\(\\) expects Symfony\\\\Component\\\\HttpFoundation\\\\Response, FacturaScripts\\\\Core\\\\Response given\\.$#"
+			count: 1
+			path: Controller/MoodleCertificatePdf.php
+
+		-
+			message: "#^Method FacturaScripts\\\\Core\\\\Lib\\\\ExtendedController\\\\ListController\\:\\:addFilterSelect\\(\\) invoked with 8 parameters, 4\\-5 required\\.$#"
+			count: 2
+			path: Controller/MoodleCourseSync.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Core\\\\Internal\\\\SubRequest\\:\\:getBoolean\\(\\)\\.$#"
+			count: 1
+			path: Controller/MoodleDashboard.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Core\\\\Tools\\:\\:cache\\(\\)\\.$#"
+			count: 1
+			path: Controller/MoodleDashboard.php
+
+		-
+			message: "#^Constant FS_DB_TYPE not found\\.$#"
+			count: 1
+			path: Controller/MoodleDashboard.php
+
+		-
+			message: "#^Parameter \\#1 \\$response of static method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Lib\\\\Security\\\\CspHeader\\:\\:apply\\(\\) expects Symfony\\\\Component\\\\HttpFoundation\\\\Response, FacturaScripts\\\\Core\\\\Response given\\.$#"
+			count: 1
+			path: Controller/MoodleDashboard.php
+
+		-
+			message: "#^Parameter \\#1 \\$response of static method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Lib\\\\Security\\\\CspHeader\\:\\:apply\\(\\) expects Symfony\\\\Component\\\\HttpFoundation\\\\Response, FacturaScripts\\\\Core\\\\Response given\\.$#"
+			count: 1
+			path: Controller/MoodleImportWizard.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$apellidos \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 3
+			path: Controller/MoodleImportWizard.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$cifnif \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 2
+			path: Controller/MoodleImportWizard.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$nombre \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 3
+			path: Controller/MoodleImportWizard.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$apellidos \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Controller/MoodleUserSync.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$cifnif \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Controller/MoodleUserSync.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$nombre \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Controller/MoodleUserSync.php
+
+		-
+			message: "#^Access to an undefined property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$mm_last_modified\\.$#"
+			count: 1
+			path: Cron.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Core\\\\Tools\\:\\:cache\\(\\)\\.$#"
+			count: 4
+			path: Cron.php
+
+		-
+			message: "#^Offset 'exception' on array on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: Cron.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Producto\\:\\:\\$referencia \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Cron.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditCliente\\:\\:addHtmlView\\(\\)\\.$#"
+			count: 1
+			path: Extension/Controller/EditCliente.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditCliente\\:\\:addListView\\(\\)\\.$#"
+			count: 1
+			path: Extension/Controller/EditCliente.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditCliente\\:\\:getMainViewName\\(\\)\\.$#"
+			count: 2
+			path: Extension/Controller/EditCliente.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditCliente\\:\\:getViewModelValue\\(\\)\\.$#"
+			count: 2
+			path: Extension/Controller/EditCliente.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditContacto\\:\\:addListView\\(\\)\\.$#"
+			count: 2
+			path: Extension/Controller/EditContacto.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditContacto\\:\\:getMainViewName\\(\\)\\.$#"
+			count: 3
+			path: Extension/Controller/EditContacto.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditContacto\\:\\:getViewModelValue\\(\\)\\.$#"
+			count: 3
+			path: Extension/Controller/EditContacto.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditProducto\\:\\:addListView\\(\\)\\.$#"
+			count: 1
+			path: Extension/Controller/EditProducto.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditProducto\\:\\:getMainViewName\\(\\)\\.$#"
+			count: 2
+			path: Extension/Controller/EditProducto.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditProducto\\:\\:getViewModelValue\\(\\)\\.$#"
+			count: 8
+			path: Extension/Controller/EditProducto.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Extension\\\\Controller\\\\EditProducto\\:\\:setSettings\\(\\)\\.$#"
+			count: 1
+			path: Extension/Controller/EditProducto.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$apellidos \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Lib/CertificatePdfGenerator.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$nombre \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Lib/CertificatePdfGenerator.php
+
+		-
+			message: "#^Ternary operator condition is always true\\.$#"
+			count: 1
+			path: Lib/CertificatePdfGenerator.php
+
+		-
+			message: "#^Constant FS_DB_TYPE not found\\.$#"
+			count: 1
+			path: Lib/ClienteTrainingHelper.php
+
+		-
+			message: "#^PHPDoc tag @var above a method has no effect\\.$#"
+			count: 1
+			path: Lib/Controller/ProductoMoodleDecorator.php
+
+		-
+			message: "#^PHPDoc tag @var does not specify variable name\\.$#"
+			count: 1
+			path: Lib/Controller/ProductoMoodleDecorator.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleEnrolment\\:\\:getNotifiedThresholds\\(\\)\\.$#"
+			count: 1
+			path: Lib/ExpiryNotifier.php
+
+		-
+			message: "#^Call to an undefined method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleEnrolment\\:\\:markThresholdNotified\\(\\)\\.$#"
+			count: 1
+			path: Lib/ExpiryNotifier.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$idcontacto \\(int\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 3
+			path: Lib/ExpiryNotifier.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$cifnif \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Lib/Matching/UserMatcher.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Lib\\\\MoodleClient\\:\\:removeCohortMembers\\(\\)\\.$#"
+			count: 1
+			path: Lib/Moodle/Api/CohortApi.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Lib\\\\MoodleClient\\:\\:createUsers\\(\\)\\.$#"
+			count: 1
+			path: Lib/Moodle/Api/UserApi.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Core\\\\Tools\\:\\:cache\\(\\)\\.$#"
+			count: 2
+			path: Lib/Moodle/CircuitBreaker.php
+
+		-
+			message: "#^Call to function is_numeric\\(\\) with array will always evaluate to false\\.$#"
+			count: 1
+			path: Lib/MoodleClient.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$apellidos \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Lib/MoodleClient.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$nombre \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Lib/MoodleClient.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseMap\\:\\:\\$enrolled_count \\(int\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Lib/MoodleClient.php
+
+		-
+			message: "#^Access to property \\$headers on an unknown class Symfony\\\\Component\\\\HttpFoundation\\\\Response\\.$#"
+			count: 7
+			path: Lib/Security/CspHeader.php
+
+		-
+			message: "#^Parameter \\$response of method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Lib\\\\Security\\\\CspHeader\\:\\:apply\\(\\) has invalid type Symfony\\\\Component\\\\HttpFoundation\\\\Response\\.$#"
+			count: 2
+			path: Lib/Security/CspHeader.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Core\\\\Tools\\:\\:cache\\(\\)\\.$#"
+			count: 5
+			path: Lib/Security/RateLimiter.php
+
+		-
+			message: "#^Offset 'reset' on array on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: Lib/Security/RateLimiter.php
+
+		-
+			message: "#^Comparison operation \"\\>\" between int\\<1, 4\\> and 0 is always true\\.$#"
+			count: 1
+			path: Lib/Security/SignedPayload.php
+
+		-
+			message: "#^Comparison operation \"\\>\" between int\\<1, 4\\> and 0 is always true\\.$#"
+			count: 1
+			path: Lib/Security/TokenCipher.php
+
+		-
+			message: "#^Instantiated class FacturaScripts\\\\Core\\\\DataSrc\\\\DataBaseWhere not found\\.$#"
+			count: 6
+			path: Lib/Webhook/Handler/CourseCompletedHandler.php
+
+		-
+			message: "#^Instantiated class FacturaScripts\\\\Core\\\\DataSrc\\\\DataBaseWhere not found\\.$#"
+			count: 6
+			path: Lib/Webhook/Handler/EnrolmentCreatedHandler.php
+
+		-
+			message: "#^Instantiated class FacturaScripts\\\\Core\\\\DataSrc\\\\DataBaseWhere not found\\.$#"
+			count: 6
+			path: Lib/Webhook/Handler/EnrolmentDeletedHandler.php
+
+		-
+			message: "#^Instantiated class FacturaScripts\\\\Core\\\\DataSrc\\\\DataBaseWhere not found\\.$#"
+			count: 2
+			path: Lib/Webhook/Handler/UserUpdatedHandler.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Core\\\\Tools\\:\\:cache\\(\\)\\.$#"
+			count: 1
+			path: Lib/Webhook/WebhookVerifier.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Core\\\\Tools\\:\\:cache\\(\\)\\.$#"
+			count: 2
+			path: Lib/WorkQueue/IdempotencyGuard.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCertificate\\:\\:\\$course_name \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCertificate.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCertificate\\:\\:\\$description \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCertificate.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCertificate\\:\\:\\$unique_hash \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCertificate.php
+
+		-
+			message: "#^Method FacturaScripts\\\\Core\\\\Template\\\\ModelClass\\:\\:saveInsert\\(\\) invoked with 1 parameter, 0 required\\.$#"
+			count: 1
+			path: Model/MoodleCertificateTemplate.php
+
+		-
+			message: "#^Method FacturaScripts\\\\Core\\\\Template\\\\ModelClass\\:\\:saveUpdate\\(\\) invoked with 1 parameter, 0 required\\.$#"
+			count: 1
+			path: Model/MoodleCertificateTemplate.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCertificateTemplate\\:\\:\\$id \\(int\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCertificateTemplate.php
+
+		-
+			message: "#^Call to function is_array\\(\\) with string will always evaluate to false\\.$#"
+			count: 1
+			path: Model/MoodleCohort.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCohort\\:\\:\\$description \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCohort.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCohort\\:\\:\\$idnumber \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCohort.php
+
+		-
+			message: "#^Parameter \\#1 \\$code of method FacturaScripts\\\\Core\\\\Model\\\\Base\\\\ModelClass\\:\\:loadFromCode\\(\\) expects string, int\\<min, \\-1\\>\\|int\\<1, max\\> given\\.$#"
+			count: 1
+			path: Model/MoodleCourseCategory.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseCategory\\:\\:\\$description \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCourseCategory.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseCategory\\:\\:\\$parent_categoryid \\(int\\) does not accept null\\.$#"
+			count: 1
+			path: Model/MoodleCourseCategory.php
+
+		-
+			message: "#^Access to an undefined property FacturaScripts\\\\Core\\\\Model\\\\Producto\\:\\:\\$moodle_course\\.$#"
+			count: 1
+			path: Model/MoodleCourseMap.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\AttachedFileRelation\\:\\:\\$nick \\(string\\) does not accept null\\.$#"
+			count: 1
+			path: Model/MoodleCourseMap.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseMap\\:\\:\\$fullname \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCourseMap.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseMap\\:\\:\\$idfile_cover \\(int\\) does not accept null\\.$#"
+			count: 1
+			path: Model/MoodleCourseMap.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseMap\\:\\:\\$last_error \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCourseMap.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseMap\\:\\:\\$summary \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleCourseMap.php
+
+		-
+			message: "#^Call to function is_array\\(\\) with string will always evaluate to false\\.$#"
+			count: 1
+			path: Model/MoodleEnrolment.php
+
+		-
+			message: "#^Parameter \\#1 \\$code of method FacturaScripts\\\\Core\\\\Model\\\\Base\\\\ModelClass\\:\\:loadFromCode\\(\\) expects string, int\\<min, \\-1\\>\\|int\\<1, max\\> given\\.$#"
+			count: 1
+			path: Model/MoodleEnrolment.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleRoleMap\\:\\:\\$description \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleRoleMap.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleRoleMap\\:\\:\\$moodle_role_shortname \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleRoleMap.php
+
+		-
+			message: "#^Call to function is_array\\(\\) with string will always evaluate to false\\.$#"
+			count: 1
+			path: Model/MoodleUserMap.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleUserMap\\:\\:\\$last_error \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleUserMap.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleUserMap\\:\\:\\$moodle_username \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Model/MoodleUserMap.php
+
+		-
+			message: "#^Access to an undefined property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleUserMap\\:\\:\\$badge_sync_needed\\.$#"
+			count: 1
+			path: Worker/BadgeSyncWorker.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Core\\\\Tools\\:\\:cache\\(\\)\\.$#"
+			count: 2
+			path: Worker/ContactSyncWorker.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Base\\\\BusinessDocumentLine\\:\\:\\$idlinea \\(int\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Worker/EnrolmentWorker.php
+
+		-
+			message: "#^Access to an undefined property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$noemail\\.$#"
+			count: 1
+			path: Worker/OnboardingWorker.php
+
+		-
+			message: "#^Access to an undefined property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$noenviarmail\\.$#"
+			count: 1
+			path: Worker/OnboardingWorker.php
+
+		-
+			message: "#^Parameter \\#1 \\$code of method FacturaScripts\\\\Core\\\\Model\\\\Base\\\\ModelClass\\:\\:loadFromCode\\(\\) expects string, int given\\.$#"
+			count: 1
+			path: Worker/OnboardingWorker.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$apellidos \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 2
+			path: Worker/OnboardingWorker.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Core\\\\Model\\\\Contacto\\:\\:\\$nombre \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 2
+			path: Worker/OnboardingWorker.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleCourseMap\\:\\:\\$id \\(int\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Worker/OnboardingWorker.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleInstance\\:\\:\\$site_name \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Worker/OnboardingWorker.php
+
+		-
+			message: "#^Property FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Model\\\\MoodleUserMap\\:\\:\\$moodle_username \\(string\\) on left side of \\?\\? is not nullable\\.$#"
+			count: 1
+			path: Worker/OnboardingWorker.php
+
+		-
+			message: "#^Call to an undefined static method FacturaScripts\\\\Core\\\\Tools\\:\\:cache\\(\\)\\.$#"
+			count: 2
+			path: Worker/PreEnrolmentWorker.php

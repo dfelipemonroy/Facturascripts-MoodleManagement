@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -34,16 +35,16 @@ final class MoodleClientTransportTest extends TestCase
     public static function tlsDetectionCases(): array
     {
         return [
-            'plain-http'           => ['http://moodle.example.org/webservice/rest/server.php', false],
-            'https-lower'          => ['https://moodle.example.org/webservice/rest/server.php', true],
-            'https-upper-scheme'   => ['HTTPS://moodle.example.org/', true],
-            'mixed-case-scheme'    => ['HtTpS://moodle.example.org/', true],
-            'localhost-plain'      => ['http://localhost:8080', false],
-            'missing-scheme'       => ['moodle.example.org/api', false],
-            'junk'                 => ['not-a-url', false],
-            'empty'                => ['', false],
-            'ftp'                  => ['ftp://moodle.example.org/', false],
-            'javascript-like'      => ['javascript:alert(1)', false],
+            'plain-http' => ['http://moodle.example.org/webservice/rest/server.php', false],
+            'https-lower' => ['https://moodle.example.org/webservice/rest/server.php', true],
+            'https-upper-scheme' => ['HTTPS://moodle.example.org/', true],
+            'mixed-case-scheme' => ['HtTpS://moodle.example.org/', true],
+            'localhost-plain' => ['http://localhost:8080', false],
+            'missing-scheme' => ['moodle.example.org/api', false],
+            'junk' => ['not-a-url', false],
+            'empty' => ['', false],
+            'ftp' => ['ftp://moodle.example.org/', false],
+            'javascript-like' => ['javascript:alert(1)', false],
         ];
     }
 

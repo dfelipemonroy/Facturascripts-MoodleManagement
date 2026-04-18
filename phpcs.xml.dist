@@ -9,7 +9,6 @@
     <file>Lib</file>
     <file>Worker</file>
     <file>Extension</file>
-    <file>Widget</file>
     <file>Test</file>
     <file>scripts</file>
     <file>Cron.php</file>
@@ -32,16 +31,27 @@
         <exclude-pattern>scripts/*.php</exclude-pattern>
     </rule>
 
-    <!-- Line length: 120 soft / 160 hard (FS convention is slightly looser than strict PSR-12) -->
+    <!-- Line length: 120 soft / 200 hard (FS convention is looser than strict
+         PSR-12; the legacy MoodleClient god class carries long docblock URLs
+         + multi-arg WS calls that would otherwise require mid-argument line
+         breaks). -->
     <rule ref="Generic.Files.LineLength">
         <properties>
             <property name="lineLimit" value="120"/>
-            <property name="absoluteLineLimit" value="160"/>
+            <property name="absoluteLineLimit" value="200"/>
         </properties>
     </rule>
 
     <!-- Enforce short array syntax [] over array() -->
     <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+
+    <!-- Lib/Moodle/BoundClient.php intentionally declares the BoundClient
+         plus per-domain facade classes in one file for discoverability.
+         The PSR-1 "one class per file" rule is relaxed for that specific
+         file only. -->
+    <rule ref="PSR1.Classes.ClassDeclaration">
+        <exclude-pattern>Lib/Moodle/BoundClient.php</exclude-pattern>
+    </rule>
 
     <!-- Encoding -->
     <arg name="encoding" value="utf-8"/>

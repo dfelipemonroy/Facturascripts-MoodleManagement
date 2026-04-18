@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -72,10 +73,10 @@ final class PayloadValidator
             return null;
         }
         return [
-            'userid'    => $userid,
-            'courseid'  => $courseid,
+            'userid' => $userid,
+            'courseid' => $courseid,
             'timestart' => self::nonNegativeInt($p['timestart'] ?? 0),
-            'timeend'   => self::nonNegativeInt($p['timeend'] ?? 0),
+            'timeend' => self::nonNegativeInt($p['timeend'] ?? 0),
         ];
     }
 
@@ -87,7 +88,7 @@ final class PayloadValidator
             return null;
         }
         return [
-            'userid'   => $userid,
+            'userid' => $userid,
             'courseid' => $courseid,
         ];
     }
@@ -106,10 +107,10 @@ final class PayloadValidator
         }
 
         return [
-            'userid'         => $userid,
-            'courseid'       => $courseid,
+            'userid' => $userid,
+            'courseid' => $courseid,
             'completiondate' => self::nonNegativeInt($p['completiondate'] ?? 0),
-            'grade'          => $grade === null ? null : (float) $grade,
+            'grade' => $grade === null ? null : (float) $grade,
         ];
     }
 

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -82,7 +83,7 @@ trait SoftDeleteTrait
         if (!$db->exec($sql)) {
             Tools::log()->warning('mm-soft-delete-failed', [
                 'table' => static::tableName(),
-                'id'    => $id,
+                'id' => $id,
             ]);
             return false;
         }

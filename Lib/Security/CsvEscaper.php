@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -47,7 +48,7 @@ final class CsvEscaper
      * dangerous prefixes from a user-controlled path.
      *
      * @param mixed $value Cell value of any scalar type.
-     * @return string      Escaped string ready to be written.
+     * @return string Escaped string ready to be written.
      */
     public static function escape($value): string
     {

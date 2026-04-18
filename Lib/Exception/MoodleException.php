@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -29,10 +30,10 @@ class MoodleException extends RuntimeException
     protected array $context;
 
     /**
-     * @param string             $message  Human-readable summary (English).
+     * @param string $message Human-readable summary (English).
      * @param array<string, mixed> $context Optional structured payload.
-     * @param int                $code     Numeric code (default 0).
-     * @param Throwable|null     $previous Upstream cause.
+     * @param int $code Numeric code (default 0).
+     * @param Throwable|null $previous Upstream cause.
      */
     public function __construct(
         string $message = '',

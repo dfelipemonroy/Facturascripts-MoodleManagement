@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -33,8 +34,8 @@ use FacturaScripts\Core\Tools;
  */
 final class CircuitBreaker
 {
-    private const STATE_CLOSED    = 'closed';
-    private const STATE_OPEN      = 'open';
+    private const STATE_CLOSED = 'closed';
+    private const STATE_OPEN = 'open';
     private const STATE_HALF_OPEN = 'half-open';
 
     private const KEY_PREFIX = 'mm:cb:';
@@ -85,8 +86,8 @@ final class CircuitBreaker
         }
         if ($state['status'] !== self::STATE_CLOSED) {
             self::write($instanceId, [
-                'status'      => self::STATE_CLOSED,
-                'failures'    => 0,
+                'status' => self::STATE_CLOSED,
+                'failures' => 0,
                 'window_from' => time(),
             ]);
             Tools::log()->notice('circuit-breaker-closed', ['instance' => $instanceId]);
@@ -103,15 +104,15 @@ final class CircuitBreaker
         int $windowSec = self::DEFAULT_WINDOW_SECONDS
     ): void {
         $state = self::read($instanceId) ?: [
-            'status'      => self::STATE_CLOSED,
-            'failures'    => 0,
+            'status' => self::STATE_CLOSED,
+            'failures' => 0,
             'window_from' => time(),
         ];
 
         if ($state['status'] === self::STATE_HALF_OPEN) {
             // Probe failed → back to OPEN with fresh cooldown.
             self::write($instanceId, [
-                'status'   => self::STATE_OPEN,
+                'status' => self::STATE_OPEN,
                 'failures' => $failureThreshold,
                 'reset_at' => time() + $cooldownSec,
             ]);
@@ -129,7 +130,7 @@ final class CircuitBreaker
 
         if ($state['failures'] >= $failureThreshold) {
             self::write($instanceId, [
-                'status'   => self::STATE_OPEN,
+                'status' => self::STATE_OPEN,
                 'failures' => $state['failures'],
                 'reset_at' => $now + $cooldownSec,
             ]);

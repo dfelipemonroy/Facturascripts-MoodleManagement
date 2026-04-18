@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -24,9 +25,9 @@ use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Template\CronClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Where;
+use FacturaScripts\Dinamic\Model\PresupuestoCliente;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Cron\Lock;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
-use FacturaScripts\Dinamic\Model\PresupuestoCliente;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
@@ -42,7 +43,6 @@ class Cron extends CronClass
     public const CLEANUP_JOB = 'moodle-cleanup';
     public const EXPIRY_CHECK_JOB = 'moodle-expiry-check';
     public const LOGS_RETENTION_JOB = 'moodle-logs-retention';
-
     /**
      * Retention window (days) applied to `moodle_audit_log` and
      * `moodle_webhook_log`. Kept conservative so operators still
@@ -52,7 +52,6 @@ class Cron extends CronClass
      * @since 2.0 — DB-05 (2026-04-17)
      */
     public const LOGS_RETENTION_DAYS = 90;
-
     /**
      * Consecutive health-check failures that trip a quarantine log
      * entry. Three strikes so a single transient outage does not
@@ -63,7 +62,6 @@ class Cron extends CronClass
     public const HEALTH_QUARANTINE_THRESHOLD = 3;
     /** @since 2.0 — F10.2 */
     public const PROGRESS_SYNC_JOB = 'moodle-progress-sync';
-
     // Schedule intervals (consumed by $job->every()) -----------------
     /** @since 2.0 */
     public const EVERY_HOUR = '1 hour';
@@ -71,7 +69,6 @@ class Cron extends CronClass
     public const EVERY_6_HOURS = '6 hours';
     /** @since 2.0 */
     public const EVERY_DAY = '1 day';
-
     // Pagination -----------------------------------------------------
     /**
      * Batch size for paginated cron scans (applied in Fase 6 F6.3).
@@ -80,7 +77,6 @@ class Cron extends CronClass
      * @since 2.0
      */
     public const BATCH_SIZE = 500;
-
     /**
      * Iterate a FS ModelClass in fixed-size chunks instead of loading
      * the whole result set into memory. The callback receives each
@@ -90,12 +86,12 @@ class Cron extends CronClass
      * pattern flagged by audit §1.6: a client with 50k user_map
      * rows would otherwise load all of them into PHP memory.
      *
-     * @param object   $model   Fresh ModelClass instance.
-     * @param array    $where   DataBaseWhere/Where clauses.
-     * @param array    $orderBy Order-by array (keep stable to avoid
-     *                          row-skip when rows mutate mid-scan).
+     * @param object $model Fresh ModelClass instance.
+     * @param array $where DataBaseWhere/Where clauses.
+     * @param array $orderBy Order-by array (keep stable to avoid
+     *                       row-skip when rows mutate mid-scan).
      * @param callable $visitor fn($row):void|bool
-     * @return int              Number of rows visited.
+     * @return int Number of rows visited.
      * @since 2.0 F6.3
      */
     protected function paginate(object $model, array $where, array $orderBy, callable $visitor): int
@@ -134,7 +130,6 @@ class Cron extends CronClass
         // Fail-fast: if the lock is held, the second caller skips
         // silently and logs a single INFO line instead of stacking.
         $lock = new Lock();
-
         $lockedRun = static function (Lock $lock, string $job, callable $fn): void {
             if (!$lock->acquire('mm.' . $job)) {
                 Tools::log($job)->info('cron-skip-locked');
@@ -147,42 +142,58 @@ class Cron extends CronClass
             }
         };
 
-        $this->job(self::JOB_NAME)->every(self::EVERY_HOUR)->run(function () use ($lock, $lockedRun) {
-            $lockedRun($lock, self::JOB_NAME, function () { $this->healthCheck(); });
+        $this->job(self::JOB_NAME)->every(self::EVERY_HOUR)->run(function () use ($lock, $lockedRun): void {
+            $lockedRun($lock, self::JOB_NAME, function (): void {
+                $this->healthCheck();
+            });
         });
 
-        $this->job(self::USER_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
-            $lockedRun($lock, self::USER_SYNC_JOB, function () { $this->userSync(); });
+        $this->job(self::USER_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun): void {
+            $lockedRun($lock, self::USER_SYNC_JOB, function (): void {
+                $this->userSync();
+            });
         });
 
-        $this->job(self::COURSE_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
-            $lockedRun($lock, self::COURSE_SYNC_JOB, function () { $this->courseSync(); });
+        $this->job(self::COURSE_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun): void {
+            $lockedRun($lock, self::COURSE_SYNC_JOB, function (): void {
+                $this->courseSync();
+            });
         });
 
-        $this->job(self::RECONCILIATION_JOB)->every(self::EVERY_DAY)->run(function () use ($lock, $lockedRun) {
-            $lockedRun($lock, self::RECONCILIATION_JOB, function () { $this->reconciliation(); });
+        $this->job(self::RECONCILIATION_JOB)->every(self::EVERY_DAY)->run(function () use ($lock, $lockedRun): void {
+            $lockedRun($lock, self::RECONCILIATION_JOB, function (): void {
+                $this->reconciliation();
+            });
         });
 
-        $this->job(self::CLEANUP_JOB)->every(self::EVERY_DAY)->run(function () use ($lock, $lockedRun) {
-            $lockedRun($lock, self::CLEANUP_JOB, function () { $this->cleanup(); });
+        $this->job(self::CLEANUP_JOB)->every(self::EVERY_DAY)->run(function () use ($lock, $lockedRun): void {
+            $lockedRun($lock, self::CLEANUP_JOB, function (): void {
+                $this->cleanup();
+            });
         });
 
-        $this->job(self::EXPIRY_CHECK_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
-            $lockedRun($lock, self::EXPIRY_CHECK_JOB, function () { $this->expiryCheck(); });
+        $this->job(self::EXPIRY_CHECK_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun): void {
+            $lockedRun($lock, self::EXPIRY_CHECK_JOB, function (): void {
+                $this->expiryCheck();
+            });
         });
 
         // F10.2 — pull activity completion + grade from Moodle into
         // moodle_enrolments so dashboards don't round-trip per render.
-        $this->job(self::PROGRESS_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
-            $lockedRun($lock, self::PROGRESS_SYNC_JOB, function () { $this->progressSync(); });
+        $this->job(self::PROGRESS_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun): void {
+            $lockedRun($lock, self::PROGRESS_SYNC_JOB, function (): void {
+                $this->progressSync();
+            });
         });
 
         // DB-05 (2026-04-17) — retention sweep for the append-only
         // audit + webhook logs. Defaults to 90 days. Runs once per
         // day; guarded by the cooperative lock so concurrent cron
         // runners do not delete the same rows twice.
-        $this->job(self::LOGS_RETENTION_JOB)->every(self::EVERY_DAY)->run(function () use ($lock, $lockedRun) {
-            $lockedRun($lock, self::LOGS_RETENTION_JOB, function () { $this->logsRetention(); });
+        $this->job(self::LOGS_RETENTION_JOB)->every(self::EVERY_DAY)->run(function () use ($lock, $lockedRun): void {
+            $lockedRun($lock, self::LOGS_RETENTION_JOB, function (): void {
+                $this->logsRetention();
+            });
         });
     }
 
@@ -198,8 +209,8 @@ class Cron extends CronClass
         $db = new DataBase();
         $cutoff = date('Y-m-d H:i:s', time() - (self::LOGS_RETENTION_DAYS * 86400));
         $tables = [
-            'moodle_audit_log'    => 'created_at',
-            'moodle_webhook_log'  => 'received_at',
+            'moodle_audit_log' => 'created_at',
+            'moodle_webhook_log' => 'received_at',
         ];
         $deleted = [];
         foreach ($tables as $table => $col) {
@@ -218,30 +229,22 @@ class Cron extends CronClass
             }
         }
         Tools::log(self::LOGS_RETENTION_JOB)->notice('logs-retention-done', [
-            'cutoff'  => $cutoff,
+            'cutoff' => $cutoff,
             'results' => $deleted,
         ]);
     }
 
     /** F6.11 — cache key prefix for per-instance health probes. */
     private const HEALTH_CACHE_PREFIX = 'mm:health:';
-
     /** F6.11 — cache TTL for health probe results. 60 s is long
      *  enough to dedupe the hourly cron against any dashboard or
      *  Setting page that also probes the instance; short enough
      *  that a real outage is visible within a minute. */
     private const HEALTH_CACHE_TTL = 60;
-
     private function healthCheck(): void
     {
         $instanceModel = new MoodleInstance();
-        $instances = $instanceModel->all(
-            [Where::notEq('status', 'inactive'), Where::isNotNull('token')],
-            [],
-            0,
-            0
-        );
-
+        $instances = $instanceModel->all([Where::notEq('status', 'inactive'), Where::isNotNull('token')], [], 0, 0);
         foreach ($instances as $instance) {
             // F6.11 — if a recent probe result sits in cache, skip
             // the WS round-trip. Pages or dashboards that already
@@ -253,7 +256,6 @@ class Cron extends CronClass
             }
 
             $result = MoodleClient::testConnection($instance);
-
             if (isset($result['exception'])) {
                 MoodleClient::applyError($instance, $result);
                 // BE-06 (2026-04-17) — persist a streak counter so
@@ -263,7 +265,7 @@ class Cron extends CronClass
                     $instance->health_fail_count = (int) ($instance->health_fail_count ?? 0) + 1;
                     if ($instance->health_fail_count >= self::HEALTH_QUARANTINE_THRESHOLD) {
                         Tools::log(self::JOB_NAME)->error('health-check-quarantine', [
-                            'instance'   => (int) $instance->id,
+                            'instance' => (int) $instance->id,
                             'fail_count' => $instance->health_fail_count,
                         ]);
                     }
@@ -290,13 +292,7 @@ class Cron extends CronClass
     private function userSync(): void
     {
         $instanceModel = new MoodleInstance();
-        $instances = $instanceModel->all(
-            [Where::notEq('status', 'inactive'), Where::isNotNull('token')],
-            [],
-            0,
-            0
-        );
-
+        $instances = $instanceModel->all([Where::notEq('status', 'inactive'), Where::isNotNull('token')], [], 0, 0);
         foreach ($instances as $instance) {
             $this->userSyncForInstance($instance);
         }
@@ -318,10 +314,8 @@ class Cron extends CronClass
         ];
         $orderBy = ['id' => 'ASC'];
         $offset = 0;
-
         // F13 DISCOVERED-04 — per-batch warnings through BufferedLogger.
         $log = new \FacturaScripts\Plugins\MoodleManagement\Lib\Logger\BufferedLogger(self::USER_SYNC_JOB, 50);
-
         do {
             $maps = $mapModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
             if (empty($maps)) {
@@ -331,12 +325,11 @@ class Cron extends CronClass
             $moodleIds = array_map(static function ($m) {
                 return $m->moodle_userid;
             }, $maps);
-
             $result = MoodleClient::getUsersByField($instance, 'id', $moodleIds);
             if (isset($result['exception'])) {
                 $log->warning('user-sync-failed', [
-                    '%name%'    => $instance->name,
-                    '%message%' => $result['message'] ?? $result['exception'],
+                                '%name%' => $instance->name,
+                                '%message%' => $result['message'] ?? $result['exception'],
                 ]);
                 $log->flush();
                 break;
@@ -359,7 +352,6 @@ class Cron extends CronClass
             }
             $offset += self::BATCH_SIZE;
         } while (true);
-
         $log->flush();
     }
 
@@ -368,12 +360,8 @@ class Cron extends CronClass
      * Extracted from userSync loop to keep paginate-friendly variants
      * small and testable (Fase 9 will cover with unit tests).
      */
-    private function syncOneUserMap(
-        MoodleUserMap $map,
-        array $moodleUser,
-        MoodleInstance $instance,
-        array $customFieldsMap
-    ): void {
+    private function syncOneUserMap(MoodleUserMap $map, array $moodleUser, MoodleInstance $instance, array $customFieldsMap): void
+    {
         $moodleModified = $moodleUser['timemodified'] ?? null;
         $lastSyncTs = $map->last_sync ? strtotime($map->last_sync) : 0;
         if ($moodleModified && (int) $moodleModified <= $lastSyncTs && $map->sync_direction === 'moodle_to_fs') {
@@ -386,7 +374,6 @@ class Cron extends CronClass
         }
 
         $priority = $map->getEffectivePriority();
-
         if ($map->sync_direction === 'bidirectional') {
             // F7.4 — use mm_last_modified (updated by EditContacto
             // execAfterAction) instead of fechaalta, which never
@@ -420,13 +407,7 @@ class Cron extends CronClass
     private function courseSync(): void
     {
         $instanceModel = new MoodleInstance();
-        $instances = $instanceModel->all(
-            [Where::notEq('status', 'inactive'), Where::isNotNull('token')],
-            [],
-            0,
-            0
-        );
-
+        $instances = $instanceModel->all([Where::notEq('status', 'inactive'), Where::isNotNull('token')], [], 0, 0);
         foreach ($instances as $instance) {
             $this->courseSyncForInstance($instance);
         }
@@ -445,7 +426,6 @@ class Cron extends CronClass
         ];
         $orderBy = ['id' => 'ASC'];
         $offset = 0;
-
         do {
             $maps = $mapModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
             if (empty($maps)) {
@@ -455,12 +435,11 @@ class Cron extends CronClass
             $courseIds = array_map(static function ($m) {
                 return $m->moodle_courseid;
             }, $maps);
-
             $result = MoodleClient::getCourses($instance, $courseIds);
             if (isset($result['exception'])) {
                 Tools::log(self::COURSE_SYNC_JOB)->warning('course-sync-failed', [
-                    '%name%'    => $instance->name,
-                    '%message%' => $result['message'] ?? $result['exception'],
+                                '%name%' => $instance->name,
+                                '%message%' => $result['message'] ?? $result['exception'],
                 ]);
                 break;
             }
@@ -492,13 +471,7 @@ class Cron extends CronClass
     private function reconciliation(): void
     {
         $instanceModel = new MoodleInstance();
-        $instances = $instanceModel->all(
-            [Where::notEq('status', 'inactive'), Where::isNotNull('token')],
-            [],
-            0,
-            0
-        );
-
+        $instances = $instanceModel->all([Where::notEq('status', 'inactive'), Where::isNotNull('token')], [], 0, 0);
         foreach ($instances as $instance) {
             $this->reconcileUsers($instance);
             $this->reconcileEnrolments($instance);
@@ -522,7 +495,6 @@ class Cron extends CronClass
         $orderBy = ['id' => 'ASC'];
         $offset = 0;
         $log = new \FacturaScripts\Plugins\MoodleManagement\Lib\Logger\BufferedLogger(self::RECONCILIATION_JOB, 50);
-
         do {
             $maps = $mapModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
             if (empty($maps)) {
@@ -548,7 +520,7 @@ class Cron extends CronClass
                     $map->last_error = Tools::lang()->trans('user-not-found-in-moodle');
                     $map->save();
                     $log->warning('reconcile-user-missing', [
-                        '%userid%'   => $map->moodle_userid,
+                        '%userid%' => $map->moodle_userid,
                         '%instance%' => $instance->name,
                     ]);
                 }
@@ -559,7 +531,6 @@ class Cron extends CronClass
             }
             $offset += self::BATCH_SIZE;
         } while (true);
-
         $log->flush();
     }
 
@@ -588,9 +559,9 @@ class Cron extends CronClass
         $preflight = MoodleClient::testConnection($instance);
         if (isset($preflight['exception'])) {
             Tools::log()->warning('reconcile-skipped-unhealthy-instance', [
-                'instance'  => (int) $instance->id,
+                'instance' => (int) $instance->id,
                 'exception' => (string) ($preflight['exception'] ?? ''),
-                'message'   => (string) ($preflight['message'] ?? ''),
+                'message' => (string) ($preflight['message'] ?? ''),
             ]);
             return;
         }
@@ -604,6 +575,12 @@ class Cron extends CronClass
         $cmOffset = 0;
         $log = new \FacturaScripts\Plugins\MoodleManagement\Lib\Logger\BufferedLogger(self::RECONCILIATION_JOB, 50);
 
+        // BE-04 rev 2 — if the per-course health re-probe fails this
+        // many times in a single run, abort the whole reconciliation
+        // for this instance. Prevents multiplying probe traffic on a
+        // known-sick Moodle (one per course).
+        $emptyProbeFailures = 0;
+        $emptyProbeFailureCap = 3;
         do {
             $courseMaps = $courseMapModel->all($cmWhere, $cmOrder, $cmOffset, self::BATCH_SIZE);
             if (empty($courseMaps)) {
@@ -627,11 +604,25 @@ class Cron extends CronClass
                 // fails we treat the empty response as suspect and
                 // skip the course entirely; the next cron iteration
                 // will retry once the instance is healthy again.
+                //
+                // BE-04 rev 2 — after `$emptyProbeFailureCap` suspect
+                // empties we abort the whole instance so we do not
+                // DoS the Moodle with one extra probe per course.
                 if ($moodleEnrolledIds === [] && self::reconciliationProbeHealthy($instance) === false) {
+                    $emptyProbeFailures++;
                     $log->warning('reconcile-skipped-empty-suspect', [
                         '%instance%' => (int) $instance->id,
                         '%courseid%' => $courseMap->moodle_courseid,
+                        '%probeFails%' => $emptyProbeFailures,
                     ]);
+                    if ($emptyProbeFailures >= $emptyProbeFailureCap) {
+                        Tools::log()->error('reconcile-aborted-probe-saturation', [
+                            'instance' => (int) $instance->id,
+                            'probe_failures' => $emptyProbeFailures,
+                        ]);
+                        $log->flush();
+                        return;
+                    }
                     continue;
                 }
 
@@ -655,7 +646,7 @@ class Cron extends CronClass
                             $enrolment->last_sync = date('Y-m-d H:i:s');
                             $enrolment->save();
                             $log->warning('reconcile-enrolment-missing', [
-                                '%userid%'   => $enrolment->moodle_userid,
+                                '%userid%' => $enrolment->moodle_userid,
                                 '%courseid%' => $enrolment->moodle_courseid,
                             ]);
                         }
@@ -672,7 +663,6 @@ class Cron extends CronClass
             }
             $cmOffset += self::BATCH_SIZE;
         } while (true);
-
         $log->flush();
     }
 
@@ -696,11 +686,10 @@ class Cron extends CronClass
         $userMapDeleted = $this->cleanOrphanedUserMaps();
         $enrolmentDeleted = $this->cleanOrphanedEnrolments();
         $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
-
         Tools::log(self::CLEANUP_JOB)->info('cleanup-done', [
-            'deleted_user_maps'   => $userMapDeleted,
-            'deleted_enrolments'  => $enrolmentDeleted,
-            'elapsed_ms'          => $elapsedMs,
+            'deleted_user_maps' => $userMapDeleted,
+            'deleted_enrolments' => $enrolmentDeleted,
+            'elapsed_ms' => $elapsedMs,
         ]);
     }
 
@@ -711,7 +700,6 @@ class Cron extends CronClass
      * @since 2.0 — BE-08 (2026-04-17)
      */
     private const ORPHAN_CLEANUP_LIMIT = 1000;
-
     /**
      * @return int Number of orphan rows deleted.
      *
@@ -725,10 +713,7 @@ class Cron extends CronClass
      */
     private function cleanOrphanedUserMaps(): int
     {
-        return $this->bulkDeleteOrphans(
-            'moodle_user_map',
-            'cleanup-orphaned-user-maps'
-        );
+        return $this->bulkDeleteOrphans('moodle_user_map', 'cleanup-orphaned-user-maps');
     }
 
     /**
@@ -738,10 +723,7 @@ class Cron extends CronClass
      */
     private function cleanOrphanedEnrolments(): int
     {
-        return $this->bulkDeleteOrphans(
-            'moodle_enrolments',
-            'cleanup-orphaned-enrolments'
-        );
+        return $this->bulkDeleteOrphans('moodle_enrolments', 'cleanup-orphaned-enrolments');
     }
 
     /**
@@ -756,7 +738,6 @@ class Cron extends CronClass
     private function bulkDeleteOrphans(string $table, string $tagOnSuccess): int
     {
         $db = new DataBase();
-
         // Fetch at most ORPHAN_CLEANUP_LIMIT ids so a huge backlog
         // drains gradually across cron cycles rather than locking
         // the table for minutes.
@@ -764,7 +745,6 @@ class Cron extends CronClass
             . ' LEFT JOIN contactos c ON m.idcontacto = c.idcontacto'
             . ' WHERE c.idcontacto IS NULL'
             . ' LIMIT ' . self::ORPHAN_CLEANUP_LIMIT;
-
         $rows = $db->select($selectSql);
         if (empty($rows)) {
             return 0;
@@ -803,7 +783,6 @@ class Cron extends CronClass
         $warningDays = 7;
         $now = time();
         $warningThreshold = $now + ($warningDays * 86400);
-
         // F6.3 — paginate enrolments so a deployment with 100k
         // active enrolments does not load them all into memory.
         $enrolModel = new MoodleEnrolment();
@@ -814,7 +793,6 @@ class Cron extends CronClass
         ];
         $orderBy = ['id' => 'ASC'];
         $offset = 0;
-
         do {
             $enrolments = $enrolModel->all($where, $orderBy, $offset, self::BATCH_SIZE);
             if (empty($enrolments)) {
@@ -828,15 +806,15 @@ class Cron extends CronClass
                     $enrolment->notes = Tools::lang()->trans('enrolment-expired');
                     $enrolment->save();
                     Tools::log(self::EXPIRY_CHECK_JOB)->warning('enrolment-expired-auto', [
-                        '%userid%'   => $enrolment->moodle_userid,
+                        '%userid%' => $enrolment->moodle_userid,
                         '%courseid%' => $enrolment->moodle_courseid,
                     ]);
                 } else {
                     $this->generateRenewalEstimate($enrolment);
                     Tools::log(self::EXPIRY_CHECK_JOB)->info('enrolment-expiring-soon', [
-                        '%userid%'   => $enrolment->moodle_userid,
+                        '%userid%' => $enrolment->moodle_userid,
                         '%courseid%' => $enrolment->moodle_courseid,
-                        '%days%'     => $daysLeft,
+                        '%days%' => $daysLeft,
                     ]);
                 }
             }
@@ -863,7 +841,6 @@ class Cron extends CronClass
      * @since 2.0 F6.2 · §1.2
      */
     private const SKIP_PREENROL_PREFIX = 'mm:pre-enrol-skip:presupuesto:';
-
     private function generateRenewalEstimate(MoodleEnrolment $enrolment): void
     {
         // skip if a renewal estimate already exists for this enrolment
@@ -897,7 +874,6 @@ class Cron extends CronClass
         $presupuesto->observaciones = Tools::lang()->trans('renewal-estimate-note', [
             '%course%' => $courseMap->fullname,
         ]);
-
         if (false === $presupuesto->save()) {
             Tools::log(self::EXPIRY_CHECK_JOB)->warning('renewal-estimate-failed', [
                 '%userid%' => $enrolment->moodle_userid,
@@ -909,12 +885,7 @@ class Cron extends CronClass
         // F6.2 — tag the just-saved estimate so PreEnrolmentWorker
         // skips it. TTL is intentionally generous (300 s) to cover
         // queue back-pressure; the worker deletes the key on read.
-        Tools::cache()->set(
-            self::SKIP_PREENROL_PREFIX . (int) $presupuesto->idpresupuesto,
-            true,
-            300
-        );
-
+        Tools::cache()->set(self::SKIP_PREENROL_PREFIX . (int) $presupuesto->idpresupuesto, true, 300);
         // add the course product line
         $producto = $courseMap->getProducto();
         $newLine = $presupuesto->getNewLine();
@@ -923,11 +894,9 @@ class Cron extends CronClass
         $newLine->cantidad = 1;
         $newLine->pvpunitario = $courseMap->price;
         $newLine->save();
-
         // link the estimate to the enrolment
         $enrolment->idpresupuesto = $presupuesto->idpresupuesto;
         $enrolment->save();
-
         Tools::log(self::EXPIRY_CHECK_JOB)->notice('renewal-estimate-created', [
             '%course%' => $courseMap->fullname,
             '%client%' => $cliente->nombre,
@@ -949,18 +918,13 @@ class Cron extends CronClass
      *
      * @since 2.0 — F10.2
      */
-    public const PROGRESS_REFRESH_SECONDS = 3600; // 1h freshness
+    public const PROGRESS_REFRESH_SECONDS = 3600;
+    // 1h freshness
 
     private function progressSync(): void
     {
         $instanceModel = new MoodleInstance();
-        $instances = $instanceModel->all(
-            [Where::notEq('status', 'inactive'), Where::isNotNull('token')],
-            [],
-            0,
-            0
-        );
-
+        $instances = $instanceModel->all([Where::notEq('status', 'inactive'), Where::isNotNull('token')], [], 0, 0);
         foreach ($instances as $instance) {
             $this->progressSyncForInstance($instance);
         }
@@ -975,13 +939,11 @@ class Cron extends CronClass
             new DataBaseWhere('moodle_courseid', 0, '>'),
             new DataBaseWhere('status', 'enrolled'),
         ];
-
         // F10.10 — batch log lines through a buffered logger so a
         // 1000-row progress sweep emits at most one Tools::log() call
         // per level instead of 1000.
         $log = new \FacturaScripts\Plugins\MoodleManagement\Lib\Logger\BufferedLogger(self::PROGRESS_SYNC_JOB, 50);
-
-        $this->paginate($enrolmentModel, $where, ['id' => 'ASC'], function (MoodleEnrolment $enrolment) use ($instance, $log) {
+        $this->paginate($enrolmentModel, $where, ['id' => 'ASC'], function (MoodleEnrolment $enrolment) use ($instance, $log): void {
             // Skip if we refreshed this row recently.
             if (!empty($enrolment->progress_fetched_at)) {
                 $age = time() - (int) strtotime($enrolment->progress_fetched_at);
@@ -990,17 +952,13 @@ class Cron extends CronClass
                 }
             }
 
-            $ws = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\Api\CompletionApi::getActivities(
-                $instance,
-                (int) $enrolment->moodle_courseid,
-                (int) $enrolment->moodle_userid
-            );
+            $ws = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\Api\CompletionApi::getActivities($instance, (int) $enrolment->moodle_courseid, (int) $enrolment->moodle_userid);
             $summary = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\Api\CompletionApi::summariseActivities($ws);
             if ($summary === null) {
                 $log->warning('progress-sync-failed', [
-                    '%userid%'   => $enrolment->moodle_userid,
+                    '%userid%' => $enrolment->moodle_userid,
                     '%courseid%' => $enrolment->moodle_courseid,
-                    '%msg%'      => $ws['message'] ?? ($ws['exception'] ?? 'unknown'),
+                    '%msg%' => $ws['message'] ?? ($ws['exception'] ?? 'unknown'),
                 ]);
                 return;
             }
@@ -1014,7 +972,6 @@ class Cron extends CronClass
             $enrolment->progress_fetched_at = date('Y-m-d H:i:s');
             $enrolment->save();
         });
-
         // BufferedLogger auto-flushes in __destruct, but call it
         // explicitly so any residual events land before the next
         // instance starts.

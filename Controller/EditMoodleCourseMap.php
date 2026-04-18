@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -12,8 +13,8 @@ use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\EditController;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
-use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
+use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 
 class EditMoodleCourseMap extends EditController
 {
@@ -58,7 +59,7 @@ class EditMoodleCourseMap extends EditController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         parent::createViews();
 
@@ -72,7 +73,7 @@ class EditMoodleCourseMap extends EditController
         $this->addHtmlView('CourseMessaging', 'Tab/CourseMessaging', 'MoodleCourseMap', 'messaging', 'fa-solid fa-paper-plane');
     }
 
-    protected function loadData($viewName, $view)
+    protected function loadData($viewName, $view): void
     {
         switch ($viewName) {
             case 'ListMoodleEnrolment':
@@ -136,7 +137,7 @@ class EditMoodleCourseMap extends EditController
                 $this->addMetaEnrolment();
                 return true;
 
-            // Course content management actions
+                // Course content management actions
             case 'cm-show':
             case 'cm-hide':
             case 'cm-stealth':
@@ -679,8 +680,10 @@ class EditMoodleCourseMap extends EditController
 
             case 'section-move':
                 $sectionIds = $this->getIntArrayFromRequest('section_ids');
-                $afterSectionId = (int)$this->request->request->get('after_section_id',
-                    $this->request->request->get('target_section_id', 0));
+                $afterSectionId = (int)$this->request->request->get(
+                    'after_section_id',
+                    $this->request->request->get('target_section_id', 0)
+                );
                 if (empty($sectionIds) || empty($afterSectionId)) {
                     Tools::log()->warning('no-sections-selected');
                     return;
@@ -808,7 +811,7 @@ class EditMoodleCourseMap extends EditController
                     'username' => $user['username'] ?? '',
                 ];
             }
-            usort($this->enrolledUsers, fn($a, $b) => strcasecmp($a['fullname'], $b['fullname']));
+            usort($this->enrolledUsers, fn ($a, $b) => strcasecmp($a['fullname'], $b['fullname']));
         }
     }
 
@@ -924,7 +927,7 @@ class EditMoodleCourseMap extends EditController
                     'username' => $user['username'] ?? '',
                 ];
             }
-            usort($this->enrolledUsers, fn($a, $b) => strcasecmp($a['fullname'], $b['fullname']));
+            usort($this->enrolledUsers, fn ($a, $b) => strcasecmp($a['fullname'], $b['fullname']));
         }
     }
 

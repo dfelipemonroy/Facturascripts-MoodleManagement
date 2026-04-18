@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -36,7 +37,7 @@ class ClienteTrainingHelper
             'courseBreakdown' => [],
         ];
 
-        $sql = "SELECT idcontacto FROM contactos WHERE codcliente = " . $db->var2str($codcliente);
+        $sql = 'SELECT idcontacto FROM contactos WHERE codcliente = ' . $db->var2str($codcliente);
         $contactRows = $db->select($sql);
 
         // F3.10 — defence in depth: cast each value and drop anything
@@ -72,13 +73,13 @@ class ClienteTrainingHelper
             $inList = implode(',', $chunk); // safe: every element is an int.
 
             // contacts with at least one enrolment
-            $sql = "SELECT COUNT(DISTINCT idcontacto) as total"
+            $sql = 'SELECT COUNT(DISTINCT idcontacto) as total'
                 . " FROM moodle_enrolments WHERE idcontacto IN ($inList)";
             $result = $db->select($sql);
             $enrolledContacts += !empty($result) ? (int) $result[0]['total'] : 0;
 
             // enrolment status counts
-            $sql = "SELECT status, COUNT(*) as total"
+            $sql = 'SELECT status, COUNT(*) as total'
                 . " FROM moodle_enrolments WHERE idcontacto IN ($inList) GROUP BY status";
             foreach ($db->select($sql) as $row) {
                 $status = (string) $row['status'];
@@ -86,21 +87,21 @@ class ClienteTrainingHelper
             }
 
             // total invoiced
-            $sql = "SELECT COALESCE(SUM(f.total), 0) as total"
-                . " FROM facturascli f"
-                . " INNER JOIN moodle_enrolments e ON e.idfactura = f.idfactura"
+            $sql = 'SELECT COALESCE(SUM(f.total), 0) as total'
+                . ' FROM facturascli f'
+                . ' INNER JOIN moodle_enrolments e ON e.idfactura = f.idfactura'
                 . " WHERE e.idcontacto IN ($inList)";
             $result = $db->select($sql);
             $totalInvoiced += !empty($result) ? (float) $result[0]['total'] : 0.0;
 
             // course breakdown
             $sql = "SELECT $concatExpr as course_name,"
-                . " e.status, COUNT(*) as total"
-                . " FROM moodle_enrolments e"
-                . " LEFT JOIN moodle_course_map c ON e.idcourse_map = c.id"
+                . ' e.status, COUNT(*) as total'
+                . ' FROM moodle_enrolments e'
+                . ' LEFT JOIN moodle_course_map c ON e.idcourse_map = c.id'
                 . " WHERE e.idcontacto IN ($inList)"
-                . " GROUP BY course_name, e.status"
-                . " ORDER BY course_name, e.status";
+                . ' GROUP BY course_name, e.status'
+                . ' ORDER BY course_name, e.status';
             foreach ($db->select($sql) as $row) {
                 $name = $row['course_name'];
                 if (!isset($courses[$name])) {

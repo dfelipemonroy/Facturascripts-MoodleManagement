@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -29,7 +30,7 @@ class EditContacto
 {
     protected function createViews(): Closure
     {
-        return function () {
+        return function (): void {
             $this->addListView('ListMoodleUserMap', 'MoodleUserMap', 'moodle-users', 'fa-solid fa-graduation-cap')
                 ->addOrderBy(['last_sync'], 'last-sync', 2)
                 ->addSearchFields(['moodle_username']);
@@ -42,7 +43,7 @@ class EditContacto
 
     public function loadData(): Closure
     {
-        return function ($viewName, $view) {
+        return function ($viewName, $view): void {
             if ($viewName === 'ListMoodleUserMap') {
                 $idcontacto = $this->getViewModelValue($this->getMainViewName(), 'idcontacto');
                 $where = [new DataBaseWhere('idcontacto', $idcontacto)];
@@ -70,7 +71,7 @@ class EditContacto
      */
     public function execAfterAction(): Closure
     {
-        return function ($action) {
+        return function ($action): void {
             if ($action !== 'save-ok' && $action !== 'save-data') {
                 return;
             }

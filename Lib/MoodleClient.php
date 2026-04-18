@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -63,7 +64,7 @@ class MoodleClient
      * share the WS round-trip. Reset on every PHP process.
      *
      * @since 2.0
-     * @var array<int, array<int, array>>  keyed [instanceId][courseId]
+     * @var array<int, array<int, array>> keyed [instanceId][courseId]
      */
     private static $courseCache = [];
 
@@ -115,10 +116,10 @@ class MoodleClient
      * @param string $function The WS function name (e.g. core_webservice_get_site_info)
      * @param array $params Additional parameters for the function
      * @param array $options {
-     *     @type string $timeout_profile 'ui' (default 60s) or 'cron' (300s).
-     *     @type int    $timeout          Explicit override in seconds.
-     *     @type int    $max_bytes        Override MAX_RESPONSE_BYTES.
-     * }
+     * @type string $timeout_profile 'ui' (default 60s) or 'cron' (300s).
+     * @type int $timeout          Explicit override in seconds.
+     * @type int $max_bytes        Override MAX_RESPONSE_BYTES.
+     *           }
      * @return array The decoded JSON response, or an error array
      */
     public static function callApi(
@@ -142,11 +143,11 @@ class MoodleClient
             Tools::log()->warning('moodle-ssrf-rejected', [
                 'instance' => (int) $instance->id,
                 'endpoint' => $endpoint,
-                'reason'   => $e->getMessage(),
+                'reason' => $e->getMessage(),
             ]);
             return [
                 'exception' => 'ssrf_rejected',
-                'message'   => 'host_private_or_unresolvable',
+                'message' => 'host_private_or_unresolvable',
             ];
         }
 
@@ -164,7 +165,7 @@ class MoodleClient
             ]);
             return [
                 'exception' => 'insecure_transport',
-                'message'   => 'https_required',
+                'message' => 'https_required',
             ];
         }
 
@@ -181,7 +182,7 @@ class MoodleClient
             ]);
             return [
                 'exception' => 'circuit_open',
-                'message'   => 'instance_temporarily_unavailable',
+                'message' => 'instance_temporarily_unavailable',
             ];
         }
 
@@ -254,8 +255,8 @@ class MoodleClient
         // F7.13 — always force JSON output, regardless of whatever
         // the caller may have passed in $params.
         $postData = array_merge($params, [
-            'wstoken'            => $instance->token,
-            'wsfunction'         => $function,
+            'wstoken' => $instance->token,
+            'wsfunction' => $function,
             'moodlewsrestformat' => 'json',
         ]);
 
@@ -313,13 +314,13 @@ class MoodleClient
 
         if ($exceeded) {
             Tools::log()->warning('moodle-response-too-large', [
-                'instance'  => (int) $instance->id,
-                'function'  => $function,
+                'instance' => (int) $instance->id,
+                'function' => $function,
                 'max_bytes' => $maxBytes,
             ]);
             return [
                 'exception' => 'response_too_large',
-                'message'   => 'response_exceeded_max_bytes',
+                'message' => 'response_exceeded_max_bytes',
             ];
         }
 
@@ -327,7 +328,7 @@ class MoodleClient
         if ($response === '' && $httpCode === 0) {
             return [
                 'exception' => 'curl_error',
-                'message'   => $error !== '' ? $error : 'empty_response',
+                'message' => $error !== '' ? $error : 'empty_response',
             ];
         }
 
@@ -376,9 +377,9 @@ class MoodleClient
             if (!empty($options['fail_on_partial'])) {
                 return [
                     'exception' => 'partial_failure',
-                    'message'   => 'moodle_ws_returned_warnings',
-                    'warnings'  => $result['warnings'],
-                    'data'      => $result,
+                    'message' => 'moodle_ws_returned_warnings',
+                    'warnings' => $result['warnings'],
+                    'data' => $result,
                 ];
             }
         }
@@ -460,7 +461,7 @@ class MoodleClient
             $instance->last_error = 'moodle-version-too-old';
             Tools::log()->warning('moodle-version-too-old', [
                 'instance' => (int) $instance->id,
-                'release'  => $releaseNumber,
+                'release' => $releaseNumber,
                 'required' => self::MIN_MOODLE_RELEASE,
             ]);
             return;
@@ -522,7 +523,7 @@ class MoodleClient
      */
     public static function updateUser(MoodleInstance $instance, int $moodleUserId, array $userData): array
     {
-        $params = ["users[0][id]" => $moodleUserId];
+        $params = ['users[0][id]' => $moodleUserId];
         foreach ($userData as $key => $value) {
             $params["users[0][$key]"] = $value;
         }
@@ -591,7 +592,7 @@ class MoodleClient
      */
     public static function updateCohort(MoodleInstance $instance, int $cohortId, array $cohortData): array
     {
-        $params = ["cohorts[0][id]" => $cohortId];
+        $params = ['cohorts[0][id]' => $cohortId];
         foreach ($cohortData as $key => $value) {
             $params["cohorts[0][$key]"] = $value;
         }
@@ -759,7 +760,7 @@ class MoodleClient
      */
     public static function updateCourse(MoodleInstance $instance, int $courseId, array $courseData): array
     {
-        $params = ["courses[0][id]" => $courseId];
+        $params = ['courses[0][id]' => $courseId];
         foreach ($courseData as $key => $value) {
             $params["courses[0][$key]"] = $value;
         }
@@ -834,7 +835,7 @@ class MoodleClient
      */
     public static function updateCategory(MoodleInstance $instance, int $categoryId, array $categoryData): array
     {
-        $params = ["categories[0][id]" => $categoryId];
+        $params = ['categories[0][id]' => $categoryId];
         foreach ($categoryData as $key => $value) {
             $params["categories[0][$key]"] = $value;
         }
@@ -1199,7 +1200,7 @@ class MoodleClient
         } catch (\Throwable $e) {
             Tools::log()->warning('moodle-download-ssrf-rejected', [
                 'instance' => (int) $instance->id,
-                'reason'   => $e->getMessage(),
+                'reason' => $e->getMessage(),
             ]);
             return '';
         }
@@ -1254,7 +1255,7 @@ class MoodleClient
         $normalisedCt = strtolower(trim((string) strtok((string) $contentType, ';')));
         if (!in_array($normalisedCt, self::DOWNLOAD_MIME_ALLOWLIST, true)) {
             Tools::log()->warning('moodle-download-bad-mime', [
-                'url_host'              => parse_url($fileUrl, PHP_URL_HOST),
+                'url_host' => parse_url($fileUrl, PHP_URL_HOST),
                 'received_content_type' => $normalisedCt,
             ]);
             return '';
@@ -2115,7 +2116,13 @@ class MoodleClient
 
     /**
      * Create calendar events in Moodle.
-     * @param array $events Each event: ['name' => string, 'description' => string, 'courseid' => int, 'userid' => int, 'timestart' => int, 'timeduration' => int, 'eventtype' => 'user'|'course'|'site']
+     *
+     * @param array $events Each event: [
+     *                      'name' => string, 'description' => string,
+     *                      'courseid' => int, 'userid' => int,
+     *                      'timestart' => int, 'timeduration' => int,
+     *                      'eventtype' => 'user'|'course'|'site',
+     *                      ]
      */
     public static function createCalendarEvents(MoodleInstance $instance, array $events): array
     {

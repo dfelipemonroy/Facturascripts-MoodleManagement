@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -55,48 +56,48 @@ final class HtmlSanitizer
      * @var array<string, true>
      */
     private const EXEC_TAG_BLOCKLIST = [
-        'script'   => true,
-        'style'    => true,
-        'iframe'   => true,
-        'object'   => true,
-        'embed'    => true,
-        'applet'   => true,
-        'link'     => true,
-        'meta'     => true,
-        'frame'    => true,
+        'script' => true,
+        'style' => true,
+        'iframe' => true,
+        'object' => true,
+        'embed' => true,
+        'applet' => true,
+        'link' => true,
+        'meta' => true,
+        'frame' => true,
         'frameset' => true,
     ];
 
     private const TAG_ALLOWLIST = [
-        'p'       => [],
-        'br'      => [],
-        'b'       => [],
-        'strong'  => [],
-        'i'       => [],
-        'em'      => [],
-        'u'       => [],
-        'ul'      => [],
-        'ol'      => [],
-        'li'      => [],
-        'h1'      => [],
-        'h2'      => [],
-        'h3'      => [],
-        'h4'      => [],
-        'h5'      => [],
-        'h6'      => [],
-        'pre'     => [],
-        'code'    => [],
+        'p' => [],
+        'br' => [],
+        'b' => [],
+        'strong' => [],
+        'i' => [],
+        'em' => [],
+        'u' => [],
+        'ul' => [],
+        'ol' => [],
+        'li' => [],
+        'h1' => [],
+        'h2' => [],
+        'h3' => [],
+        'h4' => [],
+        'h5' => [],
+        'h6' => [],
+        'pre' => [],
+        'code' => [],
         'blockquote' => [],
-        'a'       => ['href'],
-        'img'     => ['src', 'alt'],
+        'a' => ['href'],
+        'img' => ['src', 'alt'],
     ];
 
     /**
      * Entity-escape every HTML control character.
      *
      * @param string|null $text Untrusted input.
-     * @return string           Safe for direct rendering inside an
-     *                          HTML element body (NOT attribute).
+     * @return string Safe for direct rendering inside an
+     *                HTML element body (NOT attribute).
      */
     public static function escape(?string $text): string
     {
@@ -185,7 +186,7 @@ final class HtmlSanitizer
      * entity-escape strategy to guarantee no code reaches the page.
      *
      * @param string|null $html Untrusted HTML from Moodle.
-     * @return string           Safe HTML fragment.
+     * @return string Safe HTML fragment.
      */
     public static function allowlist(?string $html): string
     {
@@ -334,7 +335,8 @@ final class HtmlSanitizer
             return true;
         }
         // `data:image/...` only; `i` flag preserved on the sub-type regex.
-        if (strncmp($normalised, 'data:image/', 11) === 0
+        if (
+            strncmp($normalised, 'data:image/', 11) === 0
             && preg_match('#^data:image/(png|jpe?g|gif|webp);base64,#i', $src)
         ) {
             return true;

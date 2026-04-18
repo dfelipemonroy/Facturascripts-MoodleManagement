@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -9,9 +10,7 @@ declare(strict_types=1);
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
 use FacturaScripts\Core\Base\Controller;
-use FacturaScripts\Core\Base\ControllerPermissions;
 use FacturaScripts\Core\Base\DataBase;
-use FacturaScripts\Core\Response;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\User;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CspHeader;
@@ -31,13 +30,10 @@ class MoodleDashboard extends Controller
      * @since 2.0 — F10.9 · §6.22
      */
     private const DASH_CACHE_KEY = 'mm_dashboard_payload_v1';
-
     /** TTL in seconds for the dashboard cache. */
     private const DASH_CACHE_TTL = 60;
-
     /** @var array */
     public $dashboardData = [];
-
     public function getPageData(): array
     {
         $data = parent::getPageData();
@@ -50,7 +46,6 @@ class MoodleDashboard extends Controller
     public function privateCore(&$response, $user, $permissions): void
     {
         parent::privateCore($response, $user, $permissions);
-
         // SEC-12 (2026-04-17) — apply the plugin CSP layer on every
         // controller that renders user-controlled Moodle content
         // inside a <script> block. The dashboard ingests course
@@ -58,9 +53,7 @@ class MoodleDashboard extends Controller
         // payloads; a CSP restricts the blast radius if a future
         // defect slips a string-interpolated tag past JsonForScript.
         CspHeader::apply($this->response);
-
         $this->setTemplate('MoodleDashboard');
-
         // F10.9 — cache hit short-circuit. Explicit refresh via
         // ?refresh=1 re-populates the cache so admins can force a
         // fresh view after a bulk import or sync.
@@ -78,36 +71,30 @@ class MoodleDashboard extends Controller
     private function loadDashboardData(): void
     {
         $db = new DataBase();
-
         // Status counts
-        $sql = "SELECT status, COUNT(*) as total FROM moodle_enrolments GROUP BY status";
+        $sql = 'SELECT status, COUNT(*) as total FROM moodle_enrolments GROUP BY status';
         $statusCounts = ['pending' => 0, 'enrolled' => 0, 'suspended' => 0, 'unenrolled' => 0];
         foreach ($db->select($sql) as $row) {
             $statusCounts[$row['status']] = (int)$row['total'];
         }
         $this->dashboardData['statusCounts'] = $statusCounts;
         $this->dashboardData['totalEnrolments'] = array_sum($statusCounts);
-
         // Unbilled count
         $sql = "SELECT COUNT(*) as total FROM moodle_enrolments WHERE status = 'enrolled' AND idfactura IS NULL";
         $result = $db->select($sql);
         $this->dashboardData['unbilledCount'] = !empty($result) ? (int)$result[0]['total'] : 0;
-
         // Active instances
         $sql = "SELECT COUNT(*) as total FROM moodle_instances WHERE status = 'active'";
         $result = $db->select($sql);
         $this->dashboardData['activeInstances'] = !empty($result) ? (int)$result[0]['total'] : 0;
-
         // Total mapped users
-        $sql = "SELECT COUNT(*) as total FROM moodle_user_map";
+        $sql = 'SELECT COUNT(*) as total FROM moodle_user_map';
         $result = $db->select($sql);
         $this->dashboardData['totalUsers'] = !empty($result) ? (int)$result[0]['total'] : 0;
-
         // Total courses
-        $sql = "SELECT COUNT(*) as total FROM moodle_course_map";
+        $sql = 'SELECT COUNT(*) as total FROM moodle_course_map';
         $result = $db->select($sql);
         $this->dashboardData['totalCourses'] = !empty($result) ? (int)$result[0]['total'] : 0;
-
         // Enrolments by month (last 6 months)
         $months = [];
         $monthCounts = [];
@@ -121,7 +108,7 @@ class MoodleDashboard extends Controller
             ? "TO_CHAR(enrolment_date, 'YYYY-MM')"
             : "DATE_FORMAT(enrolment_date, '%Y-%m')";
         $sql = "SELECT {$dateExpr} as month, COUNT(*) as total"
-            . " FROM moodle_enrolments WHERE enrolment_date >= " . $db->var2str($sixMonthsAgo)
+            . ' FROM moodle_enrolments WHERE enrolment_date >= ' . $db->var2str($sixMonthsAgo)
             . " GROUP BY {$dateExpr} ORDER BY month";
         foreach ($db->select($sql) as $row) {
             if (isset($monthCounts[$row['month']])) {
@@ -130,13 +117,12 @@ class MoodleDashboard extends Controller
         }
         $this->dashboardData['monthLabels'] = array_values($months);
         $this->dashboardData['monthData'] = array_values($monthCounts);
-
         // Top 5 courses by enrolments
         $sql = "SELECT e.moodle_courseid, COALESCE(c.shortname, CONCAT('ID:', e.moodle_courseid)) as course_name,"
-            . " COUNT(*) as total FROM moodle_enrolments e"
-            . " LEFT JOIN moodle_course_map c ON e.idcourse_map = c.id"
-            . " GROUP BY e.moodle_courseid, c.shortname"
-            . " ORDER BY total DESC LIMIT 5";
+            . ' COUNT(*) as total FROM moodle_enrolments e'
+            . ' LEFT JOIN moodle_course_map c ON e.idcourse_map = c.id'
+            . ' GROUP BY e.moodle_courseid, c.shortname'
+            . ' ORDER BY total DESC LIMIT 5';
         $topCourses = [];
         $topCourseCounts = [];
         foreach ($db->select($sql) as $row) {
@@ -145,9 +131,8 @@ class MoodleDashboard extends Controller
         }
         $this->dashboardData['topCourseLabels'] = $topCourses;
         $this->dashboardData['topCourseData'] = $topCourseCounts;
-
         // Enrolments by method
-        $sql = "SELECT enrolment_method, COUNT(*) as total FROM moodle_enrolments GROUP BY enrolment_method ORDER BY total DESC";
+        $sql = 'SELECT enrolment_method, COUNT(*) as total FROM moodle_enrolments GROUP BY enrolment_method ORDER BY total DESC';
         $methodLabels = [];
         $methodData = [];
         foreach ($db->select($sql) as $row) {
@@ -156,7 +141,6 @@ class MoodleDashboard extends Controller
         }
         $this->dashboardData['methodLabels'] = $methodLabels;
         $this->dashboardData['methodData'] = $methodData;
-
         // FE-01 (2026-04-17) — pre-serialise every array that lands
         // inside a <script> block so the template never interpolates
         // untrusted upstream strings with the unsafe `|json_encode|raw`
@@ -164,10 +148,10 @@ class MoodleDashboard extends Controller
         // and `&` so a course name containing `</script>` (or smart
         // quotes, or ampersands) can no longer close the tag.
         $this->dashboardData['monthLabelsJson'] = JsonForScript::encode($this->dashboardData['monthLabels']);
-        $this->dashboardData['monthDataJson']   = JsonForScript::encode($this->dashboardData['monthData']);
+        $this->dashboardData['monthDataJson'] = JsonForScript::encode($this->dashboardData['monthData']);
         $this->dashboardData['topCourseLabelsJson'] = JsonForScript::encode($this->dashboardData['topCourseLabels']);
-        $this->dashboardData['topCourseDataJson']   = JsonForScript::encode($this->dashboardData['topCourseData']);
+        $this->dashboardData['topCourseDataJson'] = JsonForScript::encode($this->dashboardData['topCourseData']);
         $this->dashboardData['methodLabelsJson'] = JsonForScript::encode($this->dashboardData['methodLabels']);
-        $this->dashboardData['methodDataJson']   = JsonForScript::encode($this->dashboardData['methodData']);
+        $this->dashboardData['methodDataJson'] = JsonForScript::encode($this->dashboardData['methodData']);
     }
 }

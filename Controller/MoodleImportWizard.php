@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -37,9 +38,10 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
  */
 class MoodleImportWizard extends Controller
 {
-    const SESSION_KEY = 'moodle_import_wizard';
-    const PREFS_COOKIE = 'moodle_wizard_prefs';
-    const PREFS_COOKIE_TTL = 7776000; // 90 days
+    public const SESSION_KEY = 'moodle_import_wizard';
+    public const PREFS_COOKIE = 'moodle_wizard_prefs';
+    public const PREFS_COOKIE_TTL = 7776000;
+    // 90 days
 
     /**
      * HKDF info label used to sign the wizard prefs cookie via
@@ -47,23 +49,17 @@ class MoodleImportWizard extends Controller
      *
      * @since 2.0 — SEC-07 (2026-04-17)
      */
-    const PREFS_COOKIE_CONTEXT = 'mm/wizard-prefs/v1';
-
+    public const PREFS_COOKIE_CONTEXT = 'mm/wizard-prefs/v1';
     /** @var int Current step number (1..4). */
     public $step = 1;
-
     /** @var array Wizard state: instance, mode, client, users, selected, mapping, result. */
     public $state = [];
-
     /** @var array Instances available for step 1. */
     public $instances = [];
-
     /** @var array Default field mapping (Moodle field => Contacto field). */
     public $defaultMapping = [];
-
     /** @var array Last-used preferences (instance, mode, mapping) from cookie. */
     public $prefs = [];
-
     public function getPageData(): array
     {
         $data = parent::getPageData();
@@ -77,13 +73,11 @@ class MoodleImportWizard extends Controller
     public function privateCore(&$response, $user, $permissions): void
     {
         parent::privateCore($response, $user, $permissions);
-
         // SEC-12 (2026-04-17) — apply the plugin CSP layer. The
         // wizard echoes Moodle-supplied usernames and email addresses
         // during the preview step; the CSP bounds the blast radius
         // in case an edit slips past the template escape.
         CspHeader::apply($this->response);
-
         $this->defaultMapping = [
             'email' => 'email',
             'firstname' => 'nombre',
@@ -95,11 +89,9 @@ class MoodleImportWizard extends Controller
             'country' => 'codpais',
             'address' => 'direccion',
         ];
-
         $this->loadInstances();
         $this->loadState();
         $this->loadPrefs();
-
         // GET action (querystring) takes priority for the CSV download
         if ($this->request->get('action') === 'export-csv') {
             $this->exportCsvAction();
@@ -107,35 +99,35 @@ class MoodleImportWizard extends Controller
         }
 
         $action = $this->request->request->get('action', '');
-
         switch ($action) {
             case 'reset':
                 $this->resetState();
                 $this->step = 1;
-                return;
 
+                return;
             case 'go-to-step-2':
                 $this->processStep1();
-                return;
 
+                return;
             case 'go-to-step-3':
                 $this->processStep2();
-                return;
 
+                return;
             case 'go-to-step-4':
                 $this->processStep3();
-                return;
 
+                return;
             case 'back-to-step-1':
                 $this->step = 1;
-                return;
 
+                return;
             case 'back-to-step-2':
                 $this->step = 2;
-                return;
 
+                return;
             case 'back-to-step-3':
                 $this->step = 3;
+
                 return;
         }
 
@@ -156,7 +148,6 @@ class MoodleImportWizard extends Controller
             'auth_types' => [],
             'mapping' => [],
         ];
-
         $raw = (string)$this->request->cookies->get(self::PREFS_COOKIE, '');
         if ($raw === '') {
             return;
@@ -217,18 +208,14 @@ class MoodleImportWizard extends Controller
             Tools::log()->warning('wizard-prefs-cookie-skipped', ['message' => $e->getMessage()]);
             return;
         }
-        @setcookie(
-            self::PREFS_COOKIE,
-            $signed,
-            [
-                'expires'  => time() + self::PREFS_COOKIE_TTL,
-                'path'     => '/',
-                'domain'   => '',
-                'secure'   => $this->isHttpsRequest(),
+        @setcookie(self::PREFS_COOKIE, $signed, [
+                'expires' => time() + self::PREFS_COOKIE_TTL,
+                'path' => '/',
+                'domain' => '',
+                'secure' => $this->isHttpsRequest(),
                 'httponly' => true,
                 'samesite' => 'Lax',
-            ]
-        );
+            ]);
     }
 
     /**
@@ -246,7 +233,8 @@ class MoodleImportWizard extends Controller
         if (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off') {
             return true;
         }
-        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])
+        if (
+            !empty($_SERVER['HTTP_X_FORWARDED_PROTO'])
             && strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https'
         ) {
             return true;
@@ -304,7 +292,6 @@ class MoodleImportWizard extends Controller
         $codcliente = (string)$this->request->request->get('codcliente', '');
         $postAll = $this->request->request->all();
         $authFilter = isset($postAll['auth_types']) ? (array)$postAll['auth_types'] : [];
-
         if (empty($importMode)) {
             Tools::log()->warning('import-mode-required');
             $this->step = 1;
@@ -358,7 +345,6 @@ class MoodleImportWizard extends Controller
 
         // Annotate each user: existing map / existing contact
         $users = $this->annotateUsers($users, (int)$instance->id);
-
         $this->state = [
             'idinstance' => (int)$instance->id,
             'instance_name' => $instance->name,
@@ -392,18 +378,18 @@ class MoodleImportWizard extends Controller
                     continue;
                 }
                 $users[$user['id']] = [
-                    'id' => (int)$user['id'],
-                    'username' => $user['username'] ?? '',
-                    'email' => $user['email'],
-                    'firstname' => $user['firstname'] ?? '',
-                    'lastname' => $user['lastname'] ?? '',
-                    'phone1' => $user['phone1'] ?? '',
-                    'phone2' => $user['phone2'] ?? '',
-                    'idnumber' => $user['idnumber'] ?? '',
-                    'city' => $user['city'] ?? '',
-                    'country' => $user['country'] ?? '',
-                    'address' => $user['address'] ?? '',
-                    'auth' => $user['auth'] ?? '',
+                'id' => (int)$user['id'],
+                'username' => $user['username'] ?? '',
+                'email' => $user['email'],
+                'firstname' => $user['firstname'] ?? '',
+                'lastname' => $user['lastname'] ?? '',
+                'phone1' => $user['phone1'] ?? '',
+                'phone2' => $user['phone2'] ?? '',
+                'idnumber' => $user['idnumber'] ?? '',
+                'city' => $user['city'] ?? '',
+                'country' => $user['country'] ?? '',
+                'address' => $user['address'] ?? '',
+                'auth' => $user['auth'] ?? '',
                 ];
             }
         }
@@ -415,7 +401,6 @@ class MoodleImportWizard extends Controller
         foreach ($users as &$u) {
             $u['exists_mapping'] = false;
             $u['exists_contact'] = false;
-
             // Existing map?
             $mapModel = new MoodleUserMap();
             $mapWhere = [
@@ -447,7 +432,6 @@ class MoodleImportWizard extends Controller
         $selectedIds = $postAll['selected_users'] ?? [];
         $selectedIds = array_map('intval', (array)$selectedIds);
         $selectedIds = array_values(array_unique(array_filter($selectedIds)));
-
         if (empty($selectedIds)) {
             Tools::log()->warning('wizard-no-users-selected');
             $this->step = 2;
@@ -481,13 +465,11 @@ class MoodleImportWizard extends Controller
         }
 
         $this->state['mapping'] = $clean;
-
         $result = $this->executeImport();
         $this->state['result'] = $result;
         $this->saveState();
         $this->savePrefs();
         $this->step = 4;
-
         Tools::log()->notice('import-completed', [
             '%imported%' => $result['imported'],
             '%skipped%' => $result['skipped'],
@@ -501,7 +483,6 @@ class MoodleImportWizard extends Controller
     private function exportCsvAction(): void
     {
         $this->setTemplate(false);
-
         $result = $this->state['result'] ?? null;
         if (empty($result) || empty($result['details'])) {
             $this->response->setStatusCode(404);
@@ -512,11 +493,9 @@ class MoodleImportWizard extends Controller
         $filename = 'moodle-import-' . date('Y-m-d-His') . '.csv';
         $this->response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
         $this->response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
-
         $buffer = fopen('php://temp', 'w+');
         // UTF-8 BOM so Excel opens the file correctly
         fwrite($buffer, "\xEF\xBB\xBF");
-
         // F2.7 — header row is hardcoded (no user input) and would
         // not trigger formula injection, but we route it through
         // CsvEscaper anyway to keep a single formatting code-path.
@@ -526,7 +505,6 @@ class MoodleImportWizard extends Controller
             Tools::lang()->trans('email'),
             Tools::lang()->trans('message'),
         ], ';');
-
         foreach ($result['details'] as $row) {
             // F2.7 — user-controlled Moodle values (`username`, `email`,
             // translated `message`) go through CsvEscaper::fputcsvSafe
@@ -543,7 +521,6 @@ class MoodleImportWizard extends Controller
         rewind($buffer);
         $csv = stream_get_contents($buffer);
         fclose($buffer);
-
         $this->response->setContent($csv);
     }
 
@@ -557,7 +534,6 @@ class MoodleImportWizard extends Controller
         $skipped = 0;
         $errors = 0;
         $details = [];
-
         $instance = new MoodleInstance();
         if (false === $instance->loadFromCode($this->state['idinstance'])) {
             return [
@@ -573,24 +549,22 @@ class MoodleImportWizard extends Controller
             $existingClient = new Cliente();
             if (false === $existingClient->loadFromCode($this->state['codcliente'])) {
                 return [
-                    'imported' => 0,
-                    'skipped' => 0,
-                    'errors' => 1,
-                    'details' => [['status' => 'error', 'message' => 'client-not-found']],
+                'imported' => 0,
+                'skipped' => 0,
+                'errors' => 1,
+                'details' => [['status' => 'error', 'message' => 'client-not-found']],
                 ];
             }
         }
 
         $selected = array_flip($this->state['selected']);
         $mapping = $this->state['mapping'] ?? $this->defaultMapping;
-
         foreach ($this->state['users'] as $moodleUser) {
             if (!isset($selected[$moodleUser['id']])) {
                 continue;
             }
 
             $email = $moodleUser['email'];
-
             // Skip if mapping already exists
             $mapModel = new MoodleUserMap();
             $mapWhere = [
@@ -600,10 +574,10 @@ class MoodleImportWizard extends Controller
             if ($mapModel->loadFromCode('', $mapWhere)) {
                 $skipped++;
                 $details[] = [
-                    'status' => 'skipped',
-                    'username' => $moodleUser['username'],
-                    'email' => $email,
-                    'message' => 'already-mapped',
+                'status' => 'skipped',
+                'username' => $moodleUser['username'],
+                'email' => $email,
+                'message' => 'already-mapped',
                 ];
                 continue;
             }
@@ -611,10 +585,8 @@ class MoodleImportWizard extends Controller
             // Existing contact?
             $contact = new Contacto();
             $contactExists = $contact->loadFromCode('', [new DataBaseWhere('email', $email)]);
-
             if (false === $contactExists) {
                 $newContact = $this->createContactFromMapping($moodleUser, $mapping);
-
                 if ($this->state['import_mode'] === 'create_client_per_user') {
                     $cliente = new Cliente();
                     $fullName = trim(($newContact->nombre ?? '') . ' ' . ($newContact->apellidos ?? ''));
@@ -628,10 +600,10 @@ class MoodleImportWizard extends Controller
                     if (false === $cliente->save()) {
                         $errors++;
                         $details[] = [
-                            'status' => 'error',
-                            'username' => $moodleUser['username'],
-                            'email' => $email,
-                            'message' => 'client-create-failed',
+                        'status' => 'error',
+                        'username' => $moodleUser['username'],
+                        'email' => $email,
+                        'message' => 'client-create-failed',
                         ];
                         continue;
                     }
@@ -647,10 +619,10 @@ class MoodleImportWizard extends Controller
                     if (false === $newContact->save()) {
                         $errors++;
                         $details[] = [
-                            'status' => 'error',
-                            'username' => $moodleUser['username'],
-                            'email' => $email,
-                            'message' => 'contact-create-failed',
+                        'status' => 'error',
+                        'username' => $moodleUser['username'],
+                        'email' => $email,
+                        'message' => 'contact-create-failed',
                         ];
                         continue;
                     }
@@ -688,18 +660,18 @@ class MoodleImportWizard extends Controller
             if ($map->save()) {
                 $imported++;
                 $details[] = [
-                    'status' => 'imported',
-                    'username' => $moodleUser['username'],
-                    'email' => $email,
-                    'message' => 'imported-ok',
+                'status' => 'imported',
+                'username' => $moodleUser['username'],
+                'email' => $email,
+                'message' => 'imported-ok',
                 ];
             } else {
                 $errors++;
                 $details[] = [
-                    'status' => 'error',
-                    'username' => $moodleUser['username'],
-                    'email' => $email,
-                    'message' => 'map-create-failed',
+                'status' => 'error',
+                'username' => $moodleUser['username'],
+                'email' => $email,
+                'message' => 'map-create-failed',
                 ];
             }
         }
@@ -733,12 +705,12 @@ class MoodleImportWizard extends Controller
             if ($contactField === 'codpais' && strlen($value) === 2) {
                 $value = strtoupper($value);
                 $map = [
-                    'AR' => 'ARG', 'BO' => 'BOL', 'BR' => 'BRA', 'CA' => 'CAN', 'CL' => 'CHL',
-                    'CO' => 'COL', 'CR' => 'CRI', 'CU' => 'CUB', 'DO' => 'DOM', 'EC' => 'ECU',
-                    'ES' => 'ESP', 'FR' => 'FRA', 'GB' => 'GBR', 'GT' => 'GTM', 'HN' => 'HND',
-                    'IT' => 'ITA', 'MX' => 'MEX', 'NI' => 'NIC', 'PA' => 'PAN', 'PE' => 'PER',
-                    'PR' => 'PRI', 'PT' => 'PRT', 'PY' => 'PRY', 'SV' => 'SLV', 'US' => 'USA',
-                    'UY' => 'URY', 'VE' => 'VEN', 'DE' => 'DEU',
+                'AR' => 'ARG', 'BO' => 'BOL', 'BR' => 'BRA', 'CA' => 'CAN', 'CL' => 'CHL',
+                'CO' => 'COL', 'CR' => 'CRI', 'CU' => 'CUB', 'DO' => 'DOM', 'EC' => 'ECU',
+                'ES' => 'ESP', 'FR' => 'FRA', 'GB' => 'GBR', 'GT' => 'GTM', 'HN' => 'HND',
+                'IT' => 'ITA', 'MX' => 'MEX', 'NI' => 'NIC', 'PA' => 'PAN', 'PE' => 'PER',
+                'PR' => 'PRI', 'PT' => 'PRT', 'PY' => 'PRY', 'SV' => 'SLV', 'US' => 'USA',
+                'UY' => 'URY', 'VE' => 'VEN', 'DE' => 'DEU',
                 ];
                 $value = $map[$value] ?? $value;
             }

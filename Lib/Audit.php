@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -34,28 +35,28 @@ final class Audit
      * Known outcome tags. Callers should use constants or one of
      * these literals for consistency.
      */
-    public const OK            = 'ok';
-    public const FORBIDDEN     = 'forbidden';
-    public const RATE_LIMITED  = 'rate_limited';
+    public const OK = 'ok';
+    public const FORBIDDEN = 'forbidden';
+    public const RATE_LIMITED = 'rate_limited';
     public const BAD_SIGNATURE = 'bad_signature';
-    public const ERROR         = 'error';
+    public const ERROR = 'error';
 
     /**
      * Persist one audit row.
      *
-     * @param string     $action      Short machine tag, e.g.
-     *                                "certificate.download" or
-     *                                "usermap.sync-to-moodle".
-     * @param string     $outcome     One of the OUTCOME_* constants
-     *                                above. Default 'ok'.
-     * @param array      $context     {
-     *     operator_nick?: string|null,
-     *     target_type?:   string|null,
-     *     target_id?:     int|null,
-     *     ip?:            string|null,
-     *     user_agent?:    string|null,
-     *     payload?:       mixed       (hashed, NOT stored verbatim)
-     * }
+     * @param string $action Short machine tag, e.g.
+     *                       "certificate.download" or
+     *                       "usermap.sync-to-moodle".
+     * @param string $outcome One of the OUTCOME_* constants
+     *                        above. Default 'ok'.
+     * @param array $context {
+     *                       operator_nick?: string|null,
+     *                       target_type?:   string|null,
+     *                       target_id?:     int|null,
+     *                       ip?:            string|null,
+     *                       user_agent?:    string|null,
+     *                       payload?:       mixed       (hashed, NOT stored verbatim)
+     *                       }
      */
     public static function record(string $action, string $outcome = self::OK, array $context = []): void
     {
@@ -97,17 +98,17 @@ final class Audit
             if (!$row->save()) {
                 // Persistence failed (table missing or DB down).
                 Tools::log()->warning('audit-persistence-failed', [
-                    'action'  => $action,
+                    'action' => $action,
                     'outcome' => $outcome,
                 ]);
             }
         } catch (\Throwable $e) {
             // Never break the user request because of audit logging.
             Tools::log()->warning('audit-exception', [
-                'action'    => $action,
-                'outcome'   => $outcome,
+                'action' => $action,
+                'outcome' => $outcome,
                 'exception' => get_class($e),
-                'message'   => $e->getMessage(),
+                'message' => $e->getMessage(),
             ]);
         }
     }

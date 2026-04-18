@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -31,7 +32,7 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
  */
 final class UsernameGenerator
 {
-    public const STRATEGY_NAME_BASED   = 'name_based';
+    public const STRATEGY_NAME_BASED = 'name_based';
     public const STRATEGY_RANDOM_ALIAS = 'random_alias';
 
     /** Prefix for the opaque alias strategy. Helps operators tell the
@@ -53,16 +54,69 @@ final class UsernameGenerator
     }
 
     /**
+     * Maximum number of random_alias regenerate attempts before we
+     * accept whatever comes out. 48 bits of entropy make a collision
+     * on any single try extremely unlikely; re-trying a handful of
+     * times closes the residual gap without blocking enrolment if
+     * the WS call keeps returning a collision for some reason.
+     *
+     * @since 2.0 — INT-06 (2026-04-17)
+     */
+    public const RANDOM_ALIAS_MAX_PROBES = 5;
+
+    /**
      * Unique candidate verified against the target instance via
      * core_user_get_users_by_field. Numeric suffix up to 99, then
      * 8-char random hex fallback.
+     *
+     * INT-06 (2026-04-17) — when the strategy is `random_alias` we
+     * now probe Moodle with `getUsersByField('username', [candidate])`
+     * up to `RANDOM_ALIAS_MAX_PROBES` times and regenerate on
+     * collision. Previously the first generated alias was returned
+     * blindly; a 48-bit collision is unlikely but not impossible at
+     * 100k+ user scale, and the only recovery was a failed enrolment.
      */
     public static function unique(Contacto $contact, MoodleInstance $instance): string
     {
         if (self::strategyFor($instance) === self::STRATEGY_RANDOM_ALIAS) {
-            return self::randomAlias();
+            for ($attempt = 0; $attempt < self::RANDOM_ALIAS_MAX_PROBES; $attempt++) {
+                $candidate = self::randomAlias();
+                if (!self::aliasExistsOnInstance($candidate, $instance)) {
+                    return $candidate;
+                }
+            }
+            // All probes returned collisions (or the probe itself is
+            // unavailable). Emit the last candidate — the subsequent
+            // enrol_user call will surface any genuine collision via
+            // the standard error path.
+            return $candidate;
         }
         return MoodleClient::generateUniqueUsername($contact, $instance);
+    }
+
+    /**
+     * INT-06 helper — returns true when the candidate username already
+     * maps to a user on the target instance. False when the WS probe
+     * fails (fail-open so a transient Moodle outage does not stall
+     * onboarding; the caller will catch the real conflict on the
+     * enrol call).
+     *
+     * @since 2.0 — INT-06 (2026-04-17)
+     */
+    private static function aliasExistsOnInstance(string $candidate, MoodleInstance $instance): bool
+    {
+        if ($candidate === '') {
+            return false;
+        }
+        try {
+            $result = MoodleClient::getUsersByField($instance, 'username', [$candidate]);
+        } catch (\Throwable $e) {
+            return false;
+        }
+        if (!is_array($result) || isset($result['exception'])) {
+            return false;
+        }
+        return !empty($result);
     }
 
     /**

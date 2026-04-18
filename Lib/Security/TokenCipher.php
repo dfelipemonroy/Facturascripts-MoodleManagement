@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -189,10 +190,10 @@ final class TokenCipher
                 }
             }
             Tools::log()->error('token-cipher-migration-failed', [
-                'message'          => $e->getMessage(),
+                'message' => $e->getMessage(),
                 'encrypted_before' => $encryptedCount,
-                'skipped'          => $skippedCount,
-                'tx'               => $txStarted,
+                'skipped' => $skippedCount,
+                'tx' => $txStarted,
             ]);
             return false;
         }
@@ -213,8 +214,8 @@ final class TokenCipher
 
         Tools::log()->notice('token-cipher-migration-ok', [
             'encrypted' => $encryptedCount,
-            'skipped'   => $skippedCount,
-            'tx'        => $txStarted,
+            'skipped' => $skippedCount,
+            'tx' => $txStarted,
         ]);
         return true;
     }

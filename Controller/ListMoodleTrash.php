@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -52,7 +53,7 @@ class ListMoodleTrash extends ListController
      * @param User $user
      * @param ControllerPermissions $permissions
      */
-    public function privateCore(&$response, $user, $permissions)
+    public function privateCore(&$response, $user, $permissions): void
     {
         if (empty($user->admin)) {
             $this->setTemplate('Error/AccessDenied');
@@ -62,7 +63,7 @@ class ListMoodleTrash extends ListController
         parent::privateCore($response, $user, $permissions);
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addView('ListMoodleTrashUserMap', 'MoodleUserMap', 'user-mappings', 'fa-solid fa-users-between-lines')
             ->addSearchFields(['moodle_username'])
@@ -137,7 +138,7 @@ class ListMoodleTrash extends ListController
             // so operators do not chase a silent no-op.
             Tools::log()->warning('mm-trash-unknown-entity', [
                 'entity' => $entity,
-                'error'  => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
             return true;
         }
@@ -153,8 +154,8 @@ class ListMoodleTrash extends ListController
             $ok = $db->exec('UPDATE ' . $table . ' SET deleted_at = NULL WHERE id = ' . $db->var2str($id));
             Audit::record('trash.restore', $ok ? Audit::OK : Audit::ERROR, [
                 'operator_nick' => $this->user->nick ?? null,
-                'target_type'   => $entity,
-                'target_id'     => $id,
+                'target_type' => $entity,
+                'target_id' => $id,
             ]);
             Tools::log()->notice('mm-trash-restored', ['entity' => $entity, 'id' => $id]);
         } elseif ($verb === 'purge') {
@@ -178,8 +179,8 @@ class ListMoodleTrash extends ListController
                 : (bool) $db->exec('DELETE FROM ' . $table . ' WHERE id = ' . $db->var2str($id));
             Audit::record('trash.purge', $ok ? Audit::OK : Audit::ERROR, [
                 'operator_nick' => $this->user->nick ?? null,
-                'target_type'   => $entity,
-                'target_id'     => $id,
+                'target_type' => $entity,
+                'target_id' => $id,
             ]);
             Tools::log()->notice('mm-trash-purged', ['entity' => $entity, 'id' => $id]);
         }

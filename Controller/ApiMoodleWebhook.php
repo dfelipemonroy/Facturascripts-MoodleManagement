@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -164,9 +165,9 @@ class ApiMoodleWebhook extends Controller
         if (!$log->signature_ok) {
             Audit::record('webhook.receive', Audit::BAD_SIGNATURE, [
                 'target_type' => 'moodle_instance',
-                'target_id'   => $instanceId,
-                'ip'          => $ip,
-                'payload'     => ['event' => $eventType],
+                'target_id' => $instanceId,
+                'ip' => $ip,
+                'payload' => ['event' => $eventType],
             ]);
             $this->saveLog($log, 401, 'bad-signature');
             $this->respond(401, ['status' => 'unauthorized']);
@@ -211,9 +212,9 @@ class ApiMoodleWebhook extends Controller
 
         Audit::record('webhook.receive', Audit::OK, [
             'target_type' => 'moodle_instance',
-            'target_id'   => $instanceId,
-            'ip'          => $ip,
-            'payload'     => ['event' => $eventType, 'bytes' => $log->payload_bytes],
+            'target_id' => $instanceId,
+            'ip' => $ip,
+            'payload' => ['event' => $eventType, 'bytes' => $log->payload_bytes],
         ]);
         $this->respond($http, $outcome);
     }

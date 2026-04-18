@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -72,7 +73,7 @@ class PreEnrolmentWorker extends WorkerClass
         ) {
             \FacturaScripts\Core\Tools::log()->info('preenrol-line-deleted', [
                 'event' => $event->name,
-                'id'    => (int) $event->value,
+                'id' => (int) $event->value,
             ]);
             return $this->done();
         }
@@ -112,7 +113,6 @@ class PreEnrolmentWorker extends WorkerClass
      *
      * @param PresupuestoCliente|PedidoCliente $doc
      * @param string $docType Either 'presupuesto' or 'pedido'.
-     * @return void
      */
     private function createPendingEnrolments($doc, string $docType): void
     {

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -50,7 +51,7 @@ class ListMoodleAuditLog extends ListController
      * @param User $user
      * @param ControllerPermissions $permissions
      */
-    public function privateCore(&$response, $user, $permissions)
+    public function privateCore(&$response, $user, $permissions): void
     {
         if (empty($user->admin)) {
             $this->setTemplate('Error/AccessDenied');
@@ -60,7 +61,7 @@ class ListMoodleAuditLog extends ListController
         parent::privateCore($response, $user, $permissions);
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->createAuditView();
         $this->createWebhookView();

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -140,10 +141,10 @@ class MoodleCourseCategory extends ModelClass
         }
 
         $results = [];
-        $sql = "SELECT DISTINCT " . $field . " AS code, "
+        $sql = 'SELECT DISTINCT ' . $field . ' AS code, '
             . "CONCAT(name, ' (', moodle_categoryid, ')') AS description "
-            . "FROM " . static::tableName()
-            . " WHERE moodle_categoryid IS NOT NULL ORDER BY 2 ASC";
+            . 'FROM ' . static::tableName()
+            . ' WHERE moodle_categoryid IS NOT NULL ORDER BY 2 ASC';
         $db = new DataBase();
         foreach ($db->selectLimit($sql, CodeModel::getLimit()) as $d) {
             $results[] = new CodeModel($d);

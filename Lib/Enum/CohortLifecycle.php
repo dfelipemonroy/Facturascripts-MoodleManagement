@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -37,10 +38,10 @@ namespace FacturaScripts\Plugins\MoodleManagement\Lib\Enum;
  */
 final class CohortLifecycle
 {
-    public const ACTIVE   = 'active';
+    public const ACTIVE = 'active';
     public const DETACHED = 'detached';
     public const ARCHIVED = 'archived';
-    public const TRASHED  = 'trashed';
+    public const TRASHED = 'trashed';
 
     /**
      * All values in a single array.
@@ -69,8 +70,10 @@ final class CohortLifecycle
         if (property_exists($cohort, 'sync_active') && $cohort->sync_active === false) {
             return self::ARCHIVED;
         }
-        if (property_exists($cohort, 'last_error') && is_string($cohort->last_error)
-            && stripos($cohort->last_error, 'not found in moodle') !== false) {
+        if (
+            property_exists($cohort, 'last_error') && is_string($cohort->last_error)
+            && stripos($cohort->last_error, 'not found in moodle') !== false
+        ) {
             return self::DETACHED;
         }
         return self::ACTIVE;

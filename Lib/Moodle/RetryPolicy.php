@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -51,11 +52,11 @@ final class RetryPolicy
     /**
      * Run $fn with retry.
      *
-     * @param callable $fn         () => array|mixed
-     * @param int      $maxAttempts Total attempts including the first. Clamped to [1, 10].
-     * @param int      $baseDelayMs Initial pause; doubles each attempt. Clamped to [50, 10000].
-     * @param string   $tag         Used in log lines for correlation.
-     * @return mixed                The last result of $fn (success or permanent failure).
+     * @param callable $fn () => array|mixed
+     * @param int $maxAttempts Total attempts including the first. Clamped to [1, 10].
+     * @param int $baseDelayMs Initial pause; doubles each attempt. Clamped to [50, 10000].
+     * @param string $tag Used in log lines for correlation.
+     * @return mixed The last result of $fn (success or permanent failure).
      */
     public static function execute(
         callable $fn,
@@ -79,15 +80,15 @@ final class RetryPolicy
             }
             if (self::isPermanent($lastResult)) {
                 Tools::log()->warning('retry-policy-permanent', [
-                    'tag'      => $tag,
-                    'attempt'  => $attempt,
+                    'tag' => $tag,
+                    'attempt' => $attempt,
                     'response' => self::safeSnippet($lastResult),
                 ]);
                 return $lastResult;
             }
             if ($attempt >= $maxAttempts) {
                 Tools::log()->warning('retry-policy-exhausted', [
-                    'tag'     => $tag,
+                    'tag' => $tag,
                     'attempts' => $attempt,
                     'response' => self::safeSnippet($lastResult),
                 ]);
@@ -97,8 +98,8 @@ final class RetryPolicy
             // Transient → wait and retry.
             $delayMs = $baseDelayMs * (int) pow(2, $attempt - 1);
             Tools::log()->info('retry-policy-backoff', [
-                'tag'       => $tag,
-                'attempt'   => $attempt,
+                'tag' => $tag,
+                'attempt' => $attempt,
                 'next_wait' => $delayMs,
             ]);
             usleep($delayMs * 1000);

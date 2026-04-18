@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -17,7 +18,6 @@ use FacturaScripts\Core\Model\Base\ModelClass;
 use FacturaScripts\Core\Model\Base\ModelTrait;
 use FacturaScripts\Core\Model\Producto;
 use FacturaScripts\Core\Model\ProductoImagen;
-use FacturaScripts\Core\Model\Variante;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 
@@ -281,8 +281,10 @@ class MoodleCourseMap extends ModelClass
         // find the first image file
         $imageFile = null;
         foreach ($overviewFiles as $file) {
-            if (!empty($file['fileurl']) && !empty($file['mimetype'])
-                && strpos($file['mimetype'], 'image/') === 0) {
+            if (
+                !empty($file['fileurl']) && !empty($file['mimetype'])
+                && strpos($file['mimetype'], 'image/') === 0
+            ) {
                 $imageFile = $file;
                 break;
             }

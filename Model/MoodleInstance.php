@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -30,17 +31,14 @@ class MoodleInstance extends ModelClass
     use CompanyRelationTrait;
 
     /** @var int */
-    public $id;
 
+    public $id;
     /** @var string */
     public $name;
-
     /** @var string */
     public $url;
-
     /** @var string */
     public $token;
-
     /**
      * @var string|null Shared secret (HMAC key) used to verify inbound
      *                  webhook requests. Stored cipher-wrapped via
@@ -48,72 +46,51 @@ class MoodleInstance extends ModelClass
      * @since 2.0 — F10.1
      */
     public $webhook_secret;
-
     /**
-     * @var string  Username-generation strategy applied when
-     *              onboarding new contacts to this Moodle.
-     *              One of: 'name_based' (default), 'random_alias'.
+     * @var string Username-generation strategy applied when
+     *             onboarding new contacts to this Moodle.
+     *             One of: 'name_based' (default), 'random_alias'.
      * @since 2.0 — F10.5
      */
     public $username_strategy;
-
     /** @var string */
     public $status;
-
     /** @var string */
     public $environment;
-
     /** @var string */
     public $moodle_version;
-
     /** @var string */
     public $moodle_release;
-
     /** @var string */
     public $site_name;
-
     /** @var string */
     public $lang;
-
     /** @var string */
     public $service_username;
-
     /** @var int */
     public $service_userid;
-
     /** @var int */
     public $available_functions;
-
     /** @var string */
     public $last_check;
-
     /** @var string */
     public $last_error;
-
     /** @var string JSON: maps Moodle custom field shortnames to FS contact fields */
     public $custom_fields_map;
-
     /** @var string default sync priority: newest_wins, fs_wins, moodle_wins */
     public $default_sync_priority;
-
     /** @var string */
     public $notes;
-
     /** @var bool */
     public $onboarding_enabled;
-
     /** @var int|null FK to moodle_course_map.moodle_courseid — welcome course */
     public $onboarding_course_id;
-
     /** @var int|null Moodle cohort ID to assign new users */
     public $onboarding_cohort_id;
-
     /** @var string|null Welcome message template sent to new users */
     public $onboarding_welcome_message;
-
     /** @var string */
     public $creation_date;
-
     public function clear(): void
     {
         parent::clear();
@@ -167,7 +144,6 @@ class MoodleInstance extends ModelClass
         $this->name = Tools::noHtml($this->name);
         $this->url = Tools::noHtml($this->url);
         $this->notes = Tools::noHtml($this->notes);
-
         if (empty($this->name)) {
             Tools::log()->error('field-can-not-be-null', ['%fieldName%' => 'name']);
             return false;
@@ -200,7 +176,6 @@ class MoodleInstance extends ModelClass
 
         // Remove trailing slash from URL
         $this->url = rtrim($this->url, '/');
-
         return parent::test();
     }
 }

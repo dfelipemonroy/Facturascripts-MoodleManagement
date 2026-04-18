@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -92,7 +93,6 @@ class ContactDeleteWorker extends WorkerClass
      *
      * @param int $contactId
      * @param int $instanceId
-     * @return void
      */
     private function suspendEnrolments(int $contactId, int $instanceId): void
     {

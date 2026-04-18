@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -45,10 +46,10 @@ class WidgetCourseimage extends BaseWidget
     /**
      * Renders the edit form widget: image picker from product variant images.
      *
-     * @param object $model     Row model.
-     * @param string $title     Optional label shown above the picker.
+     * @param object $model Row model.
+     * @param string $title Optional label shown above the picker.
      * @param string $description Unused (BaseWidget BC placeholder).
-     * @param string $titleurl    Unused (BaseWidget BC placeholder).
+     * @param string $titleurl Unused (BaseWidget BC placeholder).
      * @return string HTML fragment with radio-image picker.
      * @since 2.0 return type added
      */

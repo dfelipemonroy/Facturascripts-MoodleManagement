@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -38,23 +39,14 @@ class ListMoodleCertificateTemplate extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addView('ListMoodleCertificateTemplate', 'MoodleCertificateTemplate', 'certificate-templates', 'fa-solid fa-award')
             ->addSearchFields(['name', 'title_text', 'subtitle_text'])
             ->addOrderBy(['name'], 'name', 1)
             ->addOrderBy(['is_default'], 'is-default')
             ->addOrderBy(['creation_date'], 'creation-date');
-
         $this->addFilterCheckbox('ListMoodleCertificateTemplate', 'is_default', 'is-default', 'is_default');
-        $this->addFilterAutocomplete(
-            'ListMoodleCertificateTemplate',
-            'idinstance',
-            'moodle-instance',
-            'idinstance',
-            'moodle_instances',
-            'id',
-            'name'
-        );
+        $this->addFilterAutocomplete('ListMoodleCertificateTemplate', 'idinstance', 'moodle-instance', 'idinstance', 'moodle_instances', 'id', 'name');
     }
 }

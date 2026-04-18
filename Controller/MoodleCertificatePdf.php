@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -42,13 +43,10 @@ class MoodleCertificatePdf extends Controller
 {
     /** Rate-limit bucket name passed to RateLimiter::check(). */
     private const RATE_BUCKET = 'certificate.download';
-
     /** Maximum hits per minute per actor. */
     private const RATE_LIMIT = 30;
-
     /** Namespace used when signing certificate URLs. */
     public const SIGNED_RESOURCE = 'certificate-pdf';
-
     public function getPageData(): array
     {
         $data = parent::getPageData();
@@ -90,12 +88,11 @@ class MoodleCertificatePdf extends Controller
     {
         // F2.11 — tight CSP on PDF responses.
         CspHeader::apply($this->response, [
-            'script-src'  => "'none'",
-            'style-src'   => "'none'",
-            'img-src'     => "'none'",
-            'object-src'  => "'none'",
+            'script-src' => "'none'",
+            'style-src' => "'none'",
+            'img-src' => "'none'",
+            'object-src' => "'none'",
         ]);
-
         // F4.1 — rate-limit every actor (authed nick, else client IP).
         $actor = $user ? $user->nick : ($this->request->getClientIp() ?? 'anon');
         if (!RateLimiter::check($actor, self::RATE_BUCKET, self::RATE_LIMIT)) {
@@ -134,11 +131,11 @@ class MoodleCertificatePdf extends Controller
         } catch (\Throwable $e) {
             Tools::log()->error('certificate-pdf-error', [
                 'certificate_id' => (int) $cert->id,
-                'exception'      => get_class($e),
-                'message'        => $e->getMessage(),
-                'file'           => $e->getFile(),
-                'line'           => $e->getLine(),
-                'trace_hash'     => substr(sha1($e->getTraceAsString()), 0, 12),
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace_hash' => substr(sha1($e->getTraceAsString()), 0, 12),
             ]);
             $this->response->setContent(Tools::lang()->trans('certificate-pdf-generation-failed'));
             $this->response->setStatusCode(500);
@@ -174,8 +171,8 @@ class MoodleCertificatePdf extends Controller
             // Explicit bad signature: log and fall through to session check.
             Tools::log()->warning('certificate-pdf-bad-signature', [
                 'certificate_id' => (int) $cert->id,
-                'exp'            => $exp,
-                'v'              => $version,
+                'exp' => $exp,
+                'v' => $version,
             ]);
         }
 
@@ -227,10 +224,8 @@ class MoodleCertificatePdf extends Controller
      *
      * @since 2.0 — SEC-06 (2026-04-17)
      */
-    private static function certificateContactBelongsToCliente(
-        MoodleCertificate $cert,
-        \FacturaScripts\Dinamic\Model\Cliente $cliente
-    ): bool {
+    private static function certificateContactBelongsToCliente(MoodleCertificate $cert, \FacturaScripts\Dinamic\Model\Cliente $cliente): bool
+    {
         $target = (int) $cert->idcontacto;
         if ($target <= 0) {
             return false;
@@ -247,16 +242,11 @@ class MoodleCertificatePdf extends Controller
         // Any Contacto with codcliente == this cliente.
         try {
             $contactModel = new \FacturaScripts\Dinamic\Model\Contacto();
-            $rows = $contactModel->all(
-                [new \FacturaScripts\Core\DataSrc\DataBaseWhere('codcliente', $cliente->codcliente)],
-                ['idcontacto' => 'ASC'],
-                0,
-                0
-            );
+            $rows = $contactModel->all([new \FacturaScripts\Core\DataSrc\DataBaseWhere('codcliente', $cliente->codcliente)], ['idcontacto' => 'ASC'], 0, 0);
         } catch (\Throwable $e) {
             Tools::log()->warning('certificate-pdf-contact-lookup-failed', [
                 'cliente' => (string) $cliente->codcliente,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
             return false;
         }
@@ -278,18 +268,17 @@ class MoodleCertificatePdf extends Controller
         $outcome = $reason === 'rate_limited' ? Audit::RATE_LIMITED : Audit::FORBIDDEN;
         Audit::record('certificate.download', $outcome, [
             'operator_nick' => $actor,
-            'target_type'   => 'moodle_certificate',
-            'target_id'     => $certId,
-            'ip'            => $this->request->getClientIp(),
-            'user_agent'    => (string) $this->request->headers->get('User-Agent', ''),
-            'payload'       => ['reason' => $reason],
+            'target_type' => 'moodle_certificate',
+            'target_id' => $certId,
+            'ip' => $this->request->getClientIp(),
+            'user_agent' => (string) $this->request->headers->get('User-Agent', ''),
+            'payload' => ['reason' => $reason],
         ]);
-
         // Keep a streamlined entry in the technical log for quick triage.
         Tools::log()->warning('certificate-pdf-denied', [
-            'actor'  => $actor,
+            'actor' => $actor,
             'reason' => $reason,
-            'cert'   => $certId,
+            'cert' => $certId,
         ]);
     }
 }

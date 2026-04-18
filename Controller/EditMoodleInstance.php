@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -42,7 +43,7 @@ class EditMoodleInstance extends EditController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         parent::createViews();
 
@@ -63,7 +64,7 @@ class EditMoodleInstance extends EditController
             ->addSearchFields(['name']);
     }
 
-    protected function loadData($viewName, $view)
+    protected function loadData($viewName, $view): void
     {
         if (in_array($viewName, ['ListMoodleUserMap', 'ListMoodleCohort', 'ListMoodleCourseMap', 'ListMoodleCourseCategory'])) {
             $idinstance = $this->getViewModelValue($this->getMainViewName(), 'id');

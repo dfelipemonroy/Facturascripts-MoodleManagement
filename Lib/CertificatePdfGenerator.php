@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -28,8 +29,10 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCertificateTemplate;
 class CertificatePdfGenerator
 {
     // Built-in fallback colors (RGB 0-1)
-    private const DEFAULT_PRIMARY = [0.0, 0.33, 0.63];   // dark blue
-    private const DEFAULT_ACCENT = [0.85, 0.70, 0.25];   // gold
+    private const DEFAULT_PRIMARY = [0.0, 0.33, 0.63];
+    // dark blue
+    private const DEFAULT_ACCENT = [0.85, 0.70, 0.25];
+    // gold
 
     /**
      * Generates the certificate PDF and returns the binary contents.
@@ -43,28 +46,23 @@ class CertificatePdfGenerator
         $pdf = new Cezpdf('a4', 'landscape');
         $pdf->addInfo('Title', 'Certificate - ' . $cert->badge_name);
         $pdf->addInfo('Creator', 'FacturaScripts MoodleManagement');
-
         $pdf->selectFont('Helvetica');
-        $pageWidth = 842; // A4 landscape width in points
+        $pageWidth = 842;
+        // A4 landscape width in points
         $pageHeight = 595;
-
         $primary = self::resolveColor($template ? $template->primary_color : null, self::DEFAULT_PRIMARY);
         $accent = self::resolveColor($template ? $template->accent_color : null, self::DEFAULT_ACCENT);
-
         $titleSize = $template && $template->title_font_size ? (int)$template->title_font_size : 36;
         $nameSize = $template && $template->name_font_size ? (int)$template->name_font_size : 32;
         $courseSize = $template && $template->course_font_size ? (int)$template->course_font_size : 22;
-
         // ── Outer decorative border (primary) ──
         $pdf->setStrokeColor($primary[0], $primary[1], $primary[2]);
         $pdf->setLineStyle(3);
         $pdf->rectangle(25, 25, $pageWidth - 50, $pageHeight - 50);
-
         // ── Inner decorative border (accent) ──
         $pdf->setStrokeColor($accent[0], $accent[1], $accent[2]);
         $pdf->setLineStyle(1);
         $pdf->rectangle(40, 40, $pageWidth - 80, $pageHeight - 80);
-
         // ── Optional logo (top-left of inner frame) ──
         if ($template && !empty($template->logo_path)) {
             $logoFull = self::resolveLogoPath($template->logo_path);
@@ -85,7 +83,6 @@ class CertificatePdfGenerator
             : Tools::lang()->trans('certificate-title'));
         $titleWidth = $pdf->getTextWidth($titleSize, $titleText);
         $pdf->addText(($pageWidth - $titleWidth) / 2, $pageHeight - 110, $titleSize, $titleText);
-
         // ── Subtitle ──
         $pdf->setColor(0.3, 0.3, 0.3);
         $pdf->selectFont('Helvetica-Oblique');
@@ -94,19 +91,16 @@ class CertificatePdfGenerator
             : Tools::lang()->trans('certificate-subtitle');
         $subtitleWidth = $pdf->getTextWidth(14, $subtitle);
         $pdf->addText(($pageWidth - $subtitleWidth) / 2, $pageHeight - 145, 14, $subtitle);
-
         // ── Student name ──
         $studentName = self::getStudentName($cert);
         $pdf->setColor(0.0, 0.0, 0.0);
         $pdf->selectFont('Helvetica-Bold');
         $nameWidth = $pdf->getTextWidth($nameSize, $studentName);
         $pdf->addText(($pageWidth - $nameWidth) / 2, $pageHeight - 210, $nameSize, $studentName);
-
         // ── Divider line under name (accent) ──
         $pdf->setStrokeColor($accent[0], $accent[1], $accent[2]);
         $pdf->setLineStyle(1);
         $pdf->line(($pageWidth / 2) - 180, $pageHeight - 220, ($pageWidth / 2) + 180, $pageHeight - 220);
-
         // ── "has completed" text ──
         $pdf->setColor(0.3, 0.3, 0.3);
         $pdf->selectFont('Helvetica');
@@ -115,14 +109,12 @@ class CertificatePdfGenerator
             : Tools::lang()->trans('certificate-completed-text');
         $completedWidth = $pdf->getTextWidth(14, $completedText);
         $pdf->addText(($pageWidth - $completedWidth) / 2, $pageHeight - 255, 14, $completedText);
-
         // ── Course/Badge name ──
         $courseName = !empty($cert->course_name) ? $cert->course_name : $cert->badge_name;
         $pdf->setColor($primary[0], $primary[1], $primary[2]);
         $pdf->selectFont('Helvetica-Bold');
         $courseWidth = $pdf->getTextWidth($courseSize, $courseName);
         $pdf->addText(($pageWidth - $courseWidth) / 2, $pageHeight - 295, $courseSize, $courseName);
-
         // ── Badge name (if different from course) ──
         if (!empty($cert->course_name) && $cert->course_name !== $cert->badge_name) {
             $pdf->setColor(0.5, 0.5, 0.5);
@@ -159,12 +151,10 @@ class CertificatePdfGenerator
                 $pdf->selectFont('Helvetica-Bold');
                 $issuerWidth = $pdf->getTextWidth(12, $issuerName);
                 $pdf->addText($pageWidth - 120 - $issuerWidth, 145, 12, $issuerName);
-
                 // signature line
                 $pdf->setStrokeColor(0.0, 0.0, 0.0);
                 $pdf->setLineStyle(1);
                 $pdf->line($pageWidth - 280, 135, $pageWidth - 120, 135);
-
                 $pdf->setColor(0.5, 0.5, 0.5);
                 $pdf->selectFont('Helvetica');
                 $issuerLabel = !empty($template->issuer_label ?? null)
@@ -216,7 +206,6 @@ class CertificatePdfGenerator
      * @var string[]
      */
     private const LOGO_EXT_ALLOWLIST = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
-
     /**
      * Resolves a logo path against the plugin logo folder with
      * path-traversal protection.
@@ -246,7 +235,6 @@ class CertificatePdfGenerator
         $clean = str_replace(['\\', '..'], ['/', ''], $path);
         $clean = preg_replace('#/+#', '/', $clean);
         $clean = ltrim((string) $clean, '/');
-
         // Extension allowlist — reject SVG, BMP, TIFF, etc.
         $ext = strtolower((string) pathinfo($clean, PATHINFO_EXTENSION));
         if (!in_array($ext, self::LOGO_EXT_ALLOWLIST, true)) {
@@ -265,7 +253,6 @@ class CertificatePdfGenerator
             realpath(FS_FOLDER . '/MyFiles/Public'),
         ];
         $roots = array_values(array_filter($roots));
-
         // Relative path: try resolving inside each allowed root.
         foreach ($roots as $root) {
             $candidate = realpath($root . DIRECTORY_SEPARATOR . $clean);

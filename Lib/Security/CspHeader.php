@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -43,16 +44,16 @@ final class CspHeader
     public static function defaultDirectives(): array
     {
         return [
-            'default-src'     => "'self'",
-            'script-src'      => "'self' 'unsafe-inline'",
-            'style-src'       => "'self' 'unsafe-inline' https://fonts.googleapis.com",
-            'img-src'         => "'self' data: https:",
-            'font-src'        => "'self' data: https://fonts.gstatic.com",
-            'connect-src'     => "'self'",
+            'default-src' => "'self'",
+            'script-src' => "'self' 'unsafe-inline'",
+            'style-src' => "'self' 'unsafe-inline' https://fonts.googleapis.com",
+            'img-src' => "'self' data: https:",
+            'font-src' => "'self' data: https://fonts.gstatic.com",
+            'connect-src' => "'self'",
             'frame-ancestors' => "'none'",
-            'base-uri'        => "'self'",
-            'form-action'     => "'self'",
-            'object-src'      => "'none'",
+            'base-uri' => "'self'",
+            'form-action' => "'self'",
+            'object-src' => "'none'",
         ];
     }
 
@@ -65,7 +66,6 @@ final class CspHeader
      *
      * @param Response $response
      * @param array<string, string> $overrides
-     * @return void
      */
     public static function apply(Response $response, array $overrides = []): void
     {

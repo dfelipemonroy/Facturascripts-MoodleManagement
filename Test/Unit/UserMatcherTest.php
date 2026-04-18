@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -80,7 +81,7 @@ final class UserMatcherTest extends TestCase
     {
         $c = self::contact([
             'cifnif' => '12345678Z',
-            'email'  => 'ana@acme.test', // deliberately different user
+            'email' => 'ana@acme.test', // deliberately different user
         ]);
         $match = UserMatcher::findBestMatch($c, $this->moodleUsers());
         self::assertSame(1, $match['id'], 'Expected idnumber to win over email.');
@@ -90,7 +91,7 @@ final class UserMatcherTest extends TestCase
     {
         $c = self::contact([
             'cifnif' => '',
-            'email'  => 'ana@acme.test',
+            'email' => 'ana@acme.test',
         ]);
         $match = UserMatcher::findBestMatch($c, $this->moodleUsers());
         self::assertSame(2, $match['id']);

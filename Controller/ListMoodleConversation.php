@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -10,7 +11,6 @@ namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\PanelController;
-use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
@@ -38,12 +38,12 @@ class ListMoodleConversation extends PanelController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addHtmlView('ConversationList', 'Tab/ConversationList', 'MoodleInstance', 'moodle-conversations', 'fa-solid fa-comments');
     }
 
-    protected function loadData($viewName, $view)
+    protected function loadData($viewName, $view): void
     {
         switch ($viewName) {
             case 'ConversationList':
@@ -151,8 +151,12 @@ class ListMoodleConversation extends PanelController
 
         // Sort: unread first, then by last message time desc
         usort($this->conversations, function ($a, $b) {
-            if ($a['unreadCount'] > 0 && $b['unreadCount'] === 0) return -1;
-            if ($a['unreadCount'] === 0 && $b['unreadCount'] > 0) return 1;
+            if ($a['unreadCount'] > 0 && $b['unreadCount'] === 0) {
+                return -1;
+            }
+            if ($a['unreadCount'] === 0 && $b['unreadCount'] > 0) {
+                return 1;
+            }
             return $b['lastMessageTime'] - $a['lastMessageTime'];
         });
     }

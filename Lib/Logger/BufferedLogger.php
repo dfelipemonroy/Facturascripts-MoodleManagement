@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -146,7 +147,7 @@ final class BufferedLogger
             if (!$this->overflowed) {
                 $this->overflowed = true;
                 Tools::log($this->channel)->warning('mm-buffered-logger-overflow', [
-                    'cap'   => self::HARD_BUFFER_CAP,
+                    'cap' => self::HARD_BUFFER_CAP,
                     'total' => $total,
                 ]);
             }
@@ -176,9 +177,9 @@ final class BufferedLogger
         }
 
         $context = [
-            'first'   => $first,
-            'count'   => $count,
-            'events'  => array_map(static function (array $ev): array {
+            'first' => $first,
+            'count' => $count,
+            'events' => array_map(static function (array $ev): array {
                 return ['msg' => $ev[0], 'ctx' => $ev[1]];
             }, $events),
         ];

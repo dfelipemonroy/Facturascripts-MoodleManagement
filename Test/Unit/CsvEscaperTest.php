@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -54,14 +55,14 @@ final class CsvEscaperTest extends TestCase
     public function testEscapeRow(): void
     {
         $row = [
-            'name'  => '=cmd',
+            'name' => '=cmd',
             'email' => 'jp@example.com',
-            'qty'   => 5,
+            'qty' => 5,
         ];
         $expected = [
-            'name'  => "'=cmd",
+            'name' => "'=cmd",
             'email' => 'jp@example.com',
-            'qty'   => '5',
+            'qty' => '5',
         ];
         self::assertSame($expected, CsvEscaper::escapeRow($row));
     }

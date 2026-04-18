@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -58,8 +59,8 @@ final class UsernameGeneratorTest extends TestCase
     public function testFallbackToNombreApellidos(): void
     {
         $c = self::contact([
-            'email'     => '',
-            'nombre'    => 'Ana',
+            'email' => '',
+            'nombre' => 'Ana',
             'apellidos' => 'Pérez',
         ]);
         $out = MoodleClient::generateUsername($c);
@@ -69,8 +70,8 @@ final class UsernameGeneratorTest extends TestCase
     public function testAbsoluteFallbackOnEmpty(): void
     {
         $c = self::contact([
-            'email'     => '',
-            'nombre'    => '',
+            'email' => '',
+            'nombre' => '',
             'apellidos' => '',
         ]);
         $out = MoodleClient::generateUsername($c);

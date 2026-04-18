@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -46,15 +47,9 @@ class ExpiryNotifier
      * @param bool $force ignore the "already notified for this threshold" check
      * @param string|null $logChannel optional Tools::log() channel for outcome logs
      */
-    public static function send(
-        MoodleEnrolment $enrolment,
-        int $daysLeft,
-        int $threshold,
-        bool $force = false,
-        ?string $logChannel = null
-    ): bool {
+    public static function send(MoodleEnrolment $enrolment, int $daysLeft, int $threshold, bool $force = false, ?string $logChannel = null): bool
+    {
         $log = $logChannel ? Tools::log($logChannel) : Tools::log();
-
         if (!$force) {
             $notified = $enrolment->getNotifiedThresholds();
             if (in_array($threshold, $notified, true)) {
@@ -69,33 +64,29 @@ class ExpiryNotifier
 
         $courseMap = $enrolment->getCourseMap();
         $courseName = $courseMap ? $courseMap->fullname : 'ID ' . $enrolment->moodle_courseid;
-
         try {
             $mail = new NewMail();
             $mail->title = Tools::lang()->trans('expiry-email-subject', ['%course%' => $courseName]);
             $mail->to($contacto->email, trim($contacto->nombre . ' ' . $contacto->apellidos));
-
             $greeting = Tools::lang()->trans('expiry-email-greeting', [
                 '%name%' => $contacto->nombre,
             ]);
             $body = Tools::lang()->trans('expiry-email-body', [
-                '%course%' => $courseName,
-                '%days%' => $daysLeft,
-                '%date%' => date('Y-m-d', $enrolment->timeend),
+                        '%course%' => $courseName,
+                        '%days%' => $daysLeft,
+                        '%date%' => date('Y-m-d', $enrolment->timeend),
             ]);
             $renewalNote = '';
             if (!empty($enrolment->idpresupuesto)) {
                 $renewalNote = Tools::lang()->trans('expiry-email-renewal-note');
             }
             $closing = Tools::lang()->trans('expiry-email-closing');
-
             $mail->addMainBlock(new TextBlock($greeting, 'h4'));
             $mail->addMainBlock(new TextBlock($body));
             if (!empty($renewalNote)) {
                 $mail->addMainBlock(new TextBlock($renewalNote));
             }
             $mail->addMainBlock(new TextBlock($closing));
-
             if ($mail->send()) {
                 $enrolment->markThresholdNotified($threshold);
                 $enrolment->save();
@@ -103,24 +94,24 @@ class ExpiryNotifier
                 // which contact was emailed (by id) but no raw email
                 // address ends up on disk.
                 $log->notice('expiry-email-sent', [
-                    'contact_id' => (int) ($contacto->idcontacto ?? 0),
-                    'email'      => PiiMasker::email($contacto->email),
-                    'course'     => $courseName,
-                    'days'       => $threshold,
+                'contact_id' => (int) ($contacto->idcontacto ?? 0),
+                'email' => PiiMasker::email($contacto->email),
+                'course' => $courseName,
+                'days' => $threshold,
                 ]);
                 return true;
             }
 
             $log->warning('expiry-email-failed', [
                 'contact_id' => (int) ($contacto->idcontacto ?? 0),
-                'email'      => PiiMasker::email($contacto->email),
+                'email' => PiiMasker::email($contacto->email),
             ]);
             return false;
         } catch (\Throwable $e) {
             $log->warning('expiry-email-failed', [
                 'contact_id' => (int) ($contacto->idcontacto ?? 0),
-                'email'      => PiiMasker::email($contacto->email),
-                'error'      => $e->getMessage(),
+                'email' => PiiMasker::email($contacto->email),
+                'error' => $e->getMessage(),
             ]);
             return false;
         }

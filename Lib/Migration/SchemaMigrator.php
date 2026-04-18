@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -50,8 +51,15 @@ final class SchemaMigrator
         }
 
         $sql = $this->isPostgres()
-            ? 'CREATE TABLE moodle_schema_version (version VARCHAR(40) PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, notes VARCHAR(255))'
-            : 'CREATE TABLE moodle_schema_version (version VARCHAR(40) NOT NULL PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, notes VARCHAR(255)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci';
+            ? 'CREATE TABLE moodle_schema_version ('
+                . 'version VARCHAR(40) PRIMARY KEY,'
+                . 'applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,'
+                . 'notes VARCHAR(255))'
+            : 'CREATE TABLE moodle_schema_version ('
+                . 'version VARCHAR(40) NOT NULL PRIMARY KEY,'
+                . 'applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,'
+                . 'notes VARCHAR(255))'
+                . ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci';
 
         if (!$this->db->exec($sql)) {
             Tools::log()->error('schema-version-create-failed');
@@ -63,11 +71,11 @@ final class SchemaMigrator
     /**
      * Run a migration if not already applied.
      *
-     * @param string   $version e.g. "2.0.0-F5.3-fk-indexes"
-     * @param callable $fn      Receives the SchemaMigrator instance
-     *                          and returns bool (true = success).
-     * @param string   $notes   Optional human description.
-     * @return bool             True on success (or if already applied).
+     * @param string $version e.g. "2.0.0-F5.3-fk-indexes"
+     * @param callable $fn Receives the SchemaMigrator instance
+     *                     and returns bool (true = success).
+     * @param string $notes Optional human description.
+     * @return bool True on success (or if already applied).
      */
     public function apply(string $version, callable $fn, string $notes = ''): bool
     {
@@ -77,8 +85,8 @@ final class SchemaMigrator
                 return (bool) $fn($this);
             } catch (\Throwable $e) {
                 Tools::log()->error('migration-error', [
-                    'version' => $version,
-                    'message' => $e->getMessage(),
+                'version' => $version,
+                'message' => $e->getMessage(),
                 ]);
                 return false;
             }
@@ -102,9 +110,9 @@ final class SchemaMigrator
         } catch (\Throwable $e) {
             $this->db->rollback();
             Tools::log()->error('migration-exception', [
-                'version'   => $version,
+                'version' => $version,
                 'exception' => get_class($e),
-                'message'   => $e->getMessage(),
+                'message' => $e->getMessage(),
             ]);
             return false;
         }

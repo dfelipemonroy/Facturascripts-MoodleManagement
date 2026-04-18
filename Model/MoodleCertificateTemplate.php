@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -42,65 +43,46 @@ class MoodleCertificateTemplate extends ModelClass
     use ModelTrait;
 
     /** @var int */
-    public $id;
 
+    public $id;
     /** @var string */
     public $name;
-
     /** @var int|null FK to moodle_instances.id; null = global template */
     public $idinstance;
-
     /** @var bool */
     public $is_default;
-
     /** @var string|null Main title of the certificate (defaults to translation key 'certificate-title') */
     public $title_text;
-
     /** @var string|null Subtitle shown below the title */
     public $subtitle_text;
-
     /** @var string|null Text shown below the student name ("has completed") */
     public $completed_text;
-
     /** @var string|null Footer verification text */
     public $verify_text;
-
     /** @var string|null Label above the issuer name/signature */
     public $issuer_label;
-
     /** @var string|null Hex color #RRGGBB for title/accents (dark blue) */
     public $primary_color;
-
     /** @var string|null Hex color #RRGGBB for borders/divider (gold) */
     public $accent_color;
-
     /** @var int */
     public $title_font_size;
-
     /** @var int */
     public $name_font_size;
-
     /** @var int */
     public $course_font_size;
-
     /** @var string|null Relative path from FS root to logo image */
     public $logo_path;
-
     /** @var bool */
     public $show_unique_hash;
-
     /** @var bool */
     public $show_date_issued;
-
     /** @var bool */
     public $show_issuer;
-
     /** @var string|null */
     public $notes;
-
     /** @var string */
     public $creation_date;
-
     public function clear(): void
     {
         parent::clear();
@@ -148,7 +130,6 @@ class MoodleCertificateTemplate extends ModelClass
         $this->issuer_label = Tools::noHtml($this->issuer_label);
         $this->logo_path = Tools::noHtml($this->logo_path);
         $this->notes = Tools::noHtml($this->notes);
-
         if (empty($this->name)) {
             Tools::log()->error('field-can-not-be-null', ['%fieldName%' => 'name']);
             return false;
@@ -168,7 +149,6 @@ class MoodleCertificateTemplate extends ModelClass
         $this->title_font_size = max(10, min(72, (int)$this->title_font_size));
         $this->name_font_size = max(10, min(72, (int)$this->name_font_size));
         $this->course_font_size = max(8, min(48, (int)$this->course_font_size));
-
         return parent::test();
     }
 
@@ -217,7 +197,6 @@ class MoodleCertificateTemplate extends ModelClass
     public static function findBest(?int $idinstance): ?self
     {
         $tpl = new self();
-
         if (!empty($idinstance)) {
             $matches = $tpl->all([
                 new DataBaseWhere('idinstance', $idinstance),

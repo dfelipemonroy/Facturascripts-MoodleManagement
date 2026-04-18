@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -151,5 +152,4 @@ class MoodleCertificate extends ModelClass
     {
         return CertificateStatus::bootstrapContext($this->derivedStatus());
     }
-
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -8,8 +9,8 @@ declare(strict_types=1);
 
 namespace FacturaScripts\Test\Plugins\MoodleManagement\Unit;
 
-use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\ConflictResolver;
+use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use PHPUnit\Framework\TestCase;
 
 /**

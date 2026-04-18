@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -31,7 +32,7 @@ final class UserMatcher
      * whitespace.
      *
      * @param array[] $moodleUsers Array of Moodle user dicts
-     *        (shape returned by core_user_get_users_by_field).
+     *                             (shape returned by core_user_get_users_by_field).
      */
     public static function matchByEmail(Contacto $contact, array $moodleUsers): ?array
     {

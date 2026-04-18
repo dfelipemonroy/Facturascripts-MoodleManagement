@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -65,7 +66,7 @@ class OnboardingWorker extends WorkerClass
         $map = $this->loadMapWithRetry((int) $event->value);
         if ($map === null) {
             Tools::log('MoodleManagement')->warning('onboarding-map-not-found', [
-                'id'       => (int) $event->value,
+                'id' => (int) $event->value,
                 'attempts' => self::LOAD_RETRIES,
             ]);
             return $this->done();
@@ -143,8 +144,7 @@ class OnboardingWorker extends WorkerClass
      * enrolment is open-ended.
      *
      * @param MoodleInstance $instance
-     * @param MoodleUserMap  $map
-     * @return void
+     * @param MoodleUserMap $map
      */
     private function enrolInWelcomeCourse(MoodleInstance $instance, MoodleUserMap $map): void
     {
@@ -203,8 +203,7 @@ class OnboardingWorker extends WorkerClass
      * `core_cohort_add_cohort_members`.
      *
      * @param MoodleInstance $instance
-     * @param MoodleUserMap  $map
-     * @return void
+     * @param MoodleUserMap $map
      */
     private function addToCohort(MoodleInstance $instance, MoodleUserMap $map): void
     {
@@ -239,8 +238,7 @@ class OnboardingWorker extends WorkerClass
      * in Moodle). If absent, silently skips.
      *
      * @param MoodleInstance $instance
-     * @param MoodleUserMap  $map
-     * @return void
+     * @param MoodleUserMap $map
      */
     private function sendWelcomeMessage(MoodleInstance $instance, MoodleUserMap $map): void
     {
@@ -257,7 +255,7 @@ class OnboardingWorker extends WorkerClass
         $noEmail = !empty($contact->noenviarmail) || !empty($contact->noemail);
         if ($noEmail) {
             Tools::log('MoodleManagement')->info('onboarding-welcome-skip-noemail', [
-                'userid'  => (int) $map->moodle_userid,
+                'userid' => (int) $map->moodle_userid,
                 'contact' => (int) ($contact->idcontacto ?? 0),
             ]);
             return;
@@ -294,8 +292,7 @@ class OnboardingWorker extends WorkerClass
      * an onboarding timestamp (operator trail).
      *
      * @param MoodleInstance $instance
-     * @param MoodleUserMap  $map
-     * @return void
+     * @param MoodleUserMap $map
      */
     private function createOnboardingNote(MoodleInstance $instance, MoodleUserMap $map): void
     {

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -26,7 +27,7 @@ class ListMoodleCertificate extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addView('ListMoodleCertificate', 'MoodleCertificate', 'moodle-certificates', 'fa-solid fa-award')
             ->addSearchFields(['badge_name', 'course_name', 'unique_hash'])

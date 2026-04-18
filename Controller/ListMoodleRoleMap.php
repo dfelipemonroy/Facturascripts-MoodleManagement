@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -25,7 +26,7 @@ class ListMoodleRoleMap extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addView('ListMoodleRoleMap', 'MoodleRoleMap', 'moodle-role-mappings', 'fa-solid fa-user-shield')
             ->addSearchFields(['moodle_role_shortname', 'description'])
@@ -56,7 +57,7 @@ class ListMoodleRoleMap extends ListController
         ]);
     }
 
-    protected function loadData($viewName, $view)
+    protected function loadData($viewName, $view): void
     {
         parent::loadData($viewName, $view);
 

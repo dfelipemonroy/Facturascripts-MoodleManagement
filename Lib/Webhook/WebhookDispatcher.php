@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -34,8 +35,8 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 final class WebhookDispatcher
 {
     public const STATUS_ACCEPTED = 'accepted';
-    public const STATUS_IGNORED  = 'ignored';
-    public const STATUS_ERROR    = 'error';
+    public const STATUS_IGNORED = 'ignored';
+    public const STATUS_ERROR = 'error';
 
     /**
      * @param array $payload Decoded JSON body
@@ -53,10 +54,10 @@ final class WebhookDispatcher
             if ($clean === null) {
                 Tools::log()->warning('mm-webhook-invalid-payload', [
                     'instance_id' => (int) $instance->id,
-                    'event_type'  => $eventType,
+                    'event_type' => $eventType,
                 ]);
                 return [
-                    'status'  => self::STATUS_ERROR,
+                    'status' => self::STATUS_ERROR,
                     'message' => 'invalid payload shape',
                 ];
             }
@@ -84,22 +85,22 @@ final class WebhookDispatcher
                 default:
                     Tools::log()->notice('mm-webhook-unknown-event', [
                         'instance_id' => (int) $instance->id,
-                        'event_type'  => $eventType,
+                        'event_type' => $eventType,
                     ]);
                     return [
-                        'status'  => self::STATUS_IGNORED,
+                        'status' => self::STATUS_IGNORED,
                         'message' => 'event type not handled',
                     ];
             }
         } catch (\Throwable $e) {
             Tools::log()->error('mm-webhook-handler-failed', [
                 'instance_id' => (int) $instance->id,
-                'event_type'  => $eventType,
-                'exception'   => get_class($e),
-                'message'     => $e->getMessage(),
+                'event_type' => $eventType,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
             ]);
             return [
-                'status'  => self::STATUS_ERROR,
+                'status' => self::STATUS_ERROR,
                 'message' => 'handler raised an exception',
             ];
         }
