@@ -39,11 +39,36 @@ use FacturaScripts\Core\Tools;
  */
 final class BufferedLogger
 {
+    /**
+     * BE-09 (2026-04-17) — hard upper bound on the `$batchSize`
+     * constructor argument. A caller that accidentally passes a
+     * very large value (tens of thousands) would cause a single
+     * flushed `mm-batched-events` entry to balloon, blowing past
+     * downstream log-sink size limits and pinning memory for the
+     * duration of the serialization. Clamp the buffer to a figure
+     * an operator can still read and that fits comfortably in any
+     * structured-log backend (syslog, journald, ELK, …).
+     */
+    public const MAX_BATCH_SIZE = 500;
+
+    /**
+     * BE-09 — emergency overflow drop threshold. If push() ever
+     * somehow bypasses the implicit flush (e.g. during a level
+     * that is not yet in the pending map) we refuse to let the
+     * buffer cross this many events in total across all levels.
+     * Past this point we auto-flush and emit a warning so
+     * unbounded growth is loud rather than silent.
+     */
+    public const HARD_BUFFER_CAP = 2000;
+
     /** Logical channel passed to Tools::log(). */
     private string $channel;
 
     /** Max events per level before an implicit flush happens. */
     private int $batchSize;
+
+    /** True once we have warned operators about overflow this cycle. */
+    private bool $overflowed = false;
 
     /**
      * Pending events, keyed by level → array of [message, context].
@@ -59,7 +84,8 @@ final class BufferedLogger
     public function __construct(string $channel = '', int $batchSize = 100)
     {
         $this->channel = $channel;
-        $this->batchSize = $batchSize > 0 ? $batchSize : 100;
+        $size = $batchSize > 0 ? $batchSize : 100;
+        $this->batchSize = min($size, self::MAX_BATCH_SIZE);
     }
 
     public function notice(string $message, array $context = []): void
@@ -90,6 +116,9 @@ final class BufferedLogger
             $this->emit($level, $events);
             $this->pending[$level] = [];
         }
+        // Reset the overflow latch so a later burst within the same
+        // logger instance can warn again.
+        $this->overflowed = false;
     }
 
     public function __destruct()
@@ -105,6 +134,23 @@ final class BufferedLogger
         if (count($this->pending[$level]) >= $this->batchSize) {
             $this->emit($level, $this->pending[$level]);
             $this->pending[$level] = [];
+        }
+
+        // BE-09 overflow guard — sum across all levels. If the caller
+        // only ever pushes "warning" with a small batchSize we stay
+        // bounded; if somehow the sum escalates we force a full
+        // flush and warn once per cycle so the escalation is
+        // visible rather than silent.
+        $total = array_sum(array_map('count', $this->pending));
+        if ($total >= self::HARD_BUFFER_CAP) {
+            if (!$this->overflowed) {
+                $this->overflowed = true;
+                Tools::log($this->channel)->warning('mm-buffered-logger-overflow', [
+                    'cap'   => self::HARD_BUFFER_CAP,
+                    'total' => $total,
+                ]);
+            }
+            $this->flush();
         }
     }
 

@@ -22,8 +22,8 @@ declare(strict_types=1);
 namespace FacturaScripts\Plugins\MoodleManagement\Extension\Controller;
 
 use Closure;
-use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Contact\ContactTimestampUpdater;
 
 class EditContacto
 {
@@ -75,20 +75,10 @@ class EditContacto
                 return;
             }
             $idcontacto = (int) $this->getViewModelValue($this->getMainViewName(), 'idcontacto');
-            if ($idcontacto <= 0) {
-                return;
-            }
-            try {
-                $db = new DataBase();
-                $db->exec(
-                    'UPDATE contactos SET mm_last_modified = ' . $db->var2str(date('Y-m-d H:i:s'))
-                    . ' WHERE idcontacto = ' . (int) $idcontacto
-                );
-            } catch (\Throwable $e) {
-                // Column may be absent on installs that haven't run
-                // the v2.0 migration yet; swallow silently so the
-                // contact save itself is not impacted.
-            }
+            // BE-07 (2026-04-17) — raw SQL moved to
+            // `ContactTimestampUpdater::touch` so it can be covered
+            // by tests and reused from workers.
+            ContactTimestampUpdater::touch($idcontacto);
         };
     }
 }

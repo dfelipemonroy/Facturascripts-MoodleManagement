@@ -130,9 +130,21 @@ class ListMoodleTrash extends ListController
             return true;
         }
 
-        $table = $this->tableOf($entity);
+        try {
+            $table = $this->tableOf($entity);
+        } catch (\InvalidArgumentException $e) {
+            // BE-10 — the allow-list rejected the entity. Log loudly
+            // so operators do not chase a silent no-op.
+            Tools::log()->warning('mm-trash-unknown-entity', [
+                'entity' => $entity,
+                'error'  => $e->getMessage(),
+            ]);
+            return true;
+        }
         if ($table === null) {
-            Tools::log()->warning('mm-trash-unknown-entity', ['entity' => $entity]);
+            // Defensive: tableOf may legitimately return null for
+            // future entity tags not yet resolved.
+            Tools::log()->warning('mm-trash-table-null', ['entity' => $entity]);
             return true;
         }
 
@@ -178,6 +190,13 @@ class ListMoodleTrash extends ListController
     /**
      * Allow-list: only these three entities (the ones with deleted_at
      * columns introduced in F5.20) can be restored or purged here.
+     *
+     * BE-10 (2026-04-17): an unknown entity is a programmer bug (only
+     * the XMLView row actions should ever post this field), so throw
+     * rather than silently no-op. Previously an unknown tag returned
+     * null and the calling code logged a vague warning; the result
+     * was a successful-looking HTTP response that did nothing,
+     * confusing operators tracing a failed restore.
      */
     private function tableOf(string $entity): ?string
     {
@@ -189,7 +208,9 @@ class ListMoodleTrash extends ListController
             case 'cohort':
                 return 'moodle_cohorts';
             default:
-                return null;
+                throw new \InvalidArgumentException(
+                    'ListMoodleTrash: unknown entity "' . $entity . '".'
+                );
         }
     }
 
