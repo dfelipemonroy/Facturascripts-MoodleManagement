@@ -135,6 +135,56 @@ which must close before `v2.0.0` is tagged.
 ### Security
 - **All 16 CRITICAL findings from the first-iteration audit closed**
   — full list in `SECURITY.md` §Security posture.
+- **Second-iteration audit Fase 16 (2026-04-17) HIGH findings closed** (18 items):
+  - **SEC-04** · `WebhookVerifier::resolveSecret` fail-closed on decrypt
+    failure so the raw ciphertext never leaks as HMAC key material.
+  - **SEC-05** · `SignedUrl` gains a version-tagged HKDF info label
+    (`mm/signed-url/v1`) and a `KEY_VERSIONS` map; rotating keys is
+    a one-line change and in-flight URLs keep verifying until `exp`.
+  - **SEC-06** · Certificate PDF ownership check walks the full
+    Contacto graph (billing, shipping, every row with
+    `codcliente`) rather than only `idcontactofact`.
+  - **SEC-07** · Wizard prefs cookie sealed with HMAC via the new
+    `Lib/Security/SignedPayload` helper. Context-bound info label
+    prevents cross-feature replay.
+  - **SEC-08** · `MoodleClient::callApi` advertises the token via
+    `Authorization: Bearer` alongside the body `wstoken` so OAuth
+    gateways and reverse proxies can authenticate without parsing
+    the body.
+  - **BE-01** · `declare(strict_types=1)` across every controller,
+    worker, and extension (33 files).
+  - **BE-02** · `MoodleClient::callApi` gated by
+    `CircuitBreaker::allow` + wrapped in `RetryPolicy::execute`;
+    the two helpers, shipped but orphaned in Fase 6.7, finally
+    protect every WS dispatch.
+  - **BE-03** · `EnrolmentWorker` + `OnboardingWorker` dedupe via
+    the new `Lib/WorkQueue/IdempotencyGuard` so redelivered events
+    cannot produce duplicate Moodle-side side effects.
+  - **BE-05** · Partial-failure `warnings` arrays surfaced in the
+    log and, optionally, as `exception = partial_failure` when the
+    caller passes `fail_on_partial = true`.
+  - **BE-07** · Raw `UPDATE contactos SET mm_last_modified` SQL
+    extracted into `Lib/Contact/ContactTimestampUpdater` helper.
+  - **BE-08** · Orphan cleanup cron uses a single-SQL bulk DELETE
+    capped at 1000 rows per run, replacing the N+1 model loop.
+  - **BE-09** · `BufferedLogger` gets `MAX_BATCH_SIZE = 500` and
+    `HARD_BUFFER_CAP = 2000` with a loud overflow warning.
+  - **BE-10** · `ListMoodleTrash::tableOf` throws
+    `InvalidArgumentException` on unknown entities so audit logs
+    carry the offending tag.
+  - **DB-01** · `TokenCipher::encryptExistingRows` wrapped in a
+    single transaction so a mid-batch failure rolls back cleanly.
+  - **DB-03** · F5.12 asserts F5.11 precondition at runtime via
+    `SchemaMigrator::columnCharLength`.
+  - **INT-01** · `Lib/Webhook/PayloadValidator` normalises + validates
+    every inbound webhook payload per event type.
+  - **FE-03** · `HtmlSanitizer::toPlainText` replaces Twig `|
+    striptags` across three templates; DOM-based, resistant to the
+    `<script>body</script>` bypass.
+  - **FE-04** · `Assets/JS/mm-dom-safe.js` exposes `mmSetText`,
+    `mmClearAndAppend`, `mmCreate` so text-only is the obvious
+    default for future UI work.
+
 - **Second-iteration audit Fase 15 (2026-04-17) blockers closed**:
   - **SEC-01** · `TokenCipher::deriveKey` now fails closed when
     `FS_COOKIES_EXPIRE` is missing. Previously fell back to a
