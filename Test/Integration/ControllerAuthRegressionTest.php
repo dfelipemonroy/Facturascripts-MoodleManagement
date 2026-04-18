@@ -36,6 +36,27 @@ final class ControllerAuthRegressionTest extends TestCase
             $r->hasMethod('isAuthorised'),
             'F4.1 regression: isAuthorised() helper must exist.'
         );
+
+        // SEC-06 (2026-04-17) regression: ownership must evaluate
+        // every Contacto linked to the Cliente, not only the primary
+        // billing contact.
+        self::assertTrue(
+            $r->hasMethod('certificateContactBelongsToCliente'),
+            'SEC-06 regression: certificateContactBelongsToCliente() helper must exist.'
+        );
+        $source = (string) file_get_contents($r->getFileName());
+        self::assertMatchesRegularExpression(
+            '/codcliente.*cliente->codcliente/s',
+            $source,
+            'SEC-06 regression: ownership helper must query Contacto by codcliente.'
+        );
+        foreach (['idcontactofact', 'idcontactoenv'] as $prop) {
+            self::assertStringContainsString(
+                $prop,
+                $source,
+                sprintf('SEC-06 regression: ownership helper must also cover %s.', $prop)
+            );
+        }
     }
 
     public function testEditMoodleUserMapDeclaresGuardedActions(): void

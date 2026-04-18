@@ -199,14 +199,71 @@ class MoodleCertificatePdf extends Controller
         if (!$cliente->load($userCodcliente)) {
             return false;
         }
-        // Match if the certificate's contact is the Cliente's main
-        // billing contact, OR any linked contact (secondary contacts
-        // list not resolved here for simplicity — extend in F4.4
-        // if customer-specific rules emerge).
-        if ((int) $cliente->idcontactofact === (int) $cert->idcontacto) {
+
+        // SEC-06 (2026-04-17) — previously only the main billing
+        // contact (`idcontactofact`) was compared, so a certificate
+        // tied to a secondary contact of the same client was denied
+        // even to its rightful owner AND, more importantly, could
+        // slip past the check if an attacker found a certificate
+        // whose idcontacto matched *their* codcliente via a stale
+        // `idcontactofact`. Evaluate the whole Contacto set that
+        // belongs to the Cliente — main billing + shipping + any
+        // linked contact row keyed on `codcliente`.
+        if ((int) $cert->idcontacto > 0 && self::certificateContactBelongsToCliente($cert, $cliente)) {
             return true;
         }
 
+        return false;
+    }
+
+    /**
+     * Returns true when the certificate's `idcontacto` resolves to
+     * any Contacto row linked to the provided Cliente. Covers:
+     *   - `cliente.idcontactofact` (primary billing contact).
+     *   - `cliente.idcontactoenv` (shipping contact, when set).
+     *   - Every Contacto row whose `codcliente` matches the Cliente.
+     *
+     * @since 2.0 — SEC-06 (2026-04-17)
+     */
+    private static function certificateContactBelongsToCliente(
+        MoodleCertificate $cert,
+        \FacturaScripts\Dinamic\Model\Cliente $cliente
+    ): bool {
+        $target = (int) $cert->idcontacto;
+        if ($target <= 0) {
+            return false;
+        }
+
+        // Direct references on the Cliente row.
+        foreach (['idcontactofact', 'idcontactoenv'] as $property) {
+            $linked = isset($cliente->{$property}) ? (int) $cliente->{$property} : 0;
+            if ($linked > 0 && $linked === $target) {
+                return true;
+            }
+        }
+
+        // Any Contacto with codcliente == this cliente.
+        try {
+            $contactModel = new \FacturaScripts\Dinamic\Model\Contacto();
+            $rows = $contactModel->all(
+                [new \FacturaScripts\Core\DataSrc\DataBaseWhere('codcliente', $cliente->codcliente)],
+                ['idcontacto' => 'ASC'],
+                0,
+                0
+            );
+        } catch (\Throwable $e) {
+            Tools::log()->warning('certificate-pdf-contact-lookup-failed', [
+                'cliente' => (string) $cliente->codcliente,
+                'error'   => $e->getMessage(),
+            ]);
+            return false;
+        }
+
+        foreach ($rows as $contact) {
+            if ((int) $contact->idcontacto === $target) {
+                return true;
+            }
+        }
         return false;
     }
 
