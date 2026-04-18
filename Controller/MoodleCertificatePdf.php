@@ -159,17 +159,21 @@ class MoodleCertificatePdf extends Controller
      */
     private function isAuthorised(MoodleCertificate $cert, ?User $user): bool
     {
-        // Path 1 — SignedUrl (F2.9).
+        // Path 1 — SignedUrl (F2.9). SEC-05 (2026-04-17) adds an
+        // optional `v` version tag; defaults to 1 for back-compat with
+        // URLs minted before the rotation support shipped.
         $exp = (int) $this->request->get('exp', 0);
         $sig = (string) $this->request->get('sig', '');
+        $version = (int) $this->request->get('v', 1);
         if ($exp > 0 && $sig !== '') {
-            if (SignedUrl::verify(self::SIGNED_RESOURCE, (int) $cert->id, $exp, $sig)) {
+            if (SignedUrl::verify(self::SIGNED_RESOURCE, (int) $cert->id, $exp, $sig, null, $version)) {
                 return true;
             }
             // Explicit bad signature: log and fall through to session check.
             Tools::log()->warning('certificate-pdf-bad-signature', [
                 'certificate_id' => (int) $cert->id,
                 'exp'            => $exp,
+                'v'              => $version,
             ]);
         }
 
