@@ -149,18 +149,17 @@ class MoodleClient
         try {
             IpValidator::assertPublicHost($endpoint);
         } catch (\Throwable $e) {
+            $context = [
+                '%instance%' => (int) $instance->id,
+                '%endpoint%' => $endpoint,
+                '%reason%' => $e->getMessage(),
+            ];
             if (self::isDevelopmentEnvironment() && self::isDevInstance($instance)) {
-                Tools::log()->notice('moodle-ssrf-dev-bypass', [
-                    'instance' => (int) $instance->id,
-                    'endpoint' => $endpoint,
-                    'reason' => $e->getMessage(),
-                ]);
+                self::logOnce('moodle-ssrf-dev-bypass:' . (int) $instance->id, static function () use ($context): void {
+                    Tools::log()->notice(Tools::lang()->trans('moodle-ssrf-dev-bypass', $context), $context);
+                });
             } else {
-                Tools::log()->warning('moodle-ssrf-rejected', [
-                    'instance' => (int) $instance->id,
-                    'endpoint' => $endpoint,
-                    'reason' => $e->getMessage(),
-                ]);
+                Tools::log()->warning(Tools::lang()->trans('moodle-ssrf-rejected', $context), $context);
                 return [
                     'exception' => 'ssrf_rejected',
                     'message' => 'host_private_or_unresolvable',
@@ -176,10 +175,11 @@ class MoodleClient
         // can still exercise the client; production installs must
         // keep FS_DEBUG false.
         if (!self::endpointUsesTls($endpoint) && !self::isDevelopmentEnvironment()) {
-            Tools::log()->warning('moodle-insecure-transport-rejected', [
-                'instance' => (int) $instance->id,
-                'endpoint' => $endpoint,
-            ]);
+            $context = [
+                '%instance%' => (int) $instance->id,
+                '%endpoint%' => $endpoint,
+            ];
+            Tools::log()->warning(Tools::lang()->trans('moodle-insecure-transport-rejected', $context), $context);
             return [
                 'exception' => 'insecure_transport',
                 'message' => 'https_required',
@@ -191,12 +191,20 @@ class MoodleClient
         // a distinct exception code so callers can surface a "Moodle
         // temporarily unavailable" message rather than having every
         // worker pile onto a dead instance.
+        //
+        // `logOnce` dedupes the notice per instance per request: a
+        // single page that fires 6 WS calls used to leave 6 identical
+        // `moodle-circuit-open` rows in the log; now the first call
+        // reports, the rest are silent.
         $instanceId = (int) $instance->id;
         if (!CircuitBreaker::allow($instanceId)) {
-            Tools::log()->notice('moodle-circuit-open', [
-                'instance' => $instanceId,
-                'function' => $function,
-            ]);
+            $context = [
+                '%instance%' => $instanceId,
+                '%function%' => $function,
+            ];
+            self::logOnce('moodle-circuit-open:' . $instanceId, static function () use ($context): void {
+                Tools::log()->notice(Tools::lang()->trans('moodle-circuit-open', $context), $context);
+            });
             return [
                 'exception' => 'circuit_open',
                 'message' => 'instance_temporarily_unavailable',
@@ -330,11 +338,12 @@ class MoodleClient
         curl_close($ch);
 
         if ($exceeded) {
-            Tools::log()->warning('moodle-response-too-large', [
-                'instance' => (int) $instance->id,
-                'function' => $function,
-                'max_bytes' => $maxBytes,
-            ]);
+            $context = [
+                '%instance%' => (int) $instance->id,
+                '%function%' => $function,
+                '%max_bytes%' => $maxBytes,
+            ];
+            Tools::log()->warning(Tools::lang()->trans('moodle-response-too-large', $context), $context);
             return [
                 'exception' => 'response_too_large',
                 'message' => 'response_exceeded_max_bytes',
@@ -386,11 +395,12 @@ class MoodleClient
         // `warnings` array. Surface that signal so callers can tell
         // full success from partial.
         if (!empty($result['warnings']) && is_array($result['warnings'])) {
-            Tools::log()->warning('moodle-ws-partial-failures', [
-                'instance' => (int) $instance->id,
-                'function' => $function,
-                'warnings' => array_slice($result['warnings'], 0, 10),
-            ]);
+            $context = [
+                '%instance%' => (int) $instance->id,
+                '%function%' => $function,
+                '%warnings%' => array_slice($result['warnings'], 0, 10),
+            ];
+            Tools::log()->warning(Tools::lang()->trans('moodle-ws-partial-failures', $context), $context);
             if (!empty($options['fail_on_partial'])) {
                 return [
                     'exception' => 'partial_failure',
@@ -443,6 +453,33 @@ class MoodleClient
             return false;
         }
         return strtolower((string) $instance->environment) === 'development';
+    }
+
+    /**
+     * Per-request in-memory dedupe. Runs the `$emit` callback once
+     * per `$key`; subsequent calls with the same key are no-ops.
+     *
+     * Used to avoid filling the FS log table with identical rows
+     * when a single page triggers many WS calls to an instance whose
+     * circuit breaker is OPEN (6 calls → 6 identical log rows).
+     *
+     * Scope is the current PHP process, so the dedup resets between
+     * requests — operators still see the event on each page load,
+     * just once instead of N times.
+     *
+     * @since 2.0 — 2026-04-19
+     *
+     * @var array<string, bool>
+     */
+    private static $loggedOnce = [];
+
+    private static function logOnce(string $key, callable $emit): void
+    {
+        if (isset(self::$loggedOnce[$key])) {
+            return;
+        }
+        self::$loggedOnce[$key] = true;
+        $emit();
     }
 
     /**
