@@ -92,24 +92,43 @@ final class WebhookVerifier
     /**
      * Resolve the per-instance webhook secret, handling the TokenCipher
      * ciphertext transparently (same encryption scheme as moodle_instances.token).
+     *
+     * SEC-04 (2026-04-17) — previously, any failure inside `decrypt`
+     * (corrupted ciphertext, key rotation, TypeError from a null return)
+     * was swallowed and the caller received the raw stored value back.
+     * When that value is an `mm2g:` ciphertext, anyone holding a DB
+     * dump could use it as the HMAC key material and forge signatures.
+     * Fail-closed now: a decrypt failure on a cipher-prefixed value
+     * returns an empty secret (`verifySignature` then rejects the
+     * request) and records the incident so operators can rotate.
      */
     public static function resolveSecret(?string $stored): string
     {
         if ($stored === null || $stored === '') {
             return '';
         }
-        // F5.12 — webhook_secret may be stored cipher-wrapped just like
-        // the token. TokenCipher::decrypt() returns the plaintext when
-        // the value is wrapped and the same value otherwise.
-        try {
-            return TokenCipher::decrypt($stored);
-        } catch (\Throwable $e) {
-            // When decrypt fails we assume the column still holds the
-            // plaintext (freshly installed, not yet re-encrypted by
-            // the data migration). Returning plaintext is safe here
-            // since the caller only uses it as HMAC key material.
+
+        // Legacy plaintext (pre F5.12 migration): return as-is. Safe
+        // because the value was only ever used as HMAC key material
+        // and is NOT persisted outside the `moodle_instances` row.
+        if (!TokenCipher::isEncrypted($stored)) {
             return $stored;
         }
+
+        try {
+            $plain = TokenCipher::decrypt($stored);
+        } catch (\Throwable $e) {
+            Tools::log()->error('webhook-secret-decrypt-threw', [
+                'message' => $e->getMessage(),
+            ]);
+            return '';
+        }
+
+        if ($plain === null || $plain === '') {
+            Tools::log()->error('webhook-secret-decrypt-failed');
+            return '';
+        }
+        return $plain;
     }
 
     private function __construct()
