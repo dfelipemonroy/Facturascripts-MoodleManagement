@@ -247,7 +247,14 @@ final class SchemaMigrator
         $this->db->exec($sql);
     }
 
-    private function currentSchemaExpr(): string
+    /**
+     * SQL expression that resolves to the current schema name at
+     * query time. Exposed for migration files that need to build
+     * `information_schema` lookups of their own (DB-12).
+     *
+     * @since 2.0 — visibility bumped in F17 (2026-04-17)
+     */
+    public function currentSchemaExpr(): string
     {
         if ($this->isPostgres()) {
             return 'current_schema()';

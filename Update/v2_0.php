@@ -414,4 +414,126 @@ return [
         }
         return true;
     },
+
+    // DB-08 · Server-side created_at / updated_at defaults. Some
+    //          early MySQL installs left these nullable without a
+    //          DEFAULT, so bulk inserts from workers had to stamp
+    //          them manually. Normalise to CURRENT_TIMESTAMP so
+    //          missing inserts never produce null timestamps.
+    //          Skips Postgres (uses timezone-aware defaults through
+    //          the model XML already).
+    '2.0.0-F17-DB08-timestamp-defaults' => static function (SchemaMigrator $m): bool {
+        if ($m->isPostgres()) {
+            return true;
+        }
+        $targets = [
+            'moodle_enrolments'   => 'enrolment_date',
+            'moodle_user_map'     => 'last_sync',
+            'moodle_certificates' => 'issued_at',
+        ];
+        foreach ($targets as $table => $col) {
+            if (!$m->tableExists($table) || !$m->columnExists($table, $col)) {
+                continue;
+            }
+            // Only ALTER when the column is actually DATETIME/TIMESTAMP;
+            // schemas with DATE are unchanged.
+            try {
+                $m->db()->exec(
+                    'ALTER TABLE ' . $table . ' MODIFY ' . $col
+                    . ' TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP'
+                );
+            } catch (\Throwable $e) {
+                \FacturaScripts\Core\Tools::log()->notice('db08-skip', [
+                    'table' => $table,
+                    'col'   => $col,
+                    'msg'   => $e->getMessage(),
+                ]);
+            }
+        }
+        return true;
+    },
+
+    // DB-12 · Relax the FK on moodle_cohorts.codgrupo so deleting the
+    //          FS group does not cascade-delete the cohort row. We
+    //          prefer to keep the cohort entry for auditing and clear
+    //          the reference via ON DELETE SET NULL. Migration only
+    //          runs on MySQL/MariaDB; Postgres FKs stay as declared.
+    '2.0.0-F17-DB12-cohort-codgrupo-fk-set-null' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_cohorts') || !$m->columnExists('moodle_cohorts', 'codgrupo')) {
+            return true;
+        }
+        // Look up the existing constraint name so we can drop-and-add
+        // it. The name varies by FS core migration history; be
+        // defensive.
+        $rows = $m->db()->select(
+            'SELECT CONSTRAINT_NAME AS c FROM information_schema.KEY_COLUMN_USAGE'
+            . ' WHERE TABLE_SCHEMA = ' . $m->currentSchemaExpr()
+            . ' AND TABLE_NAME = ' . $m->db()->var2str('moodle_cohorts')
+            . ' AND COLUMN_NAME = ' . $m->db()->var2str('codgrupo')
+            . ' AND REFERENCED_TABLE_NAME IS NOT NULL'
+        );
+        if (empty($rows)) {
+            return true; // no FK, nothing to relax
+        }
+        foreach ($rows as $row) {
+            $name = (string) ($row['c'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            try {
+                $m->db()->exec('ALTER TABLE moodle_cohorts DROP FOREIGN KEY ' . $name);
+                $m->db()->exec(
+                    'ALTER TABLE moodle_cohorts ADD CONSTRAINT ' . $name
+                    . ' FOREIGN KEY (codgrupo) REFERENCES gruposclientes(codgrupo) ON DELETE SET NULL'
+                );
+            } catch (\Throwable $e) {
+                \FacturaScripts\Core\Tools::log()->notice('db12-skip', ['msg' => $e->getMessage()]);
+            }
+        }
+        return true;
+    },
+
+    // DB-13 · Normalise charset/collation on plugin tables. Some
+    //          early FS core deployments created tables with the
+    //          server default (latin1) before switching to utf8mb4.
+    //          Convert every plugin table to utf8mb4_unicode_520_ci
+    //          so Moodle emoji/accent content stored in cohort names
+    //          and audit payloads compares consistently.
+    '2.0.0-F17-DB13-utf8mb4-normalise' => static function (SchemaMigrator $m): bool {
+        if ($m->isPostgres()) {
+            return true;
+        }
+        $tables = [
+            'moodle_instances', 'moodle_user_map', 'moodle_course_map',
+            'moodle_enrolments', 'moodle_cohorts', 'moodle_certificates',
+            'moodle_audit_log', 'moodle_webhook_log',
+        ];
+        foreach ($tables as $table) {
+            if (!$m->tableExists($table)) {
+                continue;
+            }
+            try {
+                $m->db()->exec(
+                    'ALTER TABLE ' . $table
+                    . ' CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci'
+                );
+            } catch (\Throwable $e) {
+                // Older MySQL may lack utf8mb4_unicode_520_ci; fall
+                // back to utf8mb4_unicode_ci so the conversion still
+                // completes.
+                try {
+                    $m->db()->exec(
+                        'ALTER TABLE ' . $table
+                        . ' CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+                    );
+                } catch (\Throwable $e2) {
+                    \FacturaScripts\Core\Tools::log()->notice('db13-skip', [
+                        'table' => $table,
+                        'msg'   => $e2->getMessage(),
+                    ]);
+                }
+            }
+        }
+        return true;
+    },
 ];
