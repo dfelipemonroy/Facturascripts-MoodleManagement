@@ -407,5 +407,12 @@
     "user-not-found-in-moodle": "User no longer exists in Moodle.",
     "user-sync-failed": "Synchronizace uživatele se nezdařila pro %name%: %message%",
     "user-synced": "Uživatel úspěšně synchronizován.",
-    "visible-groups": "Viditelné skupiny"
+    "visible-groups": "Viditelné skupiny",
+    "certificate-pdf": "Stažení PDF certifikátu",
+    "certificate-template": "Šablona certifikátu",
+    "certificate-templates": "Šablony certifikátů",
+    "import-wizard": "Průvodce importem Moodle",
+    "moodle-audit-log": "Záznam auditu Moodle",
+    "moodle-webhook": "Webhook Moodle",
+    "trash": "Koš Moodle"
 }

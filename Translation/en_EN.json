@@ -412,7 +412,6 @@
     "user-sync-failed": "User sync failed for %name%: %message%",
     "user-synced": "User synced successfully.",
     "visible-groups": "Visible groups",
-
     "moodle-notes": "Notes",
     "note": "Note",
     "note-text-required": "Note text is required.",
@@ -427,7 +426,6 @@
     "no-notes-found": "No notes found for this user.",
     "write-note-placeholder": "Write a note about this user...",
     "confirm-delete": "Are you sure you want to delete this record?",
-
     "moodle-calendar": "Calendar",
     "calendar-event": "Event",
     "calendar-event-created": "Calendar event created successfully.",
@@ -445,13 +443,11 @@
     "event-type-course": "Course",
     "event-type-site": "Site",
     "create-event-placeholder": "Event name...",
-
     "duracion-dias": "Duration (days)",
     "duracion-dias-hint": "Days of access after enrolment. 0 = unlimited.",
     "renewal-estimate-created": "Renewal estimate created for course %course% - client %client%.",
     "renewal-estimate-failed": "Error creating renewal estimate for user %userid% in course %courseid%.",
     "renewal-estimate-note": "Enrolment renewal - Course: %course%",
-
     "onboarding": "Onboarding",
     "onboarding-enabled": "Onboarding Enabled",
     "onboarding-course": "Welcome Course",
@@ -466,5 +462,12 @@
     "onboarding-message-sent": "Onboarding: welcome message sent to user %userid%.",
     "onboarding-message-failed": "Onboarding: error sending message to user %userid%: %error%",
     "onboarding-note-text": "User %name% onboarded on %date%.",
-    "onboarding-note-failed": "Onboarding: error creating note for user %userid%: %error%"
+    "onboarding-note-failed": "Onboarding: error creating note for user %userid%: %error%",
+    "certificate-pdf": "Certificate PDF download",
+    "certificate-template": "Certificate template",
+    "certificate-templates": "Certificate templates",
+    "import-wizard": "Moodle import wizard",
+    "moodle-audit-log": "Moodle audit log",
+    "moodle-webhook": "Moodle webhook",
+    "trash": "Moodle trash"
 }

@@ -407,5 +407,12 @@
     "user-not-found-in-moodle": "User no longer exists in Moodle.",
     "user-sync-failed": "Sincronització d'usuari fallida per a %name%: %message%",
     "user-synced": "Usuari sincronitzat correctament.",
-    "visible-groups": "Grups visibles"
+    "visible-groups": "Grups visibles",
+    "certificate-pdf": "Descarga de certificado PDF",
+    "certificate-template": "Plantilla de certificado",
+    "certificate-templates": "Plantillas de certificado",
+    "import-wizard": "Asistente de importación Moodle",
+    "moodle-audit-log": "Registro de auditoría Moodle",
+    "moodle-webhook": "Webhook Moodle",
+    "trash": "Papelera Moodle"
 }

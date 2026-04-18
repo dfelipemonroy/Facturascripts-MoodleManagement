@@ -407,5 +407,12 @@
     "user-not-found-in-moodle": "User no longer exists in Moodle.",
     "user-sync-failed": "Synchronizacja użytkownika nie powiodła się dla %name%: %message%",
     "user-synced": "Użytkownik zsynchronizowany pomyślnie.",
-    "visible-groups": "Grupy widoczne"
+    "visible-groups": "Grupy widoczne",
+    "certificate-pdf": "Pobieranie certyfikatu PDF",
+    "certificate-template": "Szablon certyfikatu",
+    "certificate-templates": "Szablony certyfikatów",
+    "import-wizard": "Kreator importu Moodle",
+    "moodle-audit-log": "Dziennik audytu Moodle",
+    "moodle-webhook": "Webhook Moodle",
+    "trash": "Kosz Moodle"
 }

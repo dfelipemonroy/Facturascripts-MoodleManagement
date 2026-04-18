@@ -412,7 +412,6 @@
     "user-sync-failed": "Sincronización de usuario fallida para %name%: %message%",
     "user-synced": "Usuario sincronizado exitosamente.",
     "visible-groups": "Grupos visibles",
-
     "moodle-notes": "Notas",
     "note": "Nota",
     "note-text-required": "El texto de la nota es obligatorio.",
@@ -427,7 +426,6 @@
     "no-notes-found": "No se encontraron notas para este usuario.",
     "write-note-placeholder": "Escriba una nota sobre este usuario...",
     "confirm-delete": "¿Está seguro que desea eliminar este registro?",
-
     "moodle-calendar": "Calendario",
     "calendar-event": "Evento",
     "calendar-event-created": "Evento de calendario creado exitosamente.",
@@ -445,13 +443,11 @@
     "event-type-course": "Curso",
     "event-type-site": "Sitio",
     "create-event-placeholder": "Nombre del evento...",
-
     "duracion-dias": "Duración (días)",
     "duracion-dias-hint": "Días de acceso tras la matrícula. 0 = ilimitado.",
     "renewal-estimate-created": "Presupuesto de renovación creado para curso %course% - cliente %client%.",
     "renewal-estimate-failed": "Error al crear presupuesto de renovación para usuario %userid% en curso %courseid%.",
     "renewal-estimate-note": "Renovación de matrícula - Curso: %course%",
-
     "onboarding": "Onboarding",
     "onboarding-enabled": "Onboarding Activo",
     "onboarding-course": "Curso de Bienvenida",
@@ -466,5 +462,12 @@
     "onboarding-message-sent": "Onboarding: mensaje de bienvenida enviado al usuario %userid%.",
     "onboarding-message-failed": "Onboarding: error al enviar mensaje al usuario %userid%: %error%",
     "onboarding-note-text": "Usuario %name% incorporado al sistema el %date%.",
-    "onboarding-note-failed": "Onboarding: error al crear nota para usuario %userid%: %error%"
+    "onboarding-note-failed": "Onboarding: error al crear nota para usuario %userid%: %error%",
+    "certificate-pdf": "Descarga de certificado PDF",
+    "certificate-template": "Plantilla de certificado",
+    "certificate-templates": "Plantillas de certificado",
+    "import-wizard": "Asistente de importación Moodle",
+    "moodle-audit-log": "Registro de auditoría Moodle",
+    "moodle-webhook": "Webhook Moodle",
+    "trash": "Papelera Moodle"
 }

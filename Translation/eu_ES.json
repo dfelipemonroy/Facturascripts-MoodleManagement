@@ -407,5 +407,12 @@
     "user-not-found-in-moodle": "User no longer exists in Moodle.",
     "user-sync-failed": "%name% erabiltzailearen sinkronizazioak huts egin du: %message%",
     "user-synced": "Erabiltzailea ondo sinkronizatua.",
-    "visible-groups": "Talak ikusgarriak"
+    "visible-groups": "Talak ikusgarriak",
+    "certificate-pdf": "Descarga de certificado PDF",
+    "certificate-template": "Plantilla de certificado",
+    "certificate-templates": "Plantillas de certificado",
+    "import-wizard": "Asistente de importación Moodle",
+    "moodle-audit-log": "Registro de auditoría Moodle",
+    "moodle-webhook": "Webhook Moodle",
+    "trash": "Papelera Moodle"
 }
