@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.0.0] — 2026-04-17
+## [2.0.0] — Unreleased
 
 Comprehensive audit-remediation release. **16/16 CRITICAL findings
-closed**, 155/155 tracked tasks green. See
-[`docs/V2.0-ACTION-PLAN.md`](docs/V2.0-ACTION-PLAN.md) for the full
-scope and [`docs/V2.0-TASK-CHECKLIST.md`](docs/V2.0-TASK-CHECKLIST.md)
-for per-finding commits.
+from the first-iteration audit closed**, 155/155 tracked tasks green.
+See [`docs/V2.0-ACTION-PLAN.md`](docs/V2.0-ACTION-PLAN.md) for the
+original scope and
+[`docs/V2.0-TASK-CHECKLIST.md`](docs/V2.0-TASK-CHECKLIST.md) for
+per-finding commits.
+
+The release was held back after a second-iteration audit (2026-04-17)
+surfaced 91 further findings. See
+[`docs/V2.0-POST-AUDIT-PLAN.md`](docs/V2.0-POST-AUDIT-PLAN.md) for
+the remediation plan split across Fases 15 / 16 / 17 / 18 — all of
+which must close before `v2.0.0` is tagged.
 
 ### Added
 - **Webhook receiver** `/ApiMoodleWebhook` with HMAC-SHA256 + timestamp
@@ -126,8 +133,32 @@ for per-finding commits.
 - **Dashboard Chart.js 2.x warnings** after upgrade (F3.1).
 
 ### Security
-- **All 16 CRITICAL audit findings closed** — full list in
-  `SECURITY.md` §Security posture.
+- **All 16 CRITICAL findings from the first-iteration audit closed**
+  — full list in `SECURITY.md` §Security posture.
+- **Second-iteration audit Fase 15 (2026-04-17) blockers closed**:
+  - **SEC-01** · `TokenCipher::deriveKey` now fails closed when
+    `FS_COOKIES_EXPIRE` is missing. Previously fell back to a
+    hardcoded string that made stored tokens recoverable from
+    source.
+  - **SEC-02** · `ListMoodleAuditLog` and `ListMoodleTrash` enforce
+    an explicit `$user->admin` check in `privateCore`. Non-admin
+    operators with list-page permission can no longer enumerate
+    logged IPs, user-agents, or soft-deleted rows.
+  - **SEC-03** · `MoodleClient::callApi` rejects plain-HTTP Moodle
+    endpoints unless `FS_DEBUG` is true. Previously the `wstoken`
+    travelled in the POST body over HTTP, harvestable on the wire.
+  - **FE-01** · `MoodleDashboard` pre-serialises chart payloads via
+    the new `JsonForScript::encode` helper (`JSON_HEX_TAG | APOS |
+    QUOT | AMP | THROW_ON_ERROR`). Twig `| json_encode | raw` is no
+    longer used inside `<script>` blocks.
+  - **FE-02** · `CourseContent` and `CourseGroups` templates route
+    Moodle-supplied strings through the `json_for_script` Twig
+    function registered by `Init::init`. CI job
+    `Twig JSON safety linter` greps for regressions.
+  - **BE-04** · `Cron::reconcileEnrolments` probes the instance with
+    `testConnection` before paginating and re-probes before acting
+    on an empty `getEnrolledUsers` response. Prevents bulk
+    `unenrolled` flips triggered by silent WS failures.
 - AES-256-GCM at rest for Moodle tokens + webhook secrets, derived
   from `FS_COOKIES_EXPIRE` via HKDF-SHA256 (F5.12).
 - HMAC-SHA256 on signed certificate URLs (F2.9) + webhook payloads
