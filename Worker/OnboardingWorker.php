@@ -13,6 +13,7 @@ use FacturaScripts\Core\Model\WorkEvent;
 use FacturaScripts\Core\Template\WorkerClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
+use FacturaScripts\Plugins\MoodleManagement\Lib\WorkQueue\IdempotencyGuard;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
@@ -66,6 +67,19 @@ class OnboardingWorker extends WorkerClass
             Tools::log('MoodleManagement')->warning('onboarding-map-not-found', [
                 'id'       => (int) $event->value,
                 'attempts' => self::LOAD_RETRIES,
+            ]);
+            return $this->done();
+        }
+
+        // BE-03 (2026-04-17) — onboarding sends a welcome message,
+        // creates a profile note, and performs optional enrolments.
+        // None of these are idempotent on the Moodle side; a retry
+        // spams the user with duplicates. Dedupe the whole onboarding
+        // cycle on the user-map identity.
+        $idemKey = sprintf('onboard:usermap=%d', (int) $map->id);
+        if (!IdempotencyGuard::beginOnce($idemKey, IdempotencyGuard::DEFAULT_TTL)) {
+            Tools::log('MoodleManagement')->info('onboarding-skipped-duplicate', [
+                'usermap' => (int) $map->id,
             ]);
             return $this->done();
         }

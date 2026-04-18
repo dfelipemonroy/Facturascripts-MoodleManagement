@@ -14,6 +14,7 @@ use FacturaScripts\Core\Template\WorkerClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\FacturaCliente;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
+use FacturaScripts\Plugins\MoodleManagement\Lib\WorkQueue\IdempotencyGuard;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleRoleMap;
@@ -61,6 +62,29 @@ class EnrolmentWorker extends WorkerClass
     {
         $invoice = new FacturaCliente();
         if (false === $invoice->load($event->value)) {
+            return $this->done();
+        }
+
+        // BE-03 (2026-04-17) — idempotency gate. FS model events fire
+        // twice in some cascade paths (save + pre-commit), and the
+        // WorkQueue may redeliver the same event on transient retry.
+        // Without this gate a paid invoice could surface two enrol
+        // calls for the same (user, course) pair, leaving the second
+        // in a broken state whenever Moodle rejected the duplicate.
+        //
+        // Key includes the paid flag so a state transition
+        // (pagada=0 → pagada=1) is treated as a fresh job and does
+        // not collide with the earlier "unenrol" pass.
+        $idemKey = sprintf(
+            'enrol:invoice=%d:pagada=%d',
+            (int) $invoice->idfactura,
+            $invoice->pagada ? 1 : 0
+        );
+        if (!IdempotencyGuard::beginOnce($idemKey, 3600)) {
+            Tools::log('MoodleManagement')->info('enrol-skipped-duplicate', [
+                'invoice' => (int) $invoice->idfactura,
+                'pagada'  => $invoice->pagada ? 1 : 0,
+            ]);
             return $this->done();
         }
 
