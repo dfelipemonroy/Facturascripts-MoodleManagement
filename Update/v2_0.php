@@ -499,6 +499,21 @@ return [
     //          Convert every plugin table to utf8mb4_unicode_520_ci
     //          so Moodle emoji/accent content stored in cohort names
     //          and audit payloads compares consistently.
+    // SEC-14 · tamper-evidence columns for moodle_audit_log.
+    //          `row_hash` is the sha256 of the row's content-defining
+    //          fields; `prev_hash` captures the previous row's hash
+    //          so a reader can chain-verify the log. Full verifier
+    //          tooling is v2.1 scope; v2.0 ships the columns + the
+    //          write-time stamping so later audits have a trail.
+    '2.0.0-F17-SEC14-audit-log-hash-chain' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_audit_log')) {
+            return true;
+        }
+        $m->addColumnIfMissing('moodle_audit_log', 'row_hash',  'VARCHAR(64) NULL');
+        $m->addColumnIfMissing('moodle_audit_log', 'prev_hash', 'VARCHAR(64) NULL');
+        return true;
+    },
+
     '2.0.0-F17-DB13-utf8mb4-normalise' => static function (SchemaMigrator $m): bool {
         if ($m->isPostgres()) {
             return true;

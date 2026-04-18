@@ -81,6 +81,19 @@ final class Audit
                 $row->payload_hash = hash('sha256', (string) json_encode($context['payload']));
             }
 
+            // SEC-14 (2026-04-17) — populate a content hash and a
+            // best-effort `prev_hash` so operators have a tamper-
+            // evidence trail. Verification tool (scan-and-report)
+            // lives in v2.1; for v2.0 we at least stamp the fields.
+            // Skipped when the underlying model lacks the columns
+            // (installs that have not yet migrated).
+            if (property_exists($row, 'row_hash')) {
+                $row->row_hash = self::computeRowHash($row);
+            }
+            if (property_exists($row, 'prev_hash')) {
+                $row->prev_hash = self::latestRowHash();
+            }
+
             if (!$row->save()) {
                 // Persistence failed (table missing or DB down).
                 Tools::log()->warning('audit-persistence-failed', [
@@ -97,6 +110,53 @@ final class Audit
                 'message'   => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * SEC-14 helper — content hash of the audit row, excluding its
+     * own hash columns to keep the computation deterministic across
+     * reads. Used as the next row's `prev_hash` so tampering with
+     * any middle row breaks the chain.
+     */
+    private static function computeRowHash(MoodleAuditLog $row): string
+    {
+        $fields = [
+            (string) $row->action,
+            (string) $row->outcome,
+            (string) ($row->operator_nick ?? ''),
+            (string) ($row->target_type ?? ''),
+            (string) ($row->target_id ?? ''),
+            (string) ($row->ip ?? ''),
+            (string) ($row->user_agent ?? ''),
+            (string) ($row->payload_hash ?? ''),
+        ];
+        return hash('sha256', implode('|', $fields));
+    }
+
+    /**
+     * SEC-14 helper — read the most recent row_hash for the chain.
+     * Best-effort; returns an empty string when the column or table
+     * is unavailable. A race between two concurrent writers may
+     * produce two rows pointing at the same `prev_hash`; the
+     * verification tool in v2.1 flags that but does not block
+     * progress in v2.0.
+     */
+    private static function latestRowHash(): string
+    {
+        try {
+            $db = new \FacturaScripts\Core\Base\DataBase();
+            $rows = $db->select(
+                'SELECT row_hash FROM moodle_audit_log'
+                . ' WHERE row_hash IS NOT NULL AND row_hash <> \'\''
+                . ' ORDER BY id DESC LIMIT 1'
+            );
+            if (!empty($rows[0]['row_hash'])) {
+                return (string) $rows[0]['row_hash'];
+            }
+        } catch (\Throwable $e) {
+            // Column likely missing on a pre-migration install.
+        }
+        return '';
     }
 
     /**

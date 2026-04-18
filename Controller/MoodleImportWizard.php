@@ -25,6 +25,7 @@ use FacturaScripts\Core\Model\Cliente;
 use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CspHeader;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CsvEscaper;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\SignedPayload;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
@@ -76,6 +77,12 @@ class MoodleImportWizard extends Controller
     public function privateCore(&$response, $user, $permissions): void
     {
         parent::privateCore($response, $user, $permissions);
+
+        // SEC-12 (2026-04-17) — apply the plugin CSP layer. The
+        // wizard echoes Moodle-supplied usernames and email addresses
+        // during the preview step; the CSP bounds the blast radius
+        // in case an edit slips past the template escape.
+        CspHeader::apply($this->response);
 
         $this->defaultMapping = [
             'email' => 'email',

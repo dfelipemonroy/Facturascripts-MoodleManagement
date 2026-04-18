@@ -52,6 +52,15 @@
         <type>timestamp</type>
         <default>CURRENT_TIMESTAMP</default>
     </column>
+    <!-- SEC-14 (2026-04-17): tamper-evidence hash chain. -->
+    <column>
+        <name>row_hash</name>
+        <type>character varying(64)</type>
+    </column>
+    <column>
+        <name>prev_hash</name>
+        <type>character varying(64)</type>
+    </column>
 
     <constraint>
         <name>moodle_audit_log_pkey</name>

@@ -14,6 +14,7 @@ use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\Response;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\User;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CspHeader;
 use FacturaScripts\Plugins\MoodleManagement\Lib\View\JsonForScript;
 
 class MoodleDashboard extends Controller
@@ -49,6 +50,15 @@ class MoodleDashboard extends Controller
     public function privateCore(&$response, $user, $permissions): void
     {
         parent::privateCore($response, $user, $permissions);
+
+        // SEC-12 (2026-04-17) — apply the plugin CSP layer on every
+        // controller that renders user-controlled Moodle content
+        // inside a <script> block. The dashboard ingests course
+        // labels, enrolment counts and method strings into Chart.js
+        // payloads; a CSP restricts the blast radius if a future
+        // defect slips a string-interpolated tag past JsonForScript.
+        CspHeader::apply($this->response);
+
         $this->setTemplate('MoodleDashboard');
 
         // F10.9 — cache hit short-circuit. Explicit refresh via
