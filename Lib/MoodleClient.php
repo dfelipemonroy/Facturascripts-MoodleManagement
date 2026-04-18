@@ -113,6 +113,9 @@ class MoodleClient
         // a private/loopback/link-local address (AWS metadata,
         // intranet Moodle instances misconfigured as public URL,
         // localhost dev machine reachable from prod worker).
+        // Kept ahead of the transport check so private-IP targets
+        // surface as SSRF (the more specific finding) regardless of
+        // scheme.
         try {
             IpValidator::assertPublicHost($endpoint);
         } catch (\Throwable $e) {
@@ -124,6 +127,24 @@ class MoodleClient
             return [
                 'exception' => 'ssrf_rejected',
                 'message'   => 'host_private_or_unresolvable',
+            ];
+        }
+
+        // SEC-03 (2026-04-17) — refuse plain-HTTP transports in
+        // production. The Moodle token travels as `wstoken` in the
+        // POST body; without TLS anyone on the wire can harvest it
+        // and mint further WS calls. FS_DEBUG escapes the check so
+        // developers running local stacks (http://localhost, …)
+        // can still exercise the client; production installs must
+        // keep FS_DEBUG false.
+        if (!self::endpointUsesTls($endpoint) && !self::isDevelopmentEnvironment()) {
+            Tools::log()->warning('moodle-insecure-transport-rejected', [
+                'instance' => (int) $instance->id,
+                'endpoint' => $endpoint,
+            ]);
+            return [
+                'exception' => 'insecure_transport',
+                'message'   => 'https_required',
             ];
         }
 
@@ -232,6 +253,31 @@ class MoodleClient
         }
 
         return $decoded ?? [];
+    }
+
+    /**
+     * Returns true when the endpoint URL declares the `https` scheme.
+     * Case-insensitive and tolerant of malformed input.
+     *
+     * @since 2.0 — SEC-03
+     */
+    public static function endpointUsesTls(string $endpoint): bool
+    {
+        $scheme = parse_url($endpoint, PHP_URL_SCHEME);
+        return is_string($scheme) && strtolower($scheme) === 'https';
+    }
+
+    /**
+     * Returns true when the stack is running in a development context
+     * where `http://` endpoints are acceptable. Production installs must
+     * never enable `FS_DEBUG`, so the flag doubles as a deployment mode
+     * hint.
+     *
+     * @since 2.0 — SEC-03
+     */
+    public static function isDevelopmentEnvironment(): bool
+    {
+        return defined('FS_DEBUG') && (bool) constant('FS_DEBUG');
     }
 
     /**
