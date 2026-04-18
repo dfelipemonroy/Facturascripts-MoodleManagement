@@ -41,6 +41,17 @@ class Cron extends CronClass
     public const RECONCILIATION_JOB = 'moodle-reconciliation';
     public const CLEANUP_JOB = 'moodle-cleanup';
     public const EXPIRY_CHECK_JOB = 'moodle-expiry-check';
+    public const LOGS_RETENTION_JOB = 'moodle-logs-retention';
+
+    /**
+     * Retention window (days) applied to `moodle_audit_log` and
+     * `moodle_webhook_log`. Kept conservative so operators still
+     * have a forensic trail; override via plugin settings in the
+     * future if regulatory requirements change.
+     *
+     * @since 2.0 — DB-05 (2026-04-17)
+     */
+    public const LOGS_RETENTION_DAYS = 90;
     /** @since 2.0 — F10.2 */
     public const PROGRESS_SYNC_JOB = 'moodle-progress-sync';
 
@@ -156,6 +167,51 @@ class Cron extends CronClass
         $this->job(self::PROGRESS_SYNC_JOB)->every(self::EVERY_6_HOURS)->run(function () use ($lock, $lockedRun) {
             $lockedRun($lock, self::PROGRESS_SYNC_JOB, function () { $this->progressSync(); });
         });
+
+        // DB-05 (2026-04-17) — retention sweep for the append-only
+        // audit + webhook logs. Defaults to 90 days. Runs once per
+        // day; guarded by the cooperative lock so concurrent cron
+        // runners do not delete the same rows twice.
+        $this->job(self::LOGS_RETENTION_JOB)->every(self::EVERY_DAY)->run(function () use ($lock, $lockedRun) {
+            $lockedRun($lock, self::LOGS_RETENTION_JOB, function () { $this->logsRetention(); });
+        });
+    }
+
+    /**
+     * DB-05 — trims `moodle_audit_log` and `moodle_webhook_log` to
+     * the last `LOGS_RETENTION_DAYS`. Single parametrised DELETE per
+     * table; the caller-lock already ensures no concurrent deletes.
+     *
+     * @since 2.0 — DB-05 (2026-04-17)
+     */
+    private function logsRetention(): void
+    {
+        $db = new DataBase();
+        $cutoff = date('Y-m-d H:i:s', time() - (self::LOGS_RETENTION_DAYS * 86400));
+        $tables = [
+            'moodle_audit_log'    => 'created_at',
+            'moodle_webhook_log'  => 'received_at',
+        ];
+        $deleted = [];
+        foreach ($tables as $table => $col) {
+            $sql = 'DELETE FROM ' . $table . ' WHERE ' . $col . ' < ' . $db->var2str($cutoff);
+            try {
+                if ($db->exec($sql)) {
+                    $deleted[$table] = 'ok';
+                    continue;
+                }
+                $deleted[$table] = 'failed';
+            } catch (\Throwable $e) {
+                // Table may not exist on a partial install; log and
+                // continue so one missing table does not abort the
+                // whole retention pass.
+                $deleted[$table] = 'exception:' . get_class($e);
+            }
+        }
+        Tools::log(self::LOGS_RETENTION_JOB)->notice('logs-retention-done', [
+            'cutoff'  => $cutoff,
+            'results' => $deleted,
+        ]);
     }
 
     /** F6.11 — cache key prefix for per-instance health probes. */

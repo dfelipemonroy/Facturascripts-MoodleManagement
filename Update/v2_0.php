@@ -335,4 +335,83 @@ return [
             "VARCHAR(20) NOT NULL DEFAULT 'name_based'"
         );
     },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F17 — DB MEDIUM bundle (2026-04-17 second-iteration audit)
+    // ──────────────────────────────────────────────────────────────
+
+    // DB-07 · index on moodle_user_map.moodle_username so the
+    //          Moodle-side lookup by username is O(log n).
+    '2.0.0-F17-DB07-user-map-username-index' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_user_map')) {
+            return true;
+        }
+        return $m->createIndexIfMissing(
+            'moodle_user_map',
+            'idx_mm_um_username',
+            'moodle_username'
+        );
+    },
+
+    // DB-11 · enforce URL uniqueness on moodle_instances so operators
+    //          cannot register the same Moodle twice and split workers
+    //          between two conflicting configs.
+    '2.0.0-F17-DB11-instance-url-unique' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances')) {
+            return true;
+        }
+        $name = 'uniq_mm_instance_url';
+        if ($m->constraintExists('moodle_instances', $name)) {
+            return true;
+        }
+        // Only add the constraint if no duplicates are already present;
+        // otherwise the operator must de-dup manually before re-run.
+        $dupes = $m->db()->select(
+            'SELECT url, COUNT(*) as c FROM moodle_instances GROUP BY url HAVING COUNT(*) > 1'
+        );
+        if (!empty($dupes)) {
+            \FacturaScripts\Core\Tools::log()->warning('mm-instance-url-duplicates', [
+                'count' => count($dupes),
+                'hint'  => 'Resolve duplicates manually before re-running this migration.',
+            ]);
+            return true; // soft no-op so the rest of the pipeline continues
+        }
+        return (bool) $m->db()->exec(
+            'ALTER TABLE moodle_instances ADD CONSTRAINT ' . $name . ' UNIQUE (url)'
+        );
+    },
+
+    // DB-07 (contd) · moodle_user_map.idcontacto + idinstance composite
+    //                 already indexed in F5.3; add moodle_userid too
+    //                 for reverse lookups from webhook handlers.
+    '2.0.0-F17-DB07b-user-map-moodle-userid-index' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_user_map')) {
+            return true;
+        }
+        return $m->createIndexIfMissing(
+            'moodle_user_map',
+            'idx_mm_um_moodle_userid',
+            'moodle_userid'
+        );
+    },
+
+    // DB-02 · `deleted_at` indexes on the three soft-delete tables.
+    //          Queries filter `deleted_at IS NULL` almost universally;
+    //          a functional index keeps the filter O(log n) once trash
+    //          crosses a few thousand rows. (F18.34, migrated from the
+    //          v2.1 backlog.)
+    '2.0.0-F17-F18-34-deleted-at-indexes' => static function (SchemaMigrator $m): bool {
+        $targets = [
+            ['moodle_user_map',    'idx_mm_um_deleted_at',    'deleted_at'],
+            ['moodle_enrolments',  'idx_mm_enrol_deleted_at', 'deleted_at'],
+            ['moodle_cohorts',     'idx_mm_cohort_deleted_at', 'deleted_at'],
+        ];
+        foreach ($targets as [$table, $idx, $col]) {
+            if (!$m->tableExists($table) || !$m->columnExists($table, $col)) {
+                continue;
+            }
+            $m->createIndexIfMissing($table, $idx, $col);
+        }
+        return true;
+    },
 ];

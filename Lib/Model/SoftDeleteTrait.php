@@ -55,6 +55,18 @@ trait SoftDeleteTrait
             return parent::delete();
         }
         $pk = static::primaryColumn();
+        // DB-02 (2026-04-17) — refuse composite primary keys. The raw
+        // UPDATE below embeds a single `$pk = value` condition, so a
+        // composite PK returned as an array would quietly target the
+        // wrong row (or fail at SQL level). Surface the mismatch now
+        // so callers move the model onto the soft-delete trait with
+        // eyes open.
+        if (is_array($pk)) {
+            throw new \FacturaScripts\Plugins\MoodleManagement\Lib\Exception\UnsupportedSchemaException(
+                'SoftDeleteTrait: composite primary keys are not supported. '
+                . 'Table ' . static::tableName() . ' declares ' . implode(',', $pk) . '.'
+            );
+        }
         $id = $this->{$pk} ?? null;
         if ($id === null) {
             return false;
