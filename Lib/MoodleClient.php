@@ -21,6 +21,8 @@ namespace FacturaScripts\Plugins\MoodleManagement\Lib;
 
 use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\CircuitBreaker;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\RetryPolicy;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\IpValidator;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 
@@ -148,6 +150,89 @@ class MoodleClient
             ];
         }
 
+        // BE-02 (2026-04-17) — CircuitBreaker gate before touching the
+        // network. If the per-instance breaker is OPEN, fail fast with
+        // a distinct exception code so callers can surface a "Moodle
+        // temporarily unavailable" message rather than having every
+        // worker pile onto a dead instance.
+        $instanceId = (int) $instance->id;
+        if (!CircuitBreaker::allow($instanceId)) {
+            Tools::log()->notice('moodle-circuit-open', [
+                'instance' => $instanceId,
+                'function' => $function,
+            ]);
+            return [
+                'exception' => 'circuit_open',
+                'message'   => 'instance_temporarily_unavailable',
+            ];
+        }
+
+        $result = self::dispatchWithRetry($instance, $function, $params, $options, $endpoint);
+
+        // BE-02 — feed the breaker with the attempt outcome.
+        if (isset($result['exception'])) {
+            $tag = (string) $result['exception'];
+            // Do not count infrastructure-level rejections as upstream
+            // failures: SSRF, insecure_transport, circuit_open are
+            // decided locally, not by Moodle.
+            if (!in_array($tag, ['ssrf_rejected', 'insecure_transport', 'circuit_open'], true)) {
+                CircuitBreaker::reportFailure($instanceId);
+            }
+        } else {
+            CircuitBreaker::reportSuccess($instanceId);
+        }
+
+        return $result;
+    }
+
+    /**
+     * BE-02 wrapper — wraps a single HTTP dispatch inside RetryPolicy
+     * so transient errors (connect timeout, 5xx) are retried with
+     * exponential back-off. The retry decision honours
+     * `RetryPolicy::PERMANENT_EXCEPTIONS` so auth failures and similar
+     * permanent errors short-circuit immediately.
+     *
+     * Callers can opt out by passing `$options['retry_enabled'] = false`
+     * — used by cron probes that want a single shot. The default
+     * `retry_max_attempts = 3` and `retry_base_delay_ms = 500` are
+     * modest so UI calls do not stall.
+     *
+     * @since 2.0 — BE-02 (2026-04-17)
+     */
+    private static function dispatchWithRetry(
+        MoodleInstance $instance,
+        string $function,
+        array $params,
+        array $options,
+        string $endpoint
+    ): array {
+        $retryEnabled = (bool) ($options['retry_enabled'] ?? true);
+        $maxAttempts = $retryEnabled
+            ? max(1, (int) ($options['retry_max_attempts'] ?? 3))
+            : 1;
+        $baseDelayMs = max(50, (int) ($options['retry_base_delay_ms'] ?? 500));
+
+        $fn = static function () use ($instance, $function, $params, $options, $endpoint): array {
+            return self::dispatchSingle($instance, $function, $params, $options, $endpoint);
+        };
+
+        $tag = 'moodle-ws|' . $function . '|instance=' . (int) $instance->id;
+        $result = RetryPolicy::execute($fn, $maxAttempts, $baseDelayMs, $tag);
+        return is_array($result) ? $result : [];
+    }
+
+    /**
+     * Single HTTP dispatch attempt. Split out of `callApi` in BE-02
+     * (2026-04-17) so retry + breaker can wrap the raw transport
+     * without re-running SSRF / transport gating on every attempt.
+     */
+    private static function dispatchSingle(
+        MoodleInstance $instance,
+        string $function,
+        array $params,
+        array $options,
+        string $endpoint
+    ): array {
         // F7.13 — always force JSON output, regardless of whatever
         // the caller may have passed in $params.
         $postData = array_merge($params, [
@@ -173,12 +258,7 @@ class MoodleClient
         $exceeded = false;
 
         // SEC-08 (2026-04-17) — also advertise the token via an
-        // `Authorization: Bearer` header so reverse proxies / OAuth
-        // bridges in front of Moodle can authenticate without
-        // parsing the body, and so intermediaries that strip bodies
-        // on error responses still see the token context for
-        // auditing. The body continues to carry `wstoken` for
-        // vanilla Moodle REST compatibility.
+        // `Authorization: Bearer` header.
         $headers = [
             'Authorization: Bearer ' . $instance->token,
             'Accept: application/json',
@@ -193,20 +273,16 @@ class MoodleClient
             CURLOPT_RETURNTRANSFER => false, // we own the buffer via WRITEFUNCTION
             CURLOPT_TIMEOUT => $timeout,
             CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT_SECONDS,
-            // F7.1 — do not follow redirects automatically. A hostile
-            // Moodle (or MITM) could 302 to an internal address. The
-            // WS endpoint answers directly with 200; a 3xx response
-            // is treated as an error.
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$buffer, &$exceeded, $maxBytes) {
                 if ($exceeded) {
-                    return 0; // stops curl
+                    return 0;
                 }
                 $buffer .= $chunk;
                 if (strlen($buffer) > $maxBytes) {
                     $exceeded = true;
-                    return 0; // abort download
+                    return 0;
                 }
                 return strlen($chunk);
             },
@@ -265,7 +341,7 @@ class MoodleClient
             return is_array($inner) ? $inner : [];
         }
 
-        return $decoded ?? [];
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**
