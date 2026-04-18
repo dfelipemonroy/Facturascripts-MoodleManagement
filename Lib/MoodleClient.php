@@ -26,6 +26,24 @@ use FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\RetryPolicy;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\IpValidator;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 
+/**
+ * Legacy monolithic Moodle WS client — 100+ static helpers wrapping
+ * the REST API. Historically the only entry point for every worker
+ * and cron in the plugin.
+ *
+ * `@deprecated since 2.0` — new code should route through the
+ * `Lib\Moodle\Api\*` facade classes, each of which is focused on a
+ * single Moodle domain (UserApi, CourseApi, EnrolmentApi …). The
+ * facades are transport-equivalent (they delegate to this class
+ * under the hood) so migrating a call site is mechanical.
+ *
+ * The v2.0 line still ships the static API unchanged; the v2.1 line
+ * will collapse the static methods into delegators and eventually
+ * remove them once every caller has migrated. Tracked in
+ * `docs/V2.1-BACKLOG.md` as ARCH-01.
+ *
+ * @since 2.0 — ARCH-01 deprecation notice (2026-04-17)
+ */
 class MoodleClient
 {
     /**

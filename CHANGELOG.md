@@ -135,6 +135,21 @@ which must close before `v2.0.0` is tagged.
 ### Security
 - **All 16 CRITICAL findings from the first-iteration audit closed**
   — full list in `SECURITY.md` §Security posture.
+- **Second-iteration audit Fase 18 (2026-04-17) LOW + INFO + migrated worked** (34 items — 7 code-fixed, 27 deferred/verified with rationale; see `docs/V2.0-POST-AUDIT-PLAN.md` §FASE 18 for per-item status):
+  - **STD-02** · `facturascripts.ini::min_version` 2025.6 → 2025.8.
+  - **STD-10** · `.editorconfig` `[*.html.twig]` section added.
+  - **DOC-03** · `docs/WEBHOOK-RUNBOOK.md` shipped with endpoint
+    contract, payload table, rotation playbook, troubleshooting.
+  - **DOC-04** · `docs/ARCHITECTURE.md` extracted from the v2.0
+    development notes — layer diagram, cron table, event flow.
+  - **DOC-05** · `docs/adr/README.md` indexes the six architectural
+    decisions (ADR-01 through ADR-06). Individual records are
+    follow-up.
+  - **ARCH-01** · `MoodleClient` carries an `@deprecated since 2.0`
+    docstring pointing at the `Lib\Moodle\Api\*` facades.
+  - **U4 (migrated)** · `ListMoodleCohort` lifecycle filter backed
+    by `CohortLifecycle::TRASHED / DETACHED / ACTIVE`.
+
 - **Second-iteration audit Fase 17 (2026-04-17) MEDIUM findings worked** (38 items — 12 code-fixed, 15 verified/superseded, 11 deferred with rationale; see `docs/V2.0-POST-AUDIT-PLAN.md` §FASE 17 for per-item status):
   - **SEC-09 / FE-05** · `HtmlSanitizer` URL scheme + `isSafeImageSrc`
     lowercase-normalise the scheme before every match so `JaVaScRiPt:`
