@@ -185,14 +185,25 @@ final class TokenCipher
     /**
      * HKDF-SHA256 over the FS cookie secret. Rotating the info
      * label rotates the signing key without touching the secret.
+     *
+     * Fail-closed: if `FS_COOKIES_EXPIRE` is not defined in `config.php`
+     * and is not present in the environment, this throws rather than
+     * falling back to a hardcoded string. A compromised fallback would
+     * allow offline ciphertext recovery by anyone reading the source.
+     * See audit SEC-01 (2026-04-17).
      */
     private static function deriveKey(): string
     {
         $secret = defined('FS_COOKIES_EXPIRE')
             ? (string) constant('FS_COOKIES_EXPIRE')
-            : (string) (getenv('FS_COOKIES_EXPIRE') ?: 'mm-fallback-insecure-secret');
+            : (string) getenv('FS_COOKIES_EXPIRE');
         if ($secret === '') {
-            $secret = 'mm-fallback-insecure-secret';
+            throw new \RuntimeException(
+                'TokenCipher: FS_COOKIES_EXPIRE is not configured. '
+                . 'Define it in config.php or the environment so the '
+                . 'token cipher key can be derived. Refusing to encrypt '
+                . 'or decrypt with a fallback secret.'
+            );
         }
         return hash_hkdf('sha256', $secret, self::KEY_BYTES, 'mm/token-cipher/v1');
     }

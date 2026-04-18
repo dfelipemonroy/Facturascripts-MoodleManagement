@@ -73,4 +73,29 @@ final class TokenCipherTest extends TestCase
         self::assertFalse(TokenCipher::isEncrypted('plain-token'));
         self::assertTrue(TokenCipher::isEncrypted('mm2g:AAAA'));
     }
+
+    /**
+     * Regression for audit SEC-01 (2026-04-17). A prior implementation
+     * fell back to a hardcoded string when `FS_COOKIES_EXPIRE` was not
+     * configured, which made stored tokens recoverable by anyone reading
+     * the source. The cipher must fail-closed instead.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function testDeriveKeyFailsClosedWhenSecretIsMissing(): void
+    {
+        // The plugin test bootstrap does not define `FS_COOKIES_EXPIRE`
+        // as a constant — it only exposes the secret through the
+        // environment. Unsetting the env completely removes both
+        // sources, which is the condition the fix must reject.
+        putenv('FS_COOKIES_EXPIRE');
+
+        self::assertFalse(defined('FS_COOKIES_EXPIRE'), 'Precondition: constant must not be defined.');
+        self::assertFalse(getenv('FS_COOKIES_EXPIRE'), 'Precondition: env must be empty.');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/FS_COOKIES_EXPIRE/');
+        TokenCipher::encrypt('some-token');
+    }
 }

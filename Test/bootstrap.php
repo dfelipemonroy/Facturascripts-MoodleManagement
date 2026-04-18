@@ -75,5 +75,14 @@ if (!defined('FS_FOLDER')) {
 // Default timezone for deterministic test runs.
 date_default_timezone_set('UTC');
 
+// Deterministic TokenCipher key for the test suite. `FS_COOKIES_EXPIRE`
+// is normally defined in FS `config.php`, which the plugin test bootstrap
+// does not load. Expose a stable value via the environment so crypto-
+// related tests are reproducible. The fail-closed regression test
+// (SEC-01) unsets this env var to assert the RuntimeException path.
+if (getenv('FS_COOKIES_EXPIRE') === false) {
+    putenv('FS_COOKIES_EXPIRE=mm-test-cookie-secret-do-not-use-in-prod');
+}
+
 // Silence deprecation noise from third-party vendored code during tests.
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
