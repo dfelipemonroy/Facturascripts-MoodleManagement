@@ -1,27 +1,10 @@
-# Ignore all internal docs by default...
-# Using docs/* (not docs/) so that selective !docs/<file> exceptions work.
-docs/*
-# ...but keep the v2.0 plan, checklist and the dead-code audit
-# note version-controlled.
-!docs/V2.0-ACTION-PLAN.md
-!docs/V2.0-TASK-CHECKLIST.md
-!docs/DEAD-CODE-AUDIT.md
-!docs/PHP-INI-HARDENING.md
-!docs/SUPPORTED-VERSIONS.md
-!docs/TROUBLESHOOTING.md
-!docs/EVENTS.md
-!docs/QA-SMOKE-TEST.md
-!docs/QA-V1-REGRESSION.md
-!docs/QA-PERFORMANCE.md
-!docs/QA-OWASP-ZAP.md
-!docs/RELEASE-CHECKLIST.md
-!docs/QA-LINT-ANALYSE.md
-!docs/V2.1-BACKLOG.md
-!docs/V2.0-POST-AUDIT-PLAN.md
-!docs/WEBHOOK-RUNBOOK.md
-!docs/ARCHITECTURE.md
-!docs/adr/
-!docs/adr/*.md
+# Development-only documentation, QA harness, and agent context —
+# untracked; they live in the working tree for contributors but do
+# NOT ship in commits / release ZIP / PR diffs.
+CLAUDE.md
+.docs-dev/
+docs/
+qa/
 
 vendor/
 .phpunit.cache/
@@ -35,4 +18,3 @@ vendor/
 .phpunit.cache/coverage.xml
 .phpunit.cache/junit.xml
 .phpunit.cache/result
-
