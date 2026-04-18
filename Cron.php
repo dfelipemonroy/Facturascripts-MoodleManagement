@@ -490,6 +490,30 @@ class Cron extends CronClass
         //
         // F13 DISCOVERED-04 — BufferedLogger again for the high-
         // cardinality warning case.
+        //
+        // BE-04 (2026-04-17) — an empty response from getEnrolledUsers
+        // will mark every local `enrolled` row `unenrolled`. That is
+        // desirable when the upstream course was genuinely cleared, but
+        // catastrophic when it is a silent WS failure (token expired,
+        // transient 200-with-empty-body, partial outage). Two guards
+        // close that gap:
+        //   * upfront health probe — if the instance cannot answer
+        //     core_webservice_get_site_info we skip the whole
+        //     reconciliation for it.
+        //   * per-course confirmation — before bulk-unenrolling on an
+        //     empty response, we do a second health probe. The probe
+        //     is cheap relative to the damage mass-unenrol would do,
+        //     and fires only on the suspect branch.
+        $preflight = MoodleClient::testConnection($instance);
+        if (isset($preflight['exception'])) {
+            Tools::log()->warning('reconcile-skipped-unhealthy-instance', [
+                'instance'  => (int) $instance->id,
+                'exception' => (string) ($preflight['exception'] ?? ''),
+                'message'   => (string) ($preflight['message'] ?? ''),
+            ]);
+            return;
+        }
+
         $courseMapModel = new MoodleCourseMap();
         $cmWhere = [
             new DataBaseWhere('idinstance', $instance->id),
@@ -514,6 +538,20 @@ class Cron extends CronClass
                 $moodleEnrolledIds = [];
                 foreach ($enrolledResult as $user) {
                     $moodleEnrolledIds[(int) $user['id']] = true;
+                }
+
+                // BE-04 guard #2 — an empty $moodleEnrolledIds is the
+                // mass-unenrol trigger. Before acting on it, verify
+                // the instance is still healthy. If the second probe
+                // fails we treat the empty response as suspect and
+                // skip the course entirely; the next cron iteration
+                // will retry once the instance is healthy again.
+                if ($moodleEnrolledIds === [] && self::reconciliationProbeHealthy($instance) === false) {
+                    $log->warning('reconcile-skipped-empty-suspect', [
+                        '%instance%' => (int) $instance->id,
+                        '%courseid%' => $courseMap->moodle_courseid,
+                    ]);
+                    continue;
                 }
 
                 $enrolModel = new MoodleEnrolment();
@@ -555,6 +593,18 @@ class Cron extends CronClass
         } while (true);
 
         $log->flush();
+    }
+
+    /**
+     * BE-04 (2026-04-17) — cheap health probe used by reconciliation
+     * whenever a suspect empty enrolment list would otherwise trigger
+     * a mass `unenrolled` flip. Keeps the indirection small so the
+     * reconcile loop can short-circuit on a single boolean.
+     */
+    private static function reconciliationProbeHealthy(MoodleInstance $instance): bool
+    {
+        $result = MoodleClient::testConnection($instance);
+        return !isset($result['exception']);
     }
 
     private function cleanup(): void
