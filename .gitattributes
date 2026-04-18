@@ -12,6 +12,7 @@
 .docs-dev/      export-ignore
 docs/V2.0-ACTION-PLAN.md    export-ignore
 docs/V2.0-TASK-CHECKLIST.md export-ignore
+docs/V2.0-POST-AUDIT-PLAN.md export-ignore
 docs/DEAD-CODE-AUDIT.md     export-ignore
 
 # Test suite — shipped to the repo (CI runs it) but excluded from

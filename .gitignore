@@ -17,6 +17,7 @@ docs/*
 !docs/RELEASE-CHECKLIST.md
 !docs/QA-LINT-ANALYSE.md
 !docs/V2.1-BACKLOG.md
+!docs/V2.0-POST-AUDIT-PLAN.md
 
 vendor/
 .phpunit.cache/
