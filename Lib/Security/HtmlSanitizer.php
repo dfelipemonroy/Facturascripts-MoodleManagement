@@ -293,6 +293,12 @@ final class HtmlSanitizer
 
     /**
      * Accept http, https, mailto. Reject javascript:, data:, vbscript:, etc.
+     *
+     * SEC-09 / FE-05 (2026-04-17) — normalise the scheme to lower-case
+     * before every match so `JaVaScRiPt:` variants cannot sneak through
+     * a stray case-sensitive check introduced in later edits. The
+     * existing `i` regex flag already covers the current call-sites;
+     * the explicit normalisation hardens future changes.
      */
     private static function isSafeUrl(string $url): bool
     {
@@ -304,11 +310,14 @@ final class HtmlSanitizer
         if ($url[0] === '/' || $url[0] === '#') {
             return true;
         }
-        return (bool) preg_match('#^(https?://|mailto:)#i', $url);
+        $normalised = strtolower($url);
+        return strncmp($normalised, 'https://', 8) === 0
+            || strncmp($normalised, 'http://', 7) === 0
+            || strncmp($normalised, 'mailto:', 7) === 0;
     }
 
     /**
-     * Accept http/https images and data:image/{png,jpeg,gif,webp,svg+xml}
+     * Accept http/https images and data:image/{png,jpeg,gif,webp}
      * — NOT svg+xml because SVG can carry <script>.
      */
     private static function isSafeImageSrc(string $src): bool
@@ -320,10 +329,14 @@ final class HtmlSanitizer
         if ($src[0] === '/') {
             return true;
         }
-        if (preg_match('#^https?://#i', $src)) {
+        $normalised = strtolower($src);
+        if (strncmp($normalised, 'https://', 8) === 0 || strncmp($normalised, 'http://', 7) === 0) {
             return true;
         }
-        if (preg_match('#^data:image/(png|jpe?g|gif|webp);base64,#i', $src)) {
+        // `data:image/...` only; `i` flag preserved on the sub-type regex.
+        if (strncmp($normalised, 'data:image/', 11) === 0
+            && preg_match('#^data:image/(png|jpe?g|gif|webp);base64,#i', $src)
+        ) {
             return true;
         }
         return false;

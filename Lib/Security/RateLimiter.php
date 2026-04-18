@@ -123,9 +123,12 @@ final class RateLimiter
     private static function buildKey($actor, string $action): string
     {
         $rawActor = is_string($actor) ? $actor : (string) (int) $actor;
-        // Hash actor so keys stay fixed-size and friendly for any
-        // cache backend (filename limits, memcached etc.).
-        $hash = substr(sha1($rawActor), 0, 16);
+        // SEC-11 (2026-04-17) — upgraded from SHA-1 to SHA-256. The
+        // hash is only used as a cache-key namespace (not a security
+        // primitive) but SHA-1 collisions are now cheap enough that
+        // two actors with a colliding prefix could share a bucket.
+        // SHA-256 removes the concern at zero runtime cost.
+        $hash = substr(hash('sha256', $rawActor), 0, 16);
         // Action is constrained to [a-z0-9._-] by convention; we
         // still normalise here to avoid stray characters in cache keys.
         $actionSafe = preg_replace('/[^a-z0-9._-]+/i', '_', $action);
