@@ -12,6 +12,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 use FacturaScripts\Core\Base\Controller;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Audit;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Http\RequestCompat;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\RateLimiter;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Webhook\WebhookDispatcher;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Webhook\WebhookVerifier;
@@ -98,7 +99,7 @@ class ApiMoodleWebhook extends Controller
     private function handle(): void
     {
         $log = new MoodleWebhookLog();
-        $log->ip = (string) $this->request->getClientIp();
+        $log->ip = RequestCompat::clientIp($this->request);
 
         // 1. Rate-limit by remote IP.
         $ip = $log->ip ?: 'unknown';

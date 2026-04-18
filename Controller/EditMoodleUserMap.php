@@ -27,6 +27,7 @@ use FacturaScripts\Core\Lib\ExtendedController\EditController;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Audit;
 use FacturaScripts\Plugins\MoodleManagement\Lib\BadgeSyncHelper;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Http\RequestCompat;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\RateLimiter;
 
@@ -219,8 +220,8 @@ class EditMoodleUserMap extends EditController
                 'operator_nick' => $actor,
                 'target_type' => 'moodle_user_map',
                 'target_id' => (int) $this->request->get('code'),
-                'ip' => $this->request->getClientIp(),
-                'user_agent' => (string) $this->request->headers->get('User-Agent', ''),
+                'ip' => RequestCompat::clientIp($this->request),
+                'user_agent' => RequestCompat::header($this->request, 'User-Agent'),
             ]);
             Tools::log()->warning('usermap-action-forbidden', [
                 'action' => $action,
@@ -234,14 +235,14 @@ class EditMoodleUserMap extends EditController
         // F4.3 — rate-limit sensitive actions.
         if (isset(self::ACTION_RATE_LIMITS[$action])) {
             $limit = self::ACTION_RATE_LIMITS[$action];
-            $actor = (string) ($this->user->nick ?? $this->request->getClientIp() ?? 'anon');
+            $actor = (string) ($this->user->nick ?? RequestCompat::clientIp($this->request) ?: 'anon');
             $bucket = 'usermap.' . $action;
             if (!RateLimiter::check($actor, $bucket, $limit)) {
                 Audit::record('usermap.' . $action, Audit::RATE_LIMITED, [
                     'operator_nick' => $actor,
                     'target_type' => 'moodle_user_map',
                     'target_id' => (int) $this->request->get('code'),
-                    'ip' => $this->request->getClientIp(),
+                    'ip' => RequestCompat::clientIp($this->request),
                     'payload' => ['limit_per_minute' => $limit],
                 ]);
                 Tools::log()->warning('usermap-action-rate-limited', [

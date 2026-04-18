@@ -23,6 +23,7 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleRoleMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 /**
  * Creates `pending` MoodleEnrolment rows when a Presupuesto or
@@ -87,8 +88,8 @@ class PreEnrolmentWorker extends WorkerClass
             // and bail out. Any enrolments linked to it were
             // already persisted by the cron itself.
             $skipKey = self::SKIP_PREENROL_PREFIX . (int) $event->value;
-            if (\FacturaScripts\Core\Tools::cache()->get($skipKey)) {
-                \FacturaScripts\Core\Tools::cache()->delete($skipKey);
+            if (\FacturaScripts\Core\CacheCompat::get($skipKey)) {
+                \FacturaScripts\Core\CacheCompat::delete($skipKey);
                 return $this->done();
             }
         } elseif ($event->name === 'Model.PedidoCliente.Update') {

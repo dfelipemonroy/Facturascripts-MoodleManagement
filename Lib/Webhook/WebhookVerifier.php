@@ -11,6 +11,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Lib\Webhook;
 
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\TokenCipher;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 /**
  * @since 2.0 — V2.0-ACTION-PLAN F10.1 · §6.14
@@ -81,12 +82,12 @@ final class WebhookVerifier
             return false;
         }
         $key = self::NONCE_CACHE_PREFIX . hash('sha256', $nonce);
-        $cache = Tools::cache();
-        $prev = $cache->get($key);
+        // CacheCompat: static API
+        $prev = CacheCompat::get($key);
         if ($prev !== null) {
             return false; // already seen, replay
         }
-        $cache->set($key, 1, self::NONCE_TTL);
+        CacheCompat::set($key, 1, self::NONCE_TTL);
         return true;
     }
 

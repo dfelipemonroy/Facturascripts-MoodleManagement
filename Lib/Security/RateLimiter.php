@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace FacturaScripts\Plugins\MoodleManagement\Lib\Security;
 
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 /**
  * Fixed-window in-process rate limiter.
@@ -60,7 +61,7 @@ final class RateLimiter
         }
 
         $key = self::buildKey($actor, $action);
-        $data = Tools::cache()->get($key);
+        $data = CacheCompat::get($key);
 
         $now = time();
         if (!is_array($data) || ($data['reset'] ?? 0) <= $now) {
@@ -69,7 +70,7 @@ final class RateLimiter
                 'count' => 1,
                 'reset' => $now + self::WINDOW_SECONDS,
             ];
-            Tools::cache()->set($key, $data, self::WINDOW_SECONDS);
+            CacheCompat::set($key, $data, self::WINDOW_SECONDS);
             return true;
         }
 
@@ -79,7 +80,7 @@ final class RateLimiter
 
         $data['count'] = (int) ($data['count'] ?? 0) + 1;
         $ttl = max(1, $data['reset'] - $now);
-        Tools::cache()->set($key, $data, $ttl);
+        CacheCompat::set($key, $data, $ttl);
         return true;
     }
 
@@ -92,7 +93,7 @@ final class RateLimiter
     public static function snapshot($actor, string $action, int $maxPerMinute): array
     {
         $key = self::buildKey($actor, $action);
-        $data = Tools::cache()->get($key);
+        $data = CacheCompat::get($key);
         $now = time();
         if (!is_array($data) || ($data['reset'] ?? 0) <= $now) {
             return [
@@ -118,7 +119,7 @@ final class RateLimiter
      */
     public static function reset($actor, string $action): void
     {
-        Tools::cache()->delete(self::buildKey($actor, $action));
+        CacheCompat::delete(self::buildKey($actor, $action));
     }
 
     private static function buildKey($actor, string $action): string

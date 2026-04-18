@@ -15,6 +15,7 @@ use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\User;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CspHeader;
 use FacturaScripts\Plugins\MoodleManagement\Lib\View\JsonForScript;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 class MoodleDashboard extends Controller
 {
@@ -58,14 +59,14 @@ class MoodleDashboard extends Controller
         // ?refresh=1 re-populates the cache so admins can force a
         // fresh view after a bulk import or sync.
         $refresh = $this->request->query->getBoolean('refresh', false);
-        $cache = Tools::cache();
-        $cached = $refresh ? null : $cache->get(self::DASH_CACHE_KEY);
+        // CacheCompat: static API
+        $cached = $refresh ? null : CacheCompat::get(self::DASH_CACHE_KEY);
         if (is_array($cached)) {
             $this->dashboardData = $cached;
             return;
         }
         $this->loadDashboardData();
-        $cache->set(self::DASH_CACHE_KEY, $this->dashboardData, self::DASH_CACHE_TTL);
+        CacheCompat::set(self::DASH_CACHE_KEY, $this->dashboardData, self::DASH_CACHE_TTL);
     }
 
     private function loadDashboardData(): void

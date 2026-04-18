@@ -32,6 +32,7 @@ use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 class Cron extends CronClass
 {
@@ -250,7 +251,7 @@ class Cron extends CronClass
             // the WS round-trip. Pages or dashboards that already
             // ran a check this minute persist the outcome there.
             $cacheKey = self::HEALTH_CACHE_PREFIX . (int) $instance->id;
-            $cached = Tools::cache()->get($cacheKey);
+            $cached = CacheCompat::get($cacheKey);
             if (is_array($cached) && isset($cached['ts']) && (time() - (int) $cached['ts']) < self::HEALTH_CACHE_TTL) {
                 continue;
             }
@@ -275,7 +276,7 @@ class Cron extends CronClass
                     '%name%' => $instance->name,
                     '%message%' => $instance->last_error,
                 ]);
-                Tools::cache()->set($cacheKey, ['ts' => time(), 'ok' => false], self::HEALTH_CACHE_TTL);
+                CacheCompat::set($cacheKey, ['ts' => time(), 'ok' => false], self::HEALTH_CACHE_TTL);
                 continue;
             }
 
@@ -285,7 +286,7 @@ class Cron extends CronClass
                 $instance->health_fail_count = 0;
             }
             $instance->save();
-            Tools::cache()->set($cacheKey, ['ts' => time(), 'ok' => true], self::HEALTH_CACHE_TTL);
+            CacheCompat::set($cacheKey, ['ts' => time(), 'ok' => true], self::HEALTH_CACHE_TTL);
         }
     }
 
@@ -885,7 +886,7 @@ class Cron extends CronClass
         // F6.2 — tag the just-saved estimate so PreEnrolmentWorker
         // skips it. TTL is intentionally generous (300 s) to cover
         // queue back-pressure; the worker deletes the key on read.
-        Tools::cache()->set(self::SKIP_PREENROL_PREFIX . (int) $presupuesto->idpresupuesto, true, 300);
+        CacheCompat::set(self::SKIP_PREENROL_PREFIX . (int) $presupuesto->idpresupuesto, true, 300);
         // add the course product line
         $producto = $courseMap->getProducto();
         $newLine = $presupuesto->getNewLine();

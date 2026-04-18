@@ -14,6 +14,7 @@ use FacturaScripts\Core\Model\User;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Audit;
 use FacturaScripts\Plugins\MoodleManagement\Lib\CertificatePdfGenerator;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Http\RequestCompat;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CspHeader;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\RateLimiter;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\SignedUrl;
@@ -94,7 +95,7 @@ class MoodleCertificatePdf extends Controller
             'object-src' => "'none'",
         ]);
         // F4.1 — rate-limit every actor (authed nick, else client IP).
-        $actor = $user ? $user->nick : ($this->request->getClientIp() ?? 'anon');
+        $actor = $user ? $user->nick : (RequestCompat::clientIp($this->request) ?: 'anon');
         if (!RateLimiter::check($actor, self::RATE_BUCKET, self::RATE_LIMIT)) {
             $this->auditDenied($actor, 'rate_limited', null);
             $this->response->headers->set('Retry-After', '60');
@@ -270,8 +271,8 @@ class MoodleCertificatePdf extends Controller
             'operator_nick' => $actor,
             'target_type' => 'moodle_certificate',
             'target_id' => $certId,
-            'ip' => $this->request->getClientIp(),
-            'user_agent' => (string) $this->request->headers->get('User-Agent', ''),
+            'ip' => RequestCompat::clientIp($this->request),
+            'user_agent' => RequestCompat::header($this->request, 'User-Agent'),
             'payload' => ['reason' => $reason],
         ]);
         // Keep a streamlined entry in the technical log for quick triage.

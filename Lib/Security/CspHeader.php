@@ -9,7 +9,6 @@ declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Lib\Security;
 
-use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Builds a Content-Security-Policy header tuned to the controllers
@@ -64,11 +63,24 @@ final class CspHeader
      *
      * Safe to call multiple times; the last call wins.
      *
-     * @param Response $response
+     * The `$response` argument is untyped so the helper works
+     * across FS versions: FS core < 2025.9 passed a
+     * `Symfony\Component\HttpFoundation\Response`, FS 2025.9+
+     * introduced its own `FacturaScripts\Core\Response` (final,
+     * no common ancestor). Both expose a `$headers->set/has` API
+     * with the same shape, which is all this helper touches.
+     *
+     * @param object $response Any object exposing `$headers->set()`
+     *                         and `$headers->has()`. In practice
+     *                         FS `Response` or Symfony HttpFoundation
+     *                         `Response`.
      * @param array<string, string> $overrides
      */
-    public static function apply(Response $response, array $overrides = []): void
+    public static function apply($response, array $overrides = []): void
     {
+        if (!is_object($response) || !isset($response->headers)) {
+            return;
+        }
         $directives = array_merge(self::defaultDirectives(), $overrides);
         $header = '';
         foreach ($directives as $name => $value) {

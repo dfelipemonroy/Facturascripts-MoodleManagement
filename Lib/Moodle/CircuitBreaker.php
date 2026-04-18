@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace FacturaScripts\Plugins\MoodleManagement\Lib\Moodle;
 
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 /**
  * Lightweight per-instance circuit breaker.
@@ -147,13 +148,13 @@ final class CircuitBreaker
 
     private static function read(int $instanceId): ?array
     {
-        $data = Tools::cache()->get(self::KEY_PREFIX . $instanceId);
+        $data = CacheCompat::get(self::KEY_PREFIX . $instanceId);
         return is_array($data) ? $data : null;
     }
 
     private static function write(int $instanceId, array $state): void
     {
-        Tools::cache()->set(self::KEY_PREFIX . $instanceId, $state, self::DEFAULT_WINDOW_SECONDS * 2);
+        CacheCompat::set(self::KEY_PREFIX . $instanceId, $state, self::DEFAULT_WINDOW_SECONDS * 2);
     }
 
     private function __construct()

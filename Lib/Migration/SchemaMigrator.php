@@ -44,19 +44,31 @@ final class SchemaMigrator
      *
      * @since 2.0 F5.13
      */
+    /**
+     * `version` column width. Bumped from 40 → 100 on 2026-04-19
+     * because the F17 migration keys (e.g.
+     * `2.0.0-F17-DB07b-user-map-moodle-userid-index` at 44 chars)
+     * exceeded the original limit and crashed the INSERT.
+     */
+    private const VERSION_COLUMN_WIDTH = 100;
+
     public function ensureVersionTable(): bool
     {
         if ($this->tableExists('moodle_schema_version')) {
+            // Back-compat: widen the column on installs that created
+            // the table before 2026-04-19 when the width was 40.
+            $this->ensureVersionColumnWidth();
             return true;
         }
 
+        $width = self::VERSION_COLUMN_WIDTH;
         $sql = $this->isPostgres()
             ? 'CREATE TABLE moodle_schema_version ('
-                . 'version VARCHAR(40) PRIMARY KEY,'
+                . 'version VARCHAR(' . $width . ') PRIMARY KEY,'
                 . 'applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,'
                 . 'notes VARCHAR(255))'
             : 'CREATE TABLE moodle_schema_version ('
-                . 'version VARCHAR(40) NOT NULL PRIMARY KEY,'
+                . 'version VARCHAR(' . $width . ') NOT NULL PRIMARY KEY,'
                 . 'applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,'
                 . 'notes VARCHAR(255))'
                 . ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci';
@@ -66,6 +78,32 @@ final class SchemaMigrator
             return false;
         }
         return true;
+    }
+
+    /**
+     * Widens `moodle_schema_version.version` to VERSION_COLUMN_WIDTH
+     * on legacy installs that created the table at VARCHAR(40). Runs
+     * once per boot; no-op when the column is already wide enough.
+     *
+     * @since 2.0 — 2026-04-19
+     */
+    private function ensureVersionColumnWidth(): void
+    {
+        try {
+            $current = $this->columnCharLength('moodle_schema_version', 'version');
+            if ($current === null || $current >= self::VERSION_COLUMN_WIDTH) {
+                return;
+            }
+            $width = self::VERSION_COLUMN_WIDTH;
+            $sql = $this->isPostgres()
+                ? 'ALTER TABLE moodle_schema_version ALTER COLUMN version TYPE VARCHAR(' . $width . ')'
+                : 'ALTER TABLE moodle_schema_version MODIFY version VARCHAR(' . $width . ') NOT NULL';
+            $this->db->exec($sql);
+        } catch (\Throwable $e) {
+            Tools::log()->warning('schema-version-widen-failed', [
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

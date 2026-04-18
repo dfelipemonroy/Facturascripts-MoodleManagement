@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace FacturaScripts\Plugins\MoodleManagement\Lib\WorkQueue;
 
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 /**
  * Short-lived idempotency ledger for WorkQueue workers.
@@ -63,8 +64,8 @@ final class IdempotencyGuard
         $cacheKey = self::cacheKey($key);
 
         try {
-            $cache = Tools::cache();
-            $prev = $cache->get($cacheKey);
+            // CacheCompat: static API
+            $prev = CacheCompat::get($cacheKey);
         } catch (\Throwable $e) {
             // Cache down (or FS helper unavailable during tests) —
             // fail open; better to risk a dup than stall.
@@ -76,7 +77,7 @@ final class IdempotencyGuard
         }
 
         try {
-            $cache->set($cacheKey, time(), max(60, $ttl));
+            CacheCompat::set($cacheKey, time(), max(60, $ttl));
         } catch (\Throwable $e) {
             // Could not persist the marker — still let the caller run
             // so we do not lose the work. Dedup degrades gracefully.
@@ -96,7 +97,7 @@ final class IdempotencyGuard
             return;
         }
         try {
-            Tools::cache()->delete(self::cacheKey($key));
+            CacheCompat::delete(self::cacheKey($key));
         } catch (\Throwable $e) {
             // no-op; cache may be down or unavailable.
         }
