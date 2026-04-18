@@ -135,6 +135,38 @@ which must close before `v2.0.0` is tagged.
 ### Security
 - **All 16 CRITICAL findings from the first-iteration audit closed**
   — full list in `SECURITY.md` §Security posture.
+- **Second-iteration audit Fase 17 (2026-04-17) MEDIUM findings worked** (38 items — 12 code-fixed, 15 verified/superseded, 11 deferred with rationale; see `docs/V2.0-POST-AUDIT-PLAN.md` §FASE 17 for per-item status):
+  - **SEC-09 / FE-05** · `HtmlSanitizer` URL scheme + `isSafeImageSrc`
+    lowercase-normalise the scheme before every match so `JaVaScRiPt:`
+    variants cannot slip past a future case-sensitive edit.
+  - **SEC-11** · `RateLimiter` cache-key hash upgraded SHA-1 → SHA-256.
+  - **SEC-12** · `CspHeader::apply` now runs on `MoodleDashboard` and
+    `MoodleImportWizard` in addition to the PDF endpoint.
+  - **SEC-14** · `moodle_audit_log` gains `row_hash` + `prev_hash`
+    columns (stamped at write-time). Verifier tooling is v2.1.
+  - **BE-06** · `moodle_instances.health_fail_count` streak counter,
+    threshold 3 → structured `health-check-quarantine` log.
+  - **DB-02** · `SoftDeleteTrait` throws `UnsupportedSchemaException`
+    on composite primary keys rather than silently targeting the
+    wrong row.
+  - **DB-05** · New `moodle-logs-retention` cron trims
+    `moodle_audit_log` + `moodle_webhook_log` past
+    `LOGS_RETENTION_DAYS = 90`.
+  - **DB-07** · Indexes on `moodle_user_map.moodle_username` +
+    `moodle_userid` so Moodle-side lookups stay O(log n).
+  - **DB-08** · `TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP` on three
+    plugin columns (MySQL only; Postgres already defaulted).
+  - **DB-11** · `moodle_instances.url` UNIQUE (with pre-flight dedupe).
+  - **DB-12** · `moodle_cohorts.codgrupo` FK → `ON DELETE SET NULL`.
+  - **DB-13** · `utf8mb4_unicode_520_ci` normalise across 8 tables.
+  - **F18.34 (migrated)** · `deleted_at` indexes on the three
+    soft-delete tables.
+  - **FE-06** · `UserChat` `.catch` handler surfaces 5xx via
+    `console.warn` + aria-live status line instead of silent failure.
+  - **FE-09** · `WidgetMoodleTimestamp` + `WidgetCourseimage` now
+    pass `ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5` to
+    `htmlspecialchars`.
+
 - **Second-iteration audit Fase 16 (2026-04-17) HIGH findings closed** (18 items):
   - **SEC-04** · `WebhookVerifier::resolveSecret` fail-closed on decrypt
     failure so the raw ciphertext never leaks as HMAC key material.
