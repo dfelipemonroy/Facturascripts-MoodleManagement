@@ -341,7 +341,31 @@ class MoodleClient
             return is_array($inner) ? $inner : [];
         }
 
-        return is_array($decoded) ? $decoded : [];
+        $result = is_array($decoded) ? $decoded : [];
+
+        // BE-05 (2026-04-17) — Moodle WS functions that process a list
+        // (core_user_create_users, core_enrol_manual_enrol_users, …)
+        // answer HTTP 200 even when individual items failed; the
+        // partial failures are reported through the top-level
+        // `warnings` array. Surface that signal so callers can tell
+        // full success from partial.
+        if (!empty($result['warnings']) && is_array($result['warnings'])) {
+            Tools::log()->warning('moodle-ws-partial-failures', [
+                'instance' => (int) $instance->id,
+                'function' => $function,
+                'warnings' => array_slice($result['warnings'], 0, 10),
+            ]);
+            if (!empty($options['fail_on_partial'])) {
+                return [
+                    'exception' => 'partial_failure',
+                    'message'   => 'moodle_ws_returned_warnings',
+                    'warnings'  => $result['warnings'],
+                    'data'      => $result,
+                ];
+            }
+        }
+
+        return $result;
     }
 
     /**

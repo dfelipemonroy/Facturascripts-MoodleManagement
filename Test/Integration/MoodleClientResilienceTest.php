@@ -92,4 +92,30 @@ final class MoodleClientResilienceTest extends TestCase
             );
         }
     }
+
+    /**
+     * BE-05 regression (2026-04-17) — a 200 OK with a non-empty
+     * `warnings` array must surface as a partial failure to callers
+     * that opt in via `fail_on_partial`, and must always land in the
+     * log.
+     */
+    public function testPartialFailuresAreSurfaced(): void
+    {
+        $source = (string) file_get_contents(self::CLIENT_SOURCE);
+        self::assertStringContainsString(
+            'moodle-ws-partial-failures',
+            $source,
+            'BE-05 regression: partial failures must hit the log with a dedicated tag.'
+        );
+        self::assertStringContainsString(
+            "'partial_failure'",
+            $source,
+            'BE-05 regression: `fail_on_partial` callers must receive `exception = partial_failure`.'
+        );
+        self::assertStringContainsString(
+            'fail_on_partial',
+            $source,
+            'BE-05 regression: callers must be able to opt in via $options[fail_on_partial].'
+        );
+    }
 }
