@@ -58,7 +58,13 @@ class MoodleDashboard extends Controller
         // F10.9 — cache hit short-circuit. Explicit refresh via
         // ?refresh=1 re-populates the cache so admins can force a
         // fresh view after a bulk import or sync.
-        $refresh = $this->request->query->getBoolean('refresh', false);
+        //
+        // FS 2026 compat — `SubRequest::getBoolean()` was renamed to
+        // `getBool()`. Call the new method when available, fall back
+        // to the old name so the plugin stays loadable on older cores.
+        $refresh = method_exists($this->request->query, 'getBool')
+            ? (bool) $this->request->query->getBool('refresh', false)
+            : (bool) $this->request->query->getBoolean('refresh', false);
         // CacheCompat: static API
         $cached = $refresh ? null : CacheCompat::get(self::DASH_CACHE_KEY);
         if (is_array($cached)) {
