@@ -24,6 +24,7 @@ use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CsvEscaper;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\SignedPayload;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
 
@@ -36,6 +37,14 @@ class MoodleImportWizard extends Controller
     const SESSION_KEY = 'moodle_import_wizard';
     const PREFS_COOKIE = 'moodle_wizard_prefs';
     const PREFS_COOKIE_TTL = 7776000; // 90 days
+
+    /**
+     * HKDF info label used to sign the wizard prefs cookie via
+     * `SignedPayload`. Bump the version suffix to rotate the key.
+     *
+     * @since 2.0 — SEC-07 (2026-04-17)
+     */
+    const PREFS_COOKIE_CONTEXT = 'mm/wizard-prefs/v1';
 
     /** @var int Current step number (1..4). */
     public $step = 1;
@@ -143,7 +152,16 @@ class MoodleImportWizard extends Controller
         if ($raw === '') {
             return;
         }
-        $decoded = json_decode($raw, true);
+        // SEC-07 (2026-04-17) — the prefs cookie was a plain JSON
+        // payload, so anyone with cookie-jar access could swap
+        // `idinstance` or `codcliente` and reach a wizard step scoped
+        // to a different target. Verify the HMAC envelope before
+        // trusting any field.
+        try {
+            $decoded = SignedPayload::unpack($raw, self::PREFS_COOKIE_CONTEXT);
+        } catch (\Throwable $e) {
+            $decoded = null;
+        }
         if (!is_array($decoded)) {
             return;
         }
@@ -177,9 +195,22 @@ class MoodleImportWizard extends Controller
         //   SameSite : Lax so the cookie still ships on top-level
         //              navigations the wizard depends on, but is
         //              blocked on cross-site POST.
+        // SEC-07 (2026-04-17) — seal with HMAC so tampered payloads
+        // are rejected at read time. The signature binds to the
+        // context label in `PREFS_COOKIE_CONTEXT`; rotating the
+        // label invalidates all in-flight cookies in one step.
+        try {
+            $signed = SignedPayload::pack($payload, self::PREFS_COOKIE_CONTEXT, self::PREFS_COOKIE_TTL);
+        } catch (\Throwable $e) {
+            // Secret not yet configured — degrade to no-cookie rather
+            // than shipping an unsigned one. The wizard still works,
+            // it just forgets the last choices.
+            Tools::log()->warning('wizard-prefs-cookie-skipped', ['message' => $e->getMessage()]);
+            return;
+        }
         @setcookie(
             self::PREFS_COOKIE,
-            json_encode($payload),
+            $signed,
             [
                 'expires'  => time() + self::PREFS_COOKIE_TTL,
                 'path'     => '/',
