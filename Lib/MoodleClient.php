@@ -137,18 +137,35 @@ class MoodleClient
         // Kept ahead of the transport check so private-IP targets
         // surface as SSRF (the more specific finding) regardless of
         // scheme.
+        //
+        // SEC-03 rev 2 (2026-04-19) — dev-mode escape hatch with a
+        // double gate so production is never bypassed accidentally:
+        //   * `FS_DEBUG = true`  — deployment-wide dev signal
+        //   * `instance.environment = 'development'` — per-instance
+        //                                              opt-in
+        // Both conditions must hold. A prod deployment where an
+        // operator sneaks `environment=development` into the row
+        // still fails the gate because FS_DEBUG is false.
         try {
             IpValidator::assertPublicHost($endpoint);
         } catch (\Throwable $e) {
-            Tools::log()->warning('moodle-ssrf-rejected', [
-                'instance' => (int) $instance->id,
-                'endpoint' => $endpoint,
-                'reason' => $e->getMessage(),
-            ]);
-            return [
-                'exception' => 'ssrf_rejected',
-                'message' => 'host_private_or_unresolvable',
-            ];
+            if (self::isDevelopmentEnvironment() && self::isDevInstance($instance)) {
+                Tools::log()->notice('moodle-ssrf-dev-bypass', [
+                    'instance' => (int) $instance->id,
+                    'endpoint' => $endpoint,
+                    'reason' => $e->getMessage(),
+                ]);
+            } else {
+                Tools::log()->warning('moodle-ssrf-rejected', [
+                    'instance' => (int) $instance->id,
+                    'endpoint' => $endpoint,
+                    'reason' => $e->getMessage(),
+                ]);
+                return [
+                    'exception' => 'ssrf_rejected',
+                    'message' => 'host_private_or_unresolvable',
+                ];
+            }
         }
 
         // SEC-03 (2026-04-17) — refuse plain-HTTP transports in
@@ -410,6 +427,22 @@ class MoodleClient
     public static function isDevelopmentEnvironment(): bool
     {
         return defined('FS_DEBUG') && (bool) constant('FS_DEBUG');
+    }
+
+    /**
+     * Returns true when the instance row is explicitly flagged
+     * `environment = 'development'`. Used with
+     * `isDevelopmentEnvironment()` to unlock the SSRF / HTTP dev
+     * escape hatch without relaxing prod.
+     *
+     * @since 2.0 — SEC-03 rev 2 (2026-04-19)
+     */
+    public static function isDevInstance(MoodleInstance $instance): bool
+    {
+        if (!isset($instance->environment)) {
+            return false;
+        }
+        return strtolower((string) $instance->environment) === 'development';
     }
 
     /**
@@ -1194,15 +1227,24 @@ class MoodleClient
      */
     public static function downloadFile(MoodleInstance $instance, string $fileUrl): string
     {
-        // F7.1 — SSRF gate.
+        // F7.1 — SSRF gate. Same dev-mode bypass as callApi
+        // (SEC-03 rev 2): FS_DEBUG = true AND instance flagged
+        // environment='development'.
         try {
             IpValidator::assertPublicHost($fileUrl);
         } catch (\Throwable $e) {
-            Tools::log()->warning('moodle-download-ssrf-rejected', [
-                'instance' => (int) $instance->id,
-                'reason' => $e->getMessage(),
-            ]);
-            return '';
+            if (self::isDevelopmentEnvironment() && self::isDevInstance($instance)) {
+                Tools::log()->notice('moodle-download-ssrf-dev-bypass', [
+                    'instance' => (int) $instance->id,
+                    'reason' => $e->getMessage(),
+                ]);
+            } else {
+                Tools::log()->warning('moodle-download-ssrf-rejected', [
+                    'instance' => (int) $instance->id,
+                    'reason' => $e->getMessage(),
+                ]);
+                return '';
+            }
         }
 
         // F7.6 — bounded buffer.
