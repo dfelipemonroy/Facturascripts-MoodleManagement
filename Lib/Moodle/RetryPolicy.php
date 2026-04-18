@@ -50,6 +50,19 @@ final class RetryPolicy
     ];
 
     /**
+     * Per-request dedup store. A single request that retries the
+     * same WS call twice would otherwise leave two identical
+     * `retry-policy-backoff` + `retry-policy-exhausted` entries;
+     * track first-seen keys here so operators see the event once.
+     *
+     * Scope: current PHP process, resets between requests.
+     *
+     * @var array<string, bool>
+     * @since 2.0 — 2026-04-19
+     */
+    private static $loggedOnce = [];
+
+    /**
      * Run $fn with retry.
      *
      * @param callable $fn () => array|mixed
@@ -79,29 +92,45 @@ final class RetryPolicy
                 return $lastResult;
             }
             if (self::isPermanent($lastResult)) {
-                Tools::log()->warning('retry-policy-permanent', [
-                    'tag' => $tag,
-                    'attempt' => $attempt,
-                    'response' => self::safeSnippet($lastResult),
-                ]);
+                $ctx = [
+                    '%tag%' => $tag,
+                    '%attempt%' => $attempt,
+                    '%response%' => self::safeSnippet($lastResult),
+                ];
+                Tools::log()->warning(Tools::lang()->trans('retry-policy-permanent', $ctx), $ctx);
                 return $lastResult;
             }
             if ($attempt >= $maxAttempts) {
-                Tools::log()->warning('retry-policy-exhausted', [
-                    'tag' => $tag,
-                    'attempts' => $attempt,
-                    'response' => self::safeSnippet($lastResult),
-                ]);
+                // One exhausted notice per tag per request: an outer
+                // loop that retries the same call-site would otherwise
+                // spam the log with identical rows.
+                $dedupKey = 'retry-exh:' . $tag;
+                if (!isset(self::$loggedOnce[$dedupKey])) {
+                    self::$loggedOnce[$dedupKey] = true;
+                    $ctx = [
+                        '%tag%' => $tag,
+                        '%attempts%' => $attempt,
+                        '%response%' => self::safeSnippet($lastResult),
+                    ];
+                    Tools::log()->warning(Tools::lang()->trans('retry-policy-exhausted', $ctx), $ctx);
+                }
                 return $lastResult;
             }
 
-            // Transient → wait and retry.
+            // Transient → wait and retry. Backoff logs are suppressed
+            // beyond the first attempt per-tag per-request; the
+            // exhausted log above summarises the whole cycle.
             $delayMs = $baseDelayMs * (int) pow(2, $attempt - 1);
-            Tools::log()->info('retry-policy-backoff', [
-                'tag' => $tag,
-                'attempt' => $attempt,
-                'next_wait' => $delayMs,
-            ]);
+            $dedupKey = 'retry-bo:' . $tag;
+            if (!isset(self::$loggedOnce[$dedupKey])) {
+                self::$loggedOnce[$dedupKey] = true;
+                $ctx = [
+                    '%tag%' => $tag,
+                    '%attempt%' => $attempt,
+                    '%next_wait%' => $delayMs,
+                ];
+                Tools::log()->info(Tools::lang()->trans('retry-policy-backoff', $ctx), $ctx);
+            }
             usleep($delayMs * 1000);
         }
 

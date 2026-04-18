@@ -427,5 +427,11 @@
     "moodle-download-too-large": "Descarga Moodle excede el tamaño máximo. Instancia %instance%.",
     "moodle-webhook-handler-failed": "Handler de webhook Moodle falló. Instancia %instance_id%, evento %event_type%, excepción %exception%: %message%.",
     "moodle-webhook-unknown-event": "Webhook Moodle con evento desconocido. Instancia %instance_id%, evento %event_type%.",
-    "moodle-webhook-invalid-payload": "Webhook Moodle con payload inválido. Instancia %instance_id%, evento %event_type%."
+    "moodle-webhook-invalid-payload": "Webhook Moodle con payload inválido. Instancia %instance_id%, evento %event_type%.",
+    "retry-policy-permanent": "Moodle devolvió un error permanente en %tag% (intento %attempt%). No se reintentará.",
+    "retry-policy-exhausted": "Reintentos agotados para %tag% tras %attempts% intentos.",
+    "retry-policy-backoff": "Reintentando %tag% (intento %attempt%, esperando %next_wait% ms).",
+    "circuit-breaker-tripped": "Circuito de Moodle abierto para instancia %instance% tras %failures% fallos. Reintentando en %cooldown% s.",
+    "circuit-breaker-reopened": "Circuito de Moodle reabierto para instancia %instance% tras probe fallido.",
+    "circuit-breaker-closed": "Circuito de Moodle cerrado para instancia %instance% — conexión restaurada."
 }

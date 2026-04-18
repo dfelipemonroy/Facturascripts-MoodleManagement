@@ -91,7 +91,8 @@ final class CircuitBreaker
                 'failures' => 0,
                 'window_from' => time(),
             ]);
-            Tools::log()->notice('circuit-breaker-closed', ['instance' => $instanceId]);
+            $ctx = ['%instance%' => $instanceId];
+            Tools::log()->notice(Tools::lang()->trans('circuit-breaker-closed', $ctx), $ctx);
         }
     }
 
@@ -117,7 +118,8 @@ final class CircuitBreaker
                 'failures' => $failureThreshold,
                 'reset_at' => time() + $cooldownSec,
             ]);
-            Tools::log()->warning('circuit-breaker-reopened', ['instance' => $instanceId]);
+            $ctx = ['%instance%' => $instanceId];
+            Tools::log()->warning(Tools::lang()->trans('circuit-breaker-reopened', $ctx), $ctx);
             return;
         }
 
@@ -135,11 +137,12 @@ final class CircuitBreaker
                 'failures' => $state['failures'],
                 'reset_at' => $now + $cooldownSec,
             ]);
-            Tools::log()->warning('circuit-breaker-tripped', [
-                'instance' => $instanceId,
-                'failures' => $state['failures'],
-                'cooldown' => $cooldownSec,
-            ]);
+            $ctx = [
+                '%instance%' => $instanceId,
+                '%failures%' => $state['failures'],
+                '%cooldown%' => $cooldownSec,
+            ];
+            Tools::log()->warning(Tools::lang()->trans('circuit-breaker-tripped', $ctx), $ctx);
             return;
         }
 

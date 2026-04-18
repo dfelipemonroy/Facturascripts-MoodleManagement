@@ -482,5 +482,11 @@
     "moodle-download-too-large": "Moodle download exceeds size cap. Instance %instance%.",
     "moodle-webhook-handler-failed": "Moodle webhook handler raised an exception. Instance %instance_id%, event %event_type%, %exception%: %message%.",
     "moodle-webhook-unknown-event": "Moodle webhook with unknown event. Instance %instance_id%, event %event_type%.",
-    "moodle-webhook-invalid-payload": "Moodle webhook with invalid payload shape. Instance %instance_id%, event %event_type%."
+    "moodle-webhook-invalid-payload": "Moodle webhook with invalid payload shape. Instance %instance_id%, event %event_type%.",
+    "retry-policy-permanent": "Moodle returned a permanent error on %tag% (attempt %attempt%). Giving up.",
+    "retry-policy-exhausted": "Retry budget exhausted for %tag% after %attempts% attempts.",
+    "retry-policy-backoff": "Retrying %tag% (attempt %attempt%, waiting %next_wait% ms).",
+    "circuit-breaker-tripped": "Moodle circuit tripped for instance %instance% after %failures% failures. Cooldown %cooldown% s.",
+    "circuit-breaker-reopened": "Moodle circuit reopened for instance %instance% — probe failed.",
+    "circuit-breaker-closed": "Moodle circuit closed for instance %instance% — connection restored."
 }
