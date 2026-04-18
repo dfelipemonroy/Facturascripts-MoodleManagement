@@ -4,6 +4,8 @@
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
  */
 
+declare(strict_types=1);
+
 namespace FacturaScripts\Plugins\MoodleManagement\Worker;
 
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;

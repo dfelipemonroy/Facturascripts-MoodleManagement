@@ -8,6 +8,8 @@
  * corresponding invoice is marked as paid (handled by EnrolmentWorker).
  */
 
+declare(strict_types=1);
+
 namespace FacturaScripts\Plugins\MoodleManagement\Worker;
 
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;

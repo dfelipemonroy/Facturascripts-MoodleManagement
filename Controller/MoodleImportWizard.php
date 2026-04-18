@@ -15,6 +15,8 @@
  *   4) Execute     — perform the import and show a summary of results.
  */
 
+declare(strict_types=1);
+
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
 use FacturaScripts\Core\Base\Controller;
