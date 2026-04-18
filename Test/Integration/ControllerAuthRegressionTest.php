@@ -65,4 +65,54 @@ final class ControllerAuthRegressionTest extends TestCase
             'F2.9 regression: SignedUrl resource tag must remain stable.'
         );
     }
+
+    /**
+     * Regression for audit SEC-02 (2026-04-17). ListMoodleAuditLog and
+     * ListMoodleTrash must reject non-admin users explicitly in their
+     * privateCore — FS permission matrix alone is not enough since
+     * role-granted list access would otherwise expose PII (IPs, UA,
+     * deleted rows) and trash actions to any operator.
+     *
+     * @dataProvider adminOnlyListControllers
+     */
+    public function testAdminOnlyListControllersEnforceAdminCheck(string $fqcn, string $expectedMarker): void
+    {
+        $r = new ReflectionClass($fqcn);
+        self::assertTrue(
+            $r->hasMethod('privateCore'),
+            sprintf('SEC-02 regression: %s must override privateCore.', $fqcn)
+        );
+
+        $source = (string) file_get_contents($r->getFileName());
+        self::assertMatchesRegularExpression(
+            '/empty\\(\\s*\\$user->admin\\s*\\)/',
+            $source,
+            sprintf('SEC-02 regression: %s must guard on empty($user->admin).', $fqcn)
+        );
+        self::assertStringContainsString(
+            'Error/AccessDenied',
+            $source,
+            sprintf('SEC-02 regression: %s must render the AccessDenied template on non-admin.', $fqcn)
+        );
+        self::assertStringContainsString(
+            $expectedMarker,
+            $source,
+            sprintf('SEC-02 regression: %s must retain the documented audit reference.', $fqcn)
+        );
+    }
+
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function adminOnlyListControllers(): array
+    {
+        return [
+            'ListMoodleAuditLog' => [
+                \FacturaScripts\Plugins\MoodleManagement\Controller\ListMoodleAuditLog::class,
+                'SEC-02',
+            ],
+            'ListMoodleTrash' => [
+                \FacturaScripts\Plugins\MoodleManagement\Controller\ListMoodleTrash::class,
+                'SEC-02',
+            ],
+        ];
+    }
 }

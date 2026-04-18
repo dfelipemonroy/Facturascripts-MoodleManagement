@@ -8,10 +8,13 @@ declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
+use FacturaScripts\Core\Base\ControllerPermissions;
 use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\DataSrc\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
+use FacturaScripts\Core\Response;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Dinamic\Model\User;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Audit;
 
 /**
@@ -37,6 +40,26 @@ class ListMoodleTrash extends ListController
         $data['title'] = 'trash';
         $data['icon'] = 'fa-solid fa-trash-can-arrow-up';
         return $data;
+    }
+
+    /**
+     * Admin-only guard. Non-admin access would expose soft-deleted
+     * rows (historical PII) plus the restore/purge actions, which
+     * must never be available outside administration. Addresses
+     * audit SEC-02 (2026-04-17).
+     *
+     * @param Response $response
+     * @param User $user
+     * @param ControllerPermissions $permissions
+     */
+    public function privateCore(&$response, $user, $permissions)
+    {
+        if (empty($user->admin)) {
+            $this->setTemplate('Error/AccessDenied');
+            $response->setStatusCode(403);
+            return;
+        }
+        parent::privateCore($response, $user, $permissions);
     }
 
     protected function createViews()

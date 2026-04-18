@@ -8,7 +8,10 @@ declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
+use FacturaScripts\Core\Base\ControllerPermissions;
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
+use FacturaScripts\Core\Response;
+use FacturaScripts\Dinamic\Model\User;
 
 /**
  * @since 2.0 — V2.0-ACTION-PLAN F10.3 · §6.16
@@ -31,6 +34,30 @@ class ListMoodleAuditLog extends ListController
         $data['title'] = 'moodle-audit-log';
         $data['icon'] = 'fa-solid fa-clipboard-list';
         return $data;
+    }
+
+    /**
+     * Admin-only guard. The page is registered under the admin menu,
+     * but FS role/permission assignment can grant list access to
+     * non-admin operators. Without this explicit check, non-admins
+     * could enumerate every logged IP, user-agent and outcome.
+     *
+     * Addresses audit SEC-02 (2026-04-17). Keep the guard as the
+     * first statement of privateCore so no data loads before the
+     * deny.
+     *
+     * @param Response $response
+     * @param User $user
+     * @param ControllerPermissions $permissions
+     */
+    public function privateCore(&$response, $user, $permissions)
+    {
+        if (empty($user->admin)) {
+            $this->setTemplate('Error/AccessDenied');
+            $response->setStatusCode(403);
+            return;
+        }
+        parent::privateCore($response, $user, $permissions);
     }
 
     protected function createViews()
