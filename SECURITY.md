@@ -90,9 +90,45 @@ Out-of-scope (please report upstream):
 
 ## Security posture as of v2.0.0
 
-All 16 critical findings from the 2026-04-16 audit are **closed** in
-v2.0. The current posture is summarised below — please do not
-file reports for the items listed as fixed.
+All 16 critical findings from the 2026-04-16 audit **and** all 6
+blockers + 18 HIGH from the 2026-04-17 second-iteration audit are
+**closed** in v2.0. The current posture is summarised below —
+please do not file reports for the items listed as fixed.
+
+### New primitives shipped in the post-audit phases (Fases 15–19)
+
+| Primitive / change | Finding | Fase |
+|---|---|---|
+| `Lib/Security/TokenCipher` fails closed on missing `FS_COOKIES_EXPIRE` | SEC-01 | F15.1 |
+| `ListMoodleAuditLog` + `ListMoodleTrash` explicit `$user->admin` guard | SEC-02 | F15.2 |
+| `MoodleClient::callApi` rejects plain HTTP outside `FS_DEBUG` | SEC-03 | F15.3 |
+| `Lib/View/JsonForScript` — `JSON_HEX_*` helper for `<script>` interpolation | FE-01 | F15.4 |
+| Twig `json_for_script` function + CI grep linter for `\| json_encode \| raw` | FE-02 | F15.5 |
+| `Cron::reconcileEnrolments` preflight + per-course health probe + early-exit | BE-04 | F15.6 / F19 |
+| `WebhookVerifier::resolveSecret` fails closed on decrypt error | SEC-04 | F16.1 |
+| `Lib/Security/SignedUrl` versioned `v=N` with `KEY_VERSIONS` map | SEC-05 | F16.2 |
+| `MoodleCertificatePdf` ownership walks full Contacto graph | SEC-06 | F16.3 |
+| `Lib/Security/SignedPayload` — HMAC-signed cookie envelope | SEC-07 | F16.4 |
+| `Authorization: Bearer` header alongside `wstoken` body | SEC-08 | F16.5 |
+| `CircuitBreaker::allow` + `RetryPolicy::execute` wired into `callApi` | BE-02 | F16.7 |
+| `Lib/WorkQueue/IdempotencyGuard` — cache-backed worker dedup | BE-03 | F16.8 |
+| `Lib/Webhook/PayloadValidator` — schema per event type | INT-01 | F16.16 |
+| `HtmlSanitizer::toPlainText` — DOMDocument-based strip_tags replacement | FE-03 | F16.17 |
+| `CspHeader::apply` now runs on `MoodleDashboard` + `MoodleImportWizard` | SEC-12 | F17.4 |
+| `moodle_audit_log.row_hash` + `prev_hash` (tamper evidence, verifier tool → v2.1) | SEC-14 | F17.6 |
+| `RateLimiter` cache-key hash upgraded SHA-1 → SHA-256 | SEC-11 | F17.3 |
+| `HtmlSanitizer` URL-scheme lowercase normalisation | SEC-09 / FE-05 | F17.1 / F17.19 |
+| `UsernameGenerator::unique` pre-insert probe for `random_alias` | INT-06 | F19 |
+| `moodle-logs-retention` cron (90-day trim) | DB-05 | F17.9 |
+
+### Hash-chain limitation (SEC-14)
+
+The audit-log hash chain is stamped at write time and best-effort:
+two concurrent writers may read the same `prev_hash` and produce two
+rows pointing at it. The `row_hash` per-row integrity is unaffected
+(each row's hash covers its own content), but strict ordering is not
+cryptographically guaranteed in v2.0. A chain-verifier tool that
+flags parallel branches is v2.1 scope.
 
 | Vector                        | Status         | Primary mitigation                                          | Evidence              |
 |-------------------------------|----------------|--------------------------------------------------------------|-----------------------|

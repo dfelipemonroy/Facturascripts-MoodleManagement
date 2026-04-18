@@ -38,6 +38,37 @@ Declared in `Init.php`. Each row is a call to
 Insert-only wiring; CI blocks a rebinding to `.Save` which would
 reintroduce the F6.1 loop.
 
+### Worker execution order (DOC-02)
+
+FS WorkQueue does not define a strict priority between workers
+subscribed to the same event. When two workers react to
+`Model.MoodleUserMap.Insert`, the order is the order they were
+registered in `Init::init`. Current order:
+
+1. `BadgeSyncWorker` — runs first; fetches initial badges before the
+   onboarding pipeline publishes any profile note that would need
+   the badge count.
+2. `OnboardingWorker` — runs second; enrols in the welcome course,
+   adds to the cohort, sends the welcome message, creates the note.
+
+Both workers are **idempotent as of F16.8** via
+`IdempotencyGuard::beginOnce`. A redelivered event is a no-op. Key:
+
+- BadgeSync: the guard is enforced inside
+  `BadgeSyncWorker::run` (ran again for v2.0 via `badge_sync_needed`
+  flag + explicit enqueue); actual de-dup happens Moodle-side since
+  the WS call is idempotent.
+- Onboarding: `onboard:usermap=<id>` with TTL 24 h. Explicitly
+  forget-by-operator via `IdempotencyGuard::clear` from a support
+  script.
+
+Workers wired to `Model.FacturaCliente.Update` (only `EnrolmentWorker`)
+fire once per `save()` call. Dedup key includes `pagada` so a paid
+→ unpaid flip re-fires.
+
+Workers wired to `Model.Contacto.Update` (only `ContactSyncWorker`)
+debounce 30 s (F6.8) via a cache-based lock before reaching Moodle.
+
 ## 2. Plugin-emitted model events
 
 FS automatically emits `Model.<Class>.<Insert|Update|Delete>` on
