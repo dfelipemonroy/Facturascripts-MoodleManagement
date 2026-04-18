@@ -117,10 +117,24 @@ class Init extends InitClass
      *
      * Every step is idempotent and safe to call on every boot.
      *
-     * @since 2.0 F5.1/F5.4
+     * @since 2.0 F5.1/F5.4 · guard reforzado 2026-04-19 para
+     *             tolerar requests (/updater, CLI) donde la conexión
+     *             FS a la DB no está disponible cuando `init()` corre.
+     *             Antes, el primer hit a `/updater` surfaceaba
+     *             `mm-migrations-failed` y `mm-seed-failed` con
+     *             `escape_string() on null` aunque el try/catch ya
+     *             los absorbía — ruidoso y confuso para el operador.
      */
     private function bootstrapSchema(): void
     {
+        if (!$this->isDatabaseReady()) {
+            // FS aún no ha inicializado la conexión (request de
+            // /updater, CLI sin bootstrap completo, etc.). Saltamos
+            // sin logs: el siguiente request con DB lista ejecuta
+            // las migraciones por ser idempotentes.
+            return;
+        }
+
         try {
             $this->createViews();
         } catch (\Throwable $e) {
@@ -143,6 +157,27 @@ class Init extends InitClass
             Tools::log()->warning('mm-seed-failed', [
                 'message' => $e->getMessage(),
             ]);
+        }
+    }
+
+    /**
+     * Intenta una consulta trivial para detectar si FS ya tiene la
+     * conexión a la DB activa. Usado como guard en `bootstrapSchema`
+     * para evitar `escape_string() on null` en requests tempranos.
+     *
+     * @since 2.0 — 2026-04-19
+     */
+    private function isDatabaseReady(): bool
+    {
+        try {
+            $db = new DataBase();
+            // `select` contra un catálogo siempre disponible si la
+            // conexión está lista; devuelve array vacío en cualquier
+            // DB suportado cuando no existe, sin lanzar.
+            $rows = $db->select("SELECT 1 AS ok");
+            return is_array($rows) && isset($rows[0]['ok']);
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 
