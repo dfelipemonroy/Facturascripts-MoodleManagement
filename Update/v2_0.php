@@ -505,6 +505,18 @@ return [
     //          so a reader can chain-verify the log. Full verifier
     //          tooling is v2.1 scope; v2.0 ships the columns + the
     //          write-time stamping so later audits have a trail.
+    // BE-06 · persistent streak counter for health-check failures.
+    '2.0.0-F17-BE06-health-fail-count' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances')) {
+            return true;
+        }
+        return $m->addColumnIfMissing(
+            'moodle_instances',
+            'health_fail_count',
+            'INT NULL DEFAULT 0'
+        );
+    },
+
     '2.0.0-F17-SEC14-audit-log-hash-chain' => static function (SchemaMigrator $m): bool {
         if (!$m->tableExists('moodle_audit_log')) {
             return true;

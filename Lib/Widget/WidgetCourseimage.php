@@ -94,12 +94,12 @@ class WidgetCourseimage extends BaseWidget
             $radioId = 'cover_' . $img->idfile;
 
             $html .= '<label for="' . $radioId . '" class="mm-img-picker-label">'
-                . '<input type="radio" name="' . htmlspecialchars($this->fieldname, ENT_QUOTES, 'UTF-8') . '"'
-                . ' id="' . htmlspecialchars($radioId, ENT_QUOTES, 'UTF-8') . '"'
+                . '<input type="radio" name="' . htmlspecialchars($this->fieldname, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '"'
+                . ' id="' . htmlspecialchars($radioId, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '"'
                 . ' value="' . (int) $img->idfile . '"' . $checked
                 . ' class="d-none"/>'
                 . '<div class="' . $borderClasses . '">'
-                . '<img src="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="mm-img-picker-thumb" alt=""/>'
+                . '<img src="' . htmlspecialchars($url, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '" class="mm-img-picker-thumb" alt=""/>'
                 . '</div>'
                 . '</label>';
         }

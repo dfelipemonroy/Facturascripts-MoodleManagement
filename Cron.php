@@ -52,6 +52,15 @@ class Cron extends CronClass
      * @since 2.0 — DB-05 (2026-04-17)
      */
     public const LOGS_RETENTION_DAYS = 90;
+
+    /**
+     * Consecutive health-check failures that trip a quarantine log
+     * entry. Three strikes so a single transient outage does not
+     * page operators, but a genuine multi-cycle regression does.
+     *
+     * @since 2.0 — BE-06 (2026-04-17)
+     */
+    public const HEALTH_QUARANTINE_THRESHOLD = 3;
     /** @since 2.0 — F10.2 */
     public const PROGRESS_SYNC_JOB = 'moodle-progress-sync';
 
@@ -247,6 +256,18 @@ class Cron extends CronClass
 
             if (isset($result['exception'])) {
                 MoodleClient::applyError($instance, $result);
+                // BE-06 (2026-04-17) — persist a streak counter so
+                // flapping instances (one transient failure then one
+                // OK) do not look identical to a genuinely sick one.
+                if (property_exists($instance, 'health_fail_count')) {
+                    $instance->health_fail_count = (int) ($instance->health_fail_count ?? 0) + 1;
+                    if ($instance->health_fail_count >= self::HEALTH_QUARANTINE_THRESHOLD) {
+                        Tools::log(self::JOB_NAME)->error('health-check-quarantine', [
+                            'instance'   => (int) $instance->id,
+                            'fail_count' => $instance->health_fail_count,
+                        ]);
+                    }
+                }
                 $instance->save();
                 Tools::log(self::JOB_NAME)->warning('health-check-failed', [
                     '%name%' => $instance->name,
@@ -257,6 +278,10 @@ class Cron extends CronClass
             }
 
             MoodleClient::applySiteInfo($instance, $result);
+            // BE-06 — a successful probe resets the streak.
+            if (property_exists($instance, 'health_fail_count') && (int) ($instance->health_fail_count ?? 0) !== 0) {
+                $instance->health_fail_count = 0;
+            }
             $instance->save();
             Tools::cache()->set($cacheKey, ['ts' => time(), 'ok' => true], self::HEALTH_CACHE_TTL);
         }

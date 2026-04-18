@@ -202,10 +202,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 area.scrollTop = area.scrollHeight;
             }
         })
-        .catch(function() {
+        .catch(function(err) {
             if (indicator) indicator.classList.add('d-none');
             // F3.3 — double the wait on failure; cap at refreshMaxMs.
             refreshDelay = Math.min(refreshDelay * 2, refreshMaxMs);
+            // FE-06 (2026-04-17) — previously the catch swallowed 5xx
+            // without surfacing anything to operators. Log the error
+            // and set an aria-live status line so a sustained outage
+            // is at least visible in the page.
+            if (window.console && console.warn) {
+                console.warn('mm-chat-refresh-failed', err);
+            }
+            var status = document.getElementById('mm-chat-status');
+            if (status) {
+                status.textContent = '{{ trans("chat-refresh-failed") | e("js") }}';
+            }
         });
     }
 

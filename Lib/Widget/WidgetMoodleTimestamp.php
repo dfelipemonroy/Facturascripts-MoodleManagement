@@ -52,8 +52,8 @@ class WidgetMoodleTimestamp extends BaseWidget
     {
         $this->setValue($model);
         $human = self::format($this->value);
-        return '<td class="text-' . htmlspecialchars((string)$display, ENT_QUOTES, 'UTF-8') . '">'
-            . htmlspecialchars($human, ENT_QUOTES, 'UTF-8')
+        return '<td class="text-' . htmlspecialchars((string)$display, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '">'
+            . htmlspecialchars($human, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8')
             . '</td>';
     }
 
@@ -78,12 +78,12 @@ class WidgetMoodleTimestamp extends BaseWidget
 
         return '<div class="mb-3">'
             . '<label class="form-label mb-0">'
-            . htmlspecialchars($labelTitle, ENT_QUOTES, 'UTF-8')
+            . htmlspecialchars($labelTitle, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8')
             . '</label>'
             . '<input type="text" class="form-control" readonly="readonly" value="'
-            . htmlspecialchars($human, ENT_QUOTES, 'UTF-8')
+            . htmlspecialchars($human, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8')
             . '"/>'
-            . '<input type="hidden" name="' . htmlspecialchars($this->fieldname, ENT_QUOTES, 'UTF-8') . '" value="'
+            . '<input type="hidden" name="' . htmlspecialchars($this->fieldname, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '" value="'
             . $rawValue
             . '"/>'
             . '</div>';
