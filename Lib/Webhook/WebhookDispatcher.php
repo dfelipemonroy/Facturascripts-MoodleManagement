@@ -43,6 +43,26 @@ final class WebhookDispatcher
      */
     public static function dispatch(MoodleInstance $instance, string $eventType, array $payload): array
     {
+        // INT-01 (2026-04-17) — validate + normalise the payload for
+        // known events before touching the handler. Unknown events
+        // fall through to the IGNORED branch below without a shape
+        // check so operators can add new Moodle observers without
+        // FS-side breakage.
+        if (in_array($eventType, PayloadValidator::SUPPORTED_EVENTS, true)) {
+            $clean = PayloadValidator::validate($eventType, $payload);
+            if ($clean === null) {
+                Tools::log()->warning('mm-webhook-invalid-payload', [
+                    'instance_id' => (int) $instance->id,
+                    'event_type'  => $eventType,
+                ]);
+                return [
+                    'status'  => self::STATUS_ERROR,
+                    'message' => 'invalid payload shape',
+                ];
+            }
+            $payload = $clean;
+        }
+
         try {
             switch ($eventType) {
                 case 'enrolment_created':
