@@ -172,11 +172,24 @@ class MoodleClient
         $buffer = '';
         $exceeded = false;
 
+        // SEC-08 (2026-04-17) — also advertise the token via an
+        // `Authorization: Bearer` header so reverse proxies / OAuth
+        // bridges in front of Moodle can authenticate without
+        // parsing the body, and so intermediaries that strip bodies
+        // on error responses still see the token context for
+        // auditing. The body continues to carry `wstoken` for
+        // vanilla Moodle REST compatibility.
+        $headers = [
+            'Authorization: Bearer ' . $instance->token,
+            'Accept: application/json',
+        ];
+
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $endpoint,
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($postData),
+            CURLOPT_HTTPHEADER => $headers,
             CURLOPT_RETURNTRANSFER => false, // we own the buffer via WRITEFUNCTION
             CURLOPT_TIMEOUT => $timeout,
             CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT_SECONDS,

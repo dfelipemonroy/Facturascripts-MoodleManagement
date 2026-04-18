@@ -60,4 +60,27 @@ final class MoodleClientTransportTest extends TestCase
         // Undefined constant → must never flip the helper to true.
         self::assertFalse(MoodleClient::isDevelopmentEnvironment());
     }
+
+    /**
+     * SEC-08 regression (2026-04-17): the REST transport must also
+     * advertise the token via `Authorization: Bearer` so reverse
+     * proxies and OAuth bridges in front of Moodle can authenticate
+     * without parsing the body.
+     */
+    public function testCallApiAdvertisesBearerHeader(): void
+    {
+        $source = (string) file_get_contents(
+            __DIR__ . '/../../Lib/MoodleClient.php'
+        );
+        self::assertStringContainsString(
+            'Authorization: Bearer ',
+            $source,
+            'SEC-08: MoodleClient::callApi must send Authorization: Bearer alongside wstoken.'
+        );
+        self::assertStringContainsString(
+            'CURLOPT_HTTPHEADER',
+            $source,
+            'SEC-08: headers must be passed through CURLOPT_HTTPHEADER.'
+        );
+    }
 }
