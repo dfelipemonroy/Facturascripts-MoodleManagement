@@ -61,6 +61,25 @@ jobs:
         run: |
           vendor/bin/php-cs-fixer fix --dry-run --diff --no-interaction
 
+      # FE-02 (2026-04-17) — `| json_encode | raw` in a Twig template
+      # is a script-context XSS sink whenever the input can contain
+      # `</script>`, an apostrophe, or an ampersand. Force every
+      # interpolation that lands inside a `<script>` block to route
+      # through the `json_for_script` Twig function (or a controller-
+      # produced pre-encoded `*Json` string).
+      - name: Twig JSON safety linter
+        working-directory: Plugins/MoodleManagement
+        run: |
+          set -e
+          matches=$(grep -Rn --include='*.twig' -E 'json_encode[[:space:]]*\|[[:space:]]*raw' View/ || true)
+          if [ -n "$matches" ]; then
+            echo "::error::FE-02 regression: raw json_encode usage in Twig templates."
+            echo "Use {{ json_for_script(value) }} instead."
+            echo "$matches"
+            exit 1
+          fi
+          echo "Twig JSON safety linter: OK"
+
   analyse:
     name: Static analysis (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest

@@ -20,12 +20,15 @@
 namespace FacturaScripts\Plugins\MoodleManagement;
 
 use FacturaScripts\Core\Base\DataBase;
+use FacturaScripts\Core\Html;
 use FacturaScripts\Core\Lib\Widget\BaseWidget;
 use FacturaScripts\Core\Template\InitClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\WorkQueue;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Migration\SchemaMigrator;
+use FacturaScripts\Plugins\MoodleManagement\Lib\View\JsonForScript;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Widget\WidgetMoodleTimestamp;
+use Twig\TwigFunction;
 
 /**
  * Class Init
@@ -57,6 +60,22 @@ class Init extends InitClass
         // F3.7 — register custom widget for Moodle Unix-epoch INT columns.
         if (method_exists(BaseWidget::class, 'addExtension')) {
             BaseWidget::addExtension('moodleTimestamp', WidgetMoodleTimestamp::class);
+        }
+
+        // FE-02 (2026-04-17) — expose `json_for_script` to Twig so
+        // templates can serialise payloads destined for <script>
+        // blocks through the same hex-escaping helper the dashboard
+        // controller uses. Replaces the `|json_encode|raw` pipeline
+        // which was vulnerable to `</script>` injection when the data
+        // carried user-controlled strings.
+        if (class_exists(Html::class) && method_exists(Html::class, 'addFunction')) {
+            Html::addFunction(new TwigFunction(
+                'json_for_script',
+                static function ($value): string {
+                    return JsonForScript::encode($value);
+                },
+                ['is_safe' => ['html', 'js']]
+            ));
         }
 
         // F5.4 — Fresh-install bootstrap. The view and the v2 schema

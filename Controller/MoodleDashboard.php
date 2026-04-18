@@ -12,6 +12,7 @@ use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\Response;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\User;
+use FacturaScripts\Plugins\MoodleManagement\Lib\View\JsonForScript;
 
 class MoodleDashboard extends Controller
 {
@@ -143,5 +144,18 @@ class MoodleDashboard extends Controller
         }
         $this->dashboardData['methodLabels'] = $methodLabels;
         $this->dashboardData['methodData'] = $methodData;
+
+        // FE-01 (2026-04-17) — pre-serialise every array that lands
+        // inside a <script> block so the template never interpolates
+        // untrusted upstream strings with the unsafe `|json_encode|raw`
+        // pipeline. `JsonForScript::encode` hex-escapes `<`, `'`, `"`
+        // and `&` so a course name containing `</script>` (or smart
+        // quotes, or ampersands) can no longer close the tag.
+        $this->dashboardData['monthLabelsJson'] = JsonForScript::encode($this->dashboardData['monthLabels']);
+        $this->dashboardData['monthDataJson']   = JsonForScript::encode($this->dashboardData['monthData']);
+        $this->dashboardData['topCourseLabelsJson'] = JsonForScript::encode($this->dashboardData['topCourseLabels']);
+        $this->dashboardData['topCourseDataJson']   = JsonForScript::encode($this->dashboardData['topCourseData']);
+        $this->dashboardData['methodLabelsJson'] = JsonForScript::encode($this->dashboardData['methodLabels']);
+        $this->dashboardData['methodDataJson']   = JsonForScript::encode($this->dashboardData['methodData']);
     }
 }

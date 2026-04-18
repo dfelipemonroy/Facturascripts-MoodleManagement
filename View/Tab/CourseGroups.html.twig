@@ -55,7 +55,7 @@
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         data-bs-toggle="modal" data-bs-target="#membersModal"
                                         data-mm-call="loadGroupMembers"
-                                        data-mm-args='[{{ group.id }}, {{ group.name | default('') | json_encode | raw }}]'>
+                                        data-mm-args='[{{ group.id }}, {{ json_for_script(group.name | default('')) }}]'>
                                     <i class="fa-solid fa-users"></i>
                                 </button>
                                 <form method="post" class="d-inline"
@@ -160,7 +160,7 @@ function loadGroupMembers(groupId, groupName) {
     document.getElementById('addMemberGroupId').value = groupId;
 
     var container = document.getElementById('membersListContainer');
-    var groupData = {{ fsc.courseGroupMembers | json_encode | raw }};
+    var groupData = {{ json_for_script(fsc.courseGroupMembers) }};
     // F3.6 — load display names as raw strings via JSON; escape at
     // insertion time rather than at Twig-render time. Avoids the
     // "|e('js') gives a JS-safe string but HTML-unsafe" trap that
@@ -168,7 +168,7 @@ function loadGroupMembers(groupId, groupName) {
     // innerHTML untouched.
     var usersMap = {
         {% for user in enrolledUsers %}
-        {{ user.id }}: {{ (user.fullname ~ ' (' ~ user.username ~ ')') | json_encode | raw }}{% if not loop.last %},{% endif %}
+        {{ user.id }}: {{ json_for_script(user.fullname ~ ' (' ~ user.username ~ ')') }}{% if not loop.last %},{% endif %}
         {% endfor %}
     };
 

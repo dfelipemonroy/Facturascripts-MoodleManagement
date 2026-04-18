@@ -196,7 +196,7 @@
                                 {% if not isGeneral %}
                                     <button type="button" class="btn btn-outline-danger btn-sm"
                                             data-mm-call="confirmDeleteSection"
-                                            data-mm-args='[{{ sectionDbId }}, {{ section.name | default('Section') | json_encode | raw }}]'
+                                            data-mm-args='[{{ sectionDbId }}, {{ json_for_script(section.name | default('Section')) }}]'
                                             title="{{ trans('delete-section') }}">
                                         <i class="fa-solid fa-trash"></i>
                                     </button>
@@ -311,7 +311,7 @@
                                                         </button>
                                                         <button type="button" class="btn btn-outline-danger btn-sm"
                                                                 data-mm-call="confirmDeleteModule"
-                                                                data-mm-args='[{{ module.id }}, {{ module.name | default('') | json_encode | raw }}]'
+                                                                data-mm-args='[{{ module.id }}, {{ json_for_script(module.name | default('')) }}]'
                                                                 title="{{ trans('delete-module') }}">
                                                             <i class="fa-solid fa-trash"></i>
                                                         </button>
@@ -583,8 +583,8 @@
             {% for section in contents %}
                 {% for module in section.modules | default([]) %}
                     {{ module.id }}: {
-                        name: {{ module.name | default('—') | json_encode | raw }},
-                        modname: {{ module.modname | default('') | json_encode | raw }},
+                        name: {{ json_for_script(module.name | default('—')) }},
+                        modname: {{ json_for_script(module.modname | default('')) }},
                         id: {{ module.id }},
                         instance: {{ module.instance | default(0) }},
                         visible: {{ module.visible | default(1) }},
@@ -593,9 +593,9 @@
                         groupmode: {{ module.groupmode | default(0) }},
                         completion: {{ module.completion | default(0) }},
                         section: {{ section.section | default(0) }},
-                        sectionName: {{ section.name | default('Section') | json_encode | raw }},
-                        description: {{ module.description | default('') | json_encode | raw }},
-                        url: {{ module.url | default('') | json_encode | raw }}
+                        sectionName: {{ json_for_script(section.name | default('Section')) }},
+                        description: {{ json_for_script(module.description | default('')) }},
+                        url: {{ json_for_script(module.url | default('')) }}
                     },
                 {% endfor %}
             {% endfor %}

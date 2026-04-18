@@ -224,10 +224,10 @@
         new Chart(ctxMonthly, {
             type: 'bar',
             data: {
-                labels: {{ data.monthLabels | default([]) | json_encode | raw }},
+                labels: {{ data.monthLabelsJson | default('[]') | raw }},
                 datasets: [{
                     label: '{{ trans('moodle-enrolments') }}',
-                    data: {{ data.monthData | default([]) | json_encode | raw }},
+                    data: {{ data.monthDataJson | default('[]') | raw }},
                     backgroundColor: gradBlue,
                     borderColor: '#0d6efd',
                     borderWidth: 2,
@@ -267,7 +267,7 @@
             { base: '#fd7e14', light: 'rgba(253,126,20,0.15)' },
             { base: '#20c997', light: 'rgba(32,201,151,0.15)' }
         ];
-        var courseData = {{ data.topCourseData | default([]) | json_encode | raw }};
+        var courseData = {{ data.topCourseDataJson | default('[]') | raw }};
         var courseBg = courseData.map(function(v, i) {
             var c = courseColors[i % courseColors.length];
             var g = ctxCourses.createLinearGradient(0, 0, ctxCourses.canvas.width, 0);
@@ -281,7 +281,7 @@
         new Chart(ctxCourses, {
             type: 'bar',
             data: {
-                labels: {{ data.topCourseLabels | default([]) | json_encode | raw }},
+                labels: {{ data.topCourseLabelsJson | default('[]') | raw }},
                 datasets: [{
                     data: courseData,
                     backgroundColor: courseBg,
@@ -319,9 +319,9 @@
         new Chart(ctxMethods, {
             type: 'pie',
             data: {
-                labels: {{ data.methodLabels | default([]) | json_encode | raw }},
+                labels: {{ data.methodLabelsJson | default('[]') | raw }},
                 datasets: [{
-                    data: {{ data.methodData | default([]) | json_encode | raw }},
+                    data: {{ data.methodDataJson | default('[]') | raw }},
                     backgroundColor: methodPalette.slice(0, {{ data.methodLabels | default([]) | length }}),
                     borderWidth: 0,
                     hoverBorderWidth: 2,
