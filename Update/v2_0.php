@@ -98,11 +98,30 @@ return [
     //  F5.12 — re-encrypt tokens at rest (CRITICAL §4.6)
     //  This is a DATA migration, not DDL. Runs after F5.11 widens
     //  the column so the base64 ciphertext fits.
+    //
+    //  DB-03 (2026-04-17) — enforce the F5.11 precondition at runtime
+    //  rather than trusting the array ordering alone. If F5.11 has
+    //  not yet widened the column, bail with a clear log line so the
+    //  operator reruns `Init::update()` instead of truncating every
+    //  token to the old 255-char limit.
     // ──────────────────────────────────────────────────────────────
     '2.0.0-F5.12-token-cipher' => static function (SchemaMigrator $m): bool {
         if (!$m->tableExists('moodle_instances') || !$m->columnExists('moodle_instances', 'token')) {
             return true;
         }
+
+        $minColumnBytes = 500;
+        $width = $m->columnCharLength('moodle_instances', 'token');
+        if ($width !== null && $width < $minColumnBytes) {
+            \FacturaScripts\Core\Tools::log()->error('token-cipher-migration-precondition', [
+                'reason'        => 'token column too narrow',
+                'current_width' => $width,
+                'required'      => $minColumnBytes,
+                'hint'          => 'Run F5.11-token-varchar-500 first.',
+            ]);
+            return false;
+        }
+
         return TokenCipher::encryptExistingRows($m->db());
     },
 

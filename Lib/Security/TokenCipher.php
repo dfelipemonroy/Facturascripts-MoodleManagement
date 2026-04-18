@@ -136,6 +136,12 @@ final class TokenCipher
      *
      * Safe to call many times: already-encrypted rows are skipped.
      *
+     * DB-01 (2026-04-17) — every update is wrapped in a single
+     * transaction so a mid-batch failure either commits every row or
+     * none. Previously a crash on row N would leave rows 0..N-1
+     * encrypted and N..M plaintext, an ambiguous schema state that
+     * `isEncrypted` alone could not reason about at boot time.
+     *
      * @return bool True if the whole batch succeeded.
      */
     public static function encryptExistingRows(?DataBase $db = null): bool
@@ -146,36 +152,69 @@ final class TokenCipher
             return true;
         }
 
+        $txStarted = false;
+        try {
+            $txStarted = (bool) $db->beginTransaction();
+        } catch (\Throwable $e) {
+            // Some DB back-ends (or mocks) do not support transactions;
+            // continue without, relying on the existing retry story.
+            $txStarted = false;
+        }
+
         $encryptedCount = 0;
         $skippedCount = 0;
-        foreach ($rows as $row) {
-            $id = (int) $row['id'];
-            $token = (string) $row['token'];
-            if (self::isEncrypted($token)) {
-                $skippedCount++;
-                continue;
-            }
-            try {
+        try {
+            foreach ($rows as $row) {
+                $id = (int) $row['id'];
+                $token = (string) $row['token'];
+                if (self::isEncrypted($token)) {
+                    $skippedCount++;
+                    continue;
+                }
                 $ciphered = self::encrypt($token);
+                $sql = 'UPDATE moodle_instances SET token = ' . $db->var2str($ciphered)
+                    . ' WHERE id = ' . $db->var2str($id);
+                if (!$db->exec($sql)) {
+                    throw new \RuntimeException('UPDATE failed for instance ' . $id);
+                }
+                $encryptedCount++;
+            }
+        } catch (\Throwable $e) {
+            if ($txStarted) {
+                try {
+                    $db->rollback();
+                } catch (\Throwable $ignored) {
+                    // best-effort rollback; if even that fails, surface
+                    // the original error so the operator retries.
+                }
+            }
+            Tools::log()->error('token-cipher-migration-failed', [
+                'message'          => $e->getMessage(),
+                'encrypted_before' => $encryptedCount,
+                'skipped'          => $skippedCount,
+                'tx'               => $txStarted,
+            ]);
+            return false;
+        }
+
+        if ($txStarted) {
+            try {
+                if (!$db->commit()) {
+                    Tools::log()->error('token-cipher-migration-commit-failed');
+                    return false;
+                }
             } catch (\Throwable $e) {
-                Tools::log()->error('token-cipher-migration-failed', [
-                    'instance_id' => $id,
-                    'message'     => $e->getMessage(),
+                Tools::log()->error('token-cipher-migration-commit-threw', [
+                    'message' => $e->getMessage(),
                 ]);
                 return false;
             }
-            $sql = 'UPDATE moodle_instances SET token = ' . $db->var2str($ciphered)
-                . ' WHERE id = ' . $db->var2str($id);
-            if (!$db->exec($sql)) {
-                Tools::log()->error('token-cipher-update-failed', ['instance_id' => $id]);
-                return false;
-            }
-            $encryptedCount++;
         }
 
         Tools::log()->notice('token-cipher-migration-ok', [
             'encrypted' => $encryptedCount,
             'skipped'   => $skippedCount,
+            'tx'        => $txStarted,
         ]);
         return true;
     }

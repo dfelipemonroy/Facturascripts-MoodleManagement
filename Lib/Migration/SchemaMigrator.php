@@ -131,6 +131,37 @@ final class SchemaMigrator
         return !empty($rows);
     }
 
+    /**
+     * Returns the declared character length (bytes) of a VARCHAR
+     * column, or null when the column is missing or the backend
+     * cannot answer.
+     *
+     * Used by DB-03 to assert that F5.11 has widened
+     * `moodle_instances.token` before F5.12 tries to write ciphertext.
+     *
+     * @since 2.0 — DB-03 (2026-04-17)
+     */
+    public function columnCharLength(string $table, string $column): ?int
+    {
+        if (!$this->columnExists($table, $column)) {
+            return null;
+        }
+        $sql = 'SELECT character_maximum_length AS cml'
+            . ' FROM information_schema.columns'
+            . ' WHERE table_schema = ' . $this->currentSchemaExpr()
+            . ' AND table_name = ' . $this->db->var2str($table)
+            . ' AND column_name = ' . $this->db->var2str($column);
+        try {
+            $rows = $this->db->select($sql);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        if (empty($rows) || !isset($rows[0]['cml'])) {
+            return null;
+        }
+        return is_numeric($rows[0]['cml']) ? (int) $rows[0]['cml'] : null;
+    }
+
     public function indexExists(string $table, string $indexName): bool
     {
         if ($this->isPostgres()) {
