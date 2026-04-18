@@ -25,6 +25,7 @@ docs/*
 
 vendor/
 .phpunit.cache/
+.phpunit.result.cache
 
 # PHP-CS-Fixer / PHPStan caches
 .php-cs-fixer.cache
