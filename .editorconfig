@@ -20,8 +20,14 @@ indent_size = 4
 [*.xml]
 indent_size = 4
 
-# Twig templates — 2 spaces for better nesting readability
+# Twig templates — 2 spaces for better nesting readability.
+# STD-10 (2026-04-17) — also cover `*.html.twig` explicitly so
+# editors that match on the longer extension first apply the same
+# rules. EditorConfig picks the most specific section.
 [*.twig]
+indent_size = 2
+
+[*.html.twig]
 indent_size = 2
 
 # HTML

@@ -24,6 +24,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Enum\CohortLifecycle;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCohort;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
@@ -60,16 +61,30 @@ class ListMoodleCohort extends ListController
 
         $this->addFilterCheckbox('ListMoodleCohort', 'sync_active', 'sync-active', 'sync_active');
 
-        // F13 DISCOVERED-02 — hide soft-deleted rows by default.
-        $this->addFilterSelectWhere('ListMoodleCohort', 'state', [
+        // F13 DISCOVERED-02 / F18.33 (ex-U4 migrated from v2.1 backlog)
+        // — hide soft-deleted rows by default, and expose the four
+        // `CohortLifecycle` states as explicit filter options backed
+        // by `source / sync_active / deleted_at` predicates.
+        $this->addFilterSelectWhere('ListMoodleCohort', 'lifecycle', [
             [
-                'label' => Tools::lang()->trans('active'),
-                'where' => [new DataBaseWhere('deleted_at', null, 'IS')],
+                'label'   => Tools::lang()->trans('active'),
+                'where'   => [new DataBaseWhere('deleted_at', null, 'IS')],
                 'default' => true,
             ],
             [
                 'label' => Tools::lang()->trans('all'),
                 'where' => [],
+            ],
+            [
+                'label' => Tools::lang()->trans(CohortLifecycle::TRASHED),
+                'where' => [new DataBaseWhere('deleted_at', null, 'IS NOT')],
+            ],
+            [
+                'label' => Tools::lang()->trans(CohortLifecycle::DETACHED),
+                'where' => [
+                    new DataBaseWhere('deleted_at', null, 'IS'),
+                    new DataBaseWhere('sync_active', false),
+                ],
             ],
         ]);
 

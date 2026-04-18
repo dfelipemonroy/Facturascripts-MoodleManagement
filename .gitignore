@@ -18,6 +18,10 @@ docs/*
 !docs/QA-LINT-ANALYSE.md
 !docs/V2.1-BACKLOG.md
 !docs/V2.0-POST-AUDIT-PLAN.md
+!docs/WEBHOOK-RUNBOOK.md
+!docs/ARCHITECTURE.md
+!docs/adr/
+!docs/adr/*.md
 
 vendor/
 .phpunit.cache/
