@@ -209,7 +209,7 @@
                          aria-labelledby="heading-{{ sectionId }}" data-bs-parent="#courseContentAccordion">
                         <div class="accordion-body p-0">
                             {% if section.summary is defined and section.summary is not empty %}
-                                <div class="px-3 pt-2 text-muted small">{{ section.summary | striptags }}</div>
+                                <div class="px-3 pt-2 text-muted small">{{ mm_plain_text(section.summary) }}</div>
                             {% endif %}
                             {% if modules is empty %}
                                 <div class="px-3 py-2 text-muted">

@@ -26,6 +26,7 @@ use FacturaScripts\Core\Template\InitClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\WorkQueue;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Migration\SchemaMigrator;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\HtmlSanitizer;
 use FacturaScripts\Plugins\MoodleManagement\Lib\View\JsonForScript;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Widget\WidgetMoodleTimestamp;
 use Twig\TwigFunction;
@@ -75,6 +76,17 @@ class Init extends InitClass
                     return JsonForScript::encode($value);
                 },
                 ['is_safe' => ['html', 'js']]
+            ));
+
+            // FE-03 (2026-04-17) — DOM-based strip_tags replacement
+            // for Twig templates that previously used the built-in
+            // `| striptags` filter. `HtmlSanitizer::toPlainText`
+            // survives the classical `<script>body</script>` bypass.
+            Html::addFunction(new TwigFunction(
+                'mm_plain_text',
+                static function ($value, int $maxLen = 0): string {
+                    return HtmlSanitizer::toPlainText($value === null ? null : (string) $value, $maxLen);
+                }
             ));
         }
 

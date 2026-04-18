@@ -42,7 +42,7 @@
                                 <strong>{{ group.name | default('—') }}</strong>
                             </td>
                             <td>
-                                <small class="text-muted">{{ group.description | default('—') | striptags | slice(0, 80) }}</small>
+                                <small class="text-muted">{{ mm_plain_text(group.description | default('—'), 80) }}</small>
                             </td>
                             <td class="text-center">
                                 <span class="badge bg-secondary">{{ group.memberCount | default(0) }}</span>

@@ -107,6 +107,57 @@ final class HtmlSanitizer
     }
 
     /**
+     * Reduces HTML to plain text by stripping every tag via the
+     * DOMDocument parser, then escaping the result. Resilient to the
+     * common strip_tags bypasses (unterminated tags, script body,
+     * attribute injection) because the parser reconstructs a clean
+     * DOM before we extract `textContent`.
+     *
+     * Addresses audit FE-03 (2026-04-17): Twig's built-in
+     * `| striptags` filter delegates to PHP `strip_tags`, which
+     * misses `<script>foo</script>` bodies when script is not in
+     * the allowed tag list (it deletes the tags but keeps `foo`).
+     *
+     * @since 2.0 — FE-03 (2026-04-17)
+     */
+    public static function toPlainText(?string $html, int $maxLen = 0): string
+    {
+        if ($html === null || trim($html) === '') {
+            return '';
+        }
+        // Drop entire <script>/<style> bodies before the DOM pass so
+        // their CDATA does not resurface as text.
+        $pre = preg_replace('#<(script|style)[^>]*>.*?</\1>#is', '', $html);
+        if (!is_string($pre)) {
+            $pre = $html;
+        }
+
+        // Parse with DOMDocument in permissive mode and pull textContent.
+        $prev = libxml_use_internal_errors(true);
+        $doc = new \DOMDocument('1.0', 'UTF-8');
+        $wrapped = '<?xml encoding="UTF-8"?><mm-root>' . $pre . '</mm-root>';
+        $loaded = @$doc->loadHTML(
+            $wrapped,
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NONET
+        );
+        libxml_clear_errors();
+        libxml_use_internal_errors($prev);
+
+        $text = $loaded && $doc->textContent !== null
+            ? (string) $doc->textContent
+            : strip_tags($pre);
+
+        // Collapse runs of whitespace for display purposes.
+        $text = preg_replace('/\s+/u', ' ', $text);
+        $text = is_string($text) ? trim($text) : '';
+
+        if ($maxLen > 0 && function_exists('mb_strlen') && mb_strlen($text) > $maxLen) {
+            return mb_substr($text, 0, $maxLen);
+        }
+        return $text;
+    }
+
+    /**
      * Escape then turn \n into <br>. The output is safe to pass to
      * Twig `|raw` because the only tags present are the <br>
      * inserted here.
