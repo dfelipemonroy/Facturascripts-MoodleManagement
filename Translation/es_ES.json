@@ -552,5 +552,9 @@
     "username-strategy-name-based": "Basada en nombre (legible)",
     "username-strategy-random-alias": "Alias aleatorio (opaco)",
     "visible": "Visible",
-    "webhook-secret": "Secreto del webhook"
+    "webhook-secret": "Secreto del webhook",
+    "progress-distribution": "Distribución de progreso",
+    "certificates-by-month": "Certificados por mes",
+    "certificates": "Certificados",
+    "enrolments": "Matrículas"
 }

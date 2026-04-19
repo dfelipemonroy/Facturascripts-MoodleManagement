@@ -497,5 +497,9 @@
     "username-strategy-name-based": "Name-based (readable)",
     "username-strategy-random-alias": "Random alias (opaque)",
     "visible": "Visible",
-    "webhook-secret": "Webhook secret"
+    "webhook-secret": "Webhook secret",
+    "progress-distribution": "Progress distribution",
+    "certificates-by-month": "Certificates by month",
+    "certificates": "Certificates",
+    "enrolments": "Enrolments"
 }

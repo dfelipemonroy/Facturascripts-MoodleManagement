@@ -148,6 +148,65 @@ class MoodleDashboard extends Controller
         }
         $this->dashboardData['methodLabels'] = $methodLabels;
         $this->dashboardData['methodData'] = $methodData;
+
+        // Progress distribution (histogram). 6 fixed buckets so the
+        // chart x-axis stays stable even when some buckets are empty.
+        // Excludes soft-deleted enrolments and those without a
+        // progress_fetched_at timestamp (never visited).
+        $progressBuckets = [
+            '0%'      => 0,
+            '1-25%'   => 0,
+            '26-50%'  => 0,
+            '51-75%'  => 0,
+            '76-99%'  => 0,
+            '100%'    => 0,
+        ];
+        $sql = 'SELECT progress_percent FROM moodle_enrolments'
+            . " WHERE status = 'enrolled' AND progress_percent IS NOT NULL";
+        foreach ($db->select($sql) as $row) {
+            $p = (int) $row['progress_percent'];
+            if ($p <= 0) {
+                $progressBuckets['0%']++;
+            } elseif ($p <= 25) {
+                $progressBuckets['1-25%']++;
+            } elseif ($p <= 50) {
+                $progressBuckets['26-50%']++;
+            } elseif ($p <= 75) {
+                $progressBuckets['51-75%']++;
+            } elseif ($p < 100) {
+                $progressBuckets['76-99%']++;
+            } else {
+                $progressBuckets['100%']++;
+            }
+        }
+        $this->dashboardData['progressLabels'] = array_keys($progressBuckets);
+        $this->dashboardData['progressData'] = array_values($progressBuckets);
+
+        // Certificates issued per month (last 6 months). Same
+        // date-expression idiom used above so the query stays
+        // portable across MySQL + PostgreSQL.
+        $certMonths = [];
+        $certCounts = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $ymKey = date('Y-m', strtotime("-{$i} months"));
+            $certMonths[] = date('M Y', strtotime("-{$i} months"));
+            $certCounts[$ymKey] = 0;
+        }
+        $certSixMonthsAgo = date('Y-m-01', strtotime('-5 months'));
+        $certDateExpr = strtolower(FS_DB_TYPE) === 'postgresql'
+            ? "TO_CHAR(date_issued, 'YYYY-MM')"
+            : "DATE_FORMAT(date_issued, '%Y-%m')";
+        $sql = "SELECT {$certDateExpr} as month, COUNT(*) as total"
+            . ' FROM moodle_certificates WHERE date_issued >= ' . $db->var2str($certSixMonthsAgo)
+            . " GROUP BY {$certDateExpr} ORDER BY month";
+        foreach ($db->select($sql) as $row) {
+            if (isset($certCounts[$row['month']])) {
+                $certCounts[$row['month']] = (int) $row['total'];
+            }
+        }
+        $this->dashboardData['certMonthLabels'] = $certMonths;
+        $this->dashboardData['certMonthData'] = array_values($certCounts);
+
         // FE-01 (2026-04-17) — pre-serialise every array that lands
         // inside a <script> block so the template never interpolates
         // untrusted upstream strings with the unsafe `|json_encode|raw`
@@ -160,5 +219,9 @@ class MoodleDashboard extends Controller
         $this->dashboardData['topCourseDataJson'] = JsonForScript::encode($this->dashboardData['topCourseData']);
         $this->dashboardData['methodLabelsJson'] = JsonForScript::encode($this->dashboardData['methodLabels']);
         $this->dashboardData['methodDataJson'] = JsonForScript::encode($this->dashboardData['methodData']);
+        $this->dashboardData['progressLabelsJson'] = JsonForScript::encode($this->dashboardData['progressLabels']);
+        $this->dashboardData['progressDataJson'] = JsonForScript::encode($this->dashboardData['progressData']);
+        $this->dashboardData['certMonthLabelsJson'] = JsonForScript::encode($this->dashboardData['certMonthLabels']);
+        $this->dashboardData['certMonthDataJson'] = JsonForScript::encode($this->dashboardData['certMonthData']);
     }
 }

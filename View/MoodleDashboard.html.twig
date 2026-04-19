@@ -92,7 +92,10 @@
             </div>
         </div>
 
-        {# Charts row 1: Status doughnut + Monthly bar #}
+        {# 6-chart grid: 2 rows x 3 cols. All cards col-lg-4 so the
+           layout collapses cleanly to 2 cols (md) and 1 col (sm). #}
+
+        {# Row 1: Status doughnut | Progress histogram | Methods pie #}
         <div class="row mb-4">
             <div class="col-lg-4 mb-3">
                 <div class="card shadow-sm border-0 h-100">
@@ -100,44 +103,63 @@
                         <h6 class="mb-0"><i class="fa-solid fa-chart-pie me-1 text-muted"></i> {{ trans('enrolments-by-status') }}</h6>
                     </div>
                     <div class="card-body d-flex align-items-center justify-content-center">
-                        {# F3.12 — skeleton shown until Chart.js finishes rendering.
-                           Replaced in-place when the canvas is drawn (see DOMContentLoaded). #}
+                        {# F3.12 — skeleton shown until Chart.js finishes rendering. #}
                         <span id="chartStatusSkeleton" class="mm-skeleton mm-skeleton--card" aria-hidden="true"></span>
                         <canvas id="chartStatus" class="d-none"></canvas>
                     </div>
                 </div>
             </div>
-            <div class="col-lg-8 mb-3">
+            <div class="col-lg-4 mb-3">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-header bg-white border-0 pb-0">
-                        <h6 class="mb-0"><i class="fa-solid fa-chart-bar me-1 text-muted"></i> {{ trans('enrolments-by-month') }}</h6>
+                        <h6 class="mb-0"><i class="fa-solid fa-bars-progress me-1 text-muted"></i> {{ trans('progress-distribution') }}</h6>
                     </div>
                     <div class="card-body">
-                        <canvas id="chartMonthly" height="260"></canvas>
+                        <canvas id="chartProgress" height="220"></canvas>
                     </div>
                 </div>
             </div>
-        </div>
-
-        {# Charts row 2: Top courses + Methods #}
-        <div class="row mb-4">
-            <div class="col-lg-7 mb-3">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-header bg-white border-0 pb-0">
-                        <h6 class="mb-0"><i class="fa-solid fa-graduation-cap me-1 text-muted"></i> {{ trans('top-courses') }}</h6>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="chartTopCourses" height="240"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-5 mb-3">
+            <div class="col-lg-4 mb-3">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-header bg-white border-0 pb-0">
                         <h6 class="mb-0"><i class="fa-solid fa-sliders me-1 text-muted"></i> {{ trans('enrolments-by-method') }}</h6>
                     </div>
                     <div class="card-body d-flex align-items-center justify-content-center">
                         <canvas id="chartMethods"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Row 2: Monthly enrolments | Top courses | Certificates by month #}
+        <div class="row mb-4">
+            <div class="col-lg-4 mb-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h6 class="mb-0"><i class="fa-solid fa-chart-bar me-1 text-muted"></i> {{ trans('enrolments-by-month') }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartMonthly" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h6 class="mb-0"><i class="fa-solid fa-graduation-cap me-1 text-muted"></i> {{ trans('top-courses') }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartTopCourses" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h6 class="mb-0"><i class="fa-solid fa-certificate me-1 text-muted"></i> {{ trans('certificates-by-month') }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chartCertMonthly" height="220"></canvas>
                     </div>
                 </div>
             </div>
@@ -346,6 +368,71 @@
                 maintainAspectRatio: true,
                 plugins: {
                     legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } },
+                    tooltip: v4TooltipStyle
+                }
+            }
+        });
+
+        // --- 5. Progress distribution (histogram) ---
+        // Colour-coded bars so operators can spot "stuck at 0%" at a
+        // glance: red for 0%, yellow for the middle buckets, green
+        // for 100%.
+        var ctxProgress = document.getElementById('chartProgress').getContext('2d');
+        var progressColors = ['#dc3545', '#fd7e14', '#ffc107', '#0dcaf0', '#0d6efd', '#198754'];
+        new Chart(ctxProgress, {
+            type: 'bar',
+            data: {
+                labels: {{ data.progressLabelsJson | default('[]') | raw }},
+                datasets: [{
+                    label: '{{ trans('enrolments') }}',
+                    data: {{ data.progressDataJson | default('[]') | raw }},
+                    backgroundColor: progressColors,
+                    borderWidth: 0,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: v4TooltipStyle
+                }
+            }
+        });
+
+        // --- 6. Certificates issued per month (line) ---
+        var ctxCertMonthly = document.getElementById('chartCertMonthly').getContext('2d');
+        new Chart(ctxCertMonthly, {
+            type: 'line',
+            data: {
+                labels: {{ data.certMonthLabelsJson | default('[]') | raw }},
+                datasets: [{
+                    label: '{{ trans('certificates') }}',
+                    data: {{ data.certMonthDataJson | default('[]') | raw }},
+                    borderColor: '#6f42c1',
+                    backgroundColor: 'rgba(111,66,193,0.10)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointBackgroundColor: '#6f42c1',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                },
+                plugins: {
+                    legend: { display: false },
                     tooltip: v4TooltipStyle
                 }
             }
