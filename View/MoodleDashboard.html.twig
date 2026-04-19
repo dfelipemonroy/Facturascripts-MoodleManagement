@@ -17,11 +17,24 @@
 {% block body %}
     {% set data = fsc.dashboardData %}
     {# F3.1 — Upgrade Chart.js 2.9 -> 4.x.
-       Chart.js 4 ships as UMD at `dist/chart.umd.js`.
-       Admins whose FS installation predates this must run
-       `npm --prefix $FS_ROOT install chart.js@^4` once.
-       Fallback CDN line is documented in UPGRADE.md §1.5. #}
-    <script src="{{ asset('node_modules/chart.js/dist/chart.umd.js') }}"></script>
+       Primary source: plugin-vendored UMD bundle shipped under
+       Assets/JS/vendor/ so the dashboard does not depend on the
+       host FS `node_modules/chart.js/` version (FS 2026 still
+       ships Chart 2.x there).
+       Fallback: jsDelivr CDN via a runtime check — if
+       `window.Chart` stays undefined after the first script tag
+       loaded, we inject the CDN copy. Air-gapped installs can
+       delete the fallback line. #}
+    <script src="{{ asset('Plugins/MoodleManagement/Assets/JS/vendor/chart.umd.js') }}"></script>
+    <script>
+        // eslint-disable-next-line no-unused-expressions
+        if (typeof window.Chart === 'undefined') {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js';
+            s.defer = false;
+            document.head.appendChild(s);
+        }
+    </script>
     {# Shared stylesheet (F1.8). A11y JS (F1.7). #}
     <link rel="stylesheet" href="{{ asset('Plugins/MoodleManagement/Assets/CSS/moodle.css') }}"/>
     <script src="{{ asset('Plugins/MoodleManagement/Assets/JS/a11y-enhance.js') }}"></script>
