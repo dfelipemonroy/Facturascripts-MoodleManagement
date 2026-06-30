@@ -20,6 +20,7 @@ docs/DEAD-CODE-AUDIT.md     export-ignore
 Test/           export-ignore
 phpunit.xml.dist       export-ignore
 phpstan.neon.dist      export-ignore
+phpstan-baseline.neon  export-ignore
 phpcs.xml.dist         export-ignore
 .php-cs-fixer.dist.php export-ignore
 .editorconfig          export-ignore
