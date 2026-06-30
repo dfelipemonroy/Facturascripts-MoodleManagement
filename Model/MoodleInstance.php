@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -30,73 +31,84 @@ class MoodleInstance extends ModelClass
     use CompanyRelationTrait;
 
     /** @var int */
-    public $id;
 
+    public $id;
     /** @var string */
     public $name;
-
     /** @var string */
     public $url;
-
     /** @var string */
     public $token;
-
+    /**
+     * @var string|null Shared secret (HMAC key) used to verify inbound
+     *                  webhook requests. Stored cipher-wrapped via
+     *                  TokenCipher. NULL disables the webhook endpoint.
+     * @since 2.0 — F10.1
+     */
+    public $webhook_secret;
+    /**
+     * @var string Username-generation strategy applied when
+     *             onboarding new contacts to this Moodle.
+     *             One of: 'name_based' (default), 'random_alias'.
+     * @since 2.0 — F10.5
+     */
+    public $username_strategy;
     /** @var string */
     public $status;
-
     /** @var string */
     public $environment;
-
     /** @var string */
     public $moodle_version;
-
     /** @var string */
     public $moodle_release;
-
     /** @var string */
     public $site_name;
-
     /** @var string */
     public $lang;
-
     /** @var string */
     public $service_username;
-
     /** @var int */
     public $service_userid;
-
     /** @var int */
     public $available_functions;
-
     /** @var string */
     public $last_check;
-
     /** @var string */
     public $last_error;
-
     /** @var string JSON: maps Moodle custom field shortnames to FS contact fields */
     public $custom_fields_map;
-
     /** @var string default sync priority: newest_wins, fs_wins, moodle_wins */
     public $default_sync_priority;
-
     /** @var string */
     public $notes;
-
     /** @var bool */
     public $onboarding_enabled;
-
     /** @var int|null FK to moodle_course_map.moodle_courseid — welcome course */
     public $onboarding_course_id;
-
     /** @var int|null Moodle cohort ID to assign new users */
     public $onboarding_cohort_id;
-
     /** @var string|null Welcome message template sent to new users */
     public $onboarding_welcome_message;
-
     /** @var string */
     public $creation_date;
+    /**
+     * @var string|null Operator nick that originally inserted the row.
+     *                  Populated by FS core's audit-trail layer (F5.15).
+     *                  Declared as a real property to avoid PHP 8.2 dynamic-property
+     *                  deprecation warnings.
+     */
+    public $created_by;
+
+    /**
+     * @var string|null Operator nick that last touched the row. Same
+     *                  provenance as `$created_by`.
+     */
+    public $updated_by;
+
+    /**
+     * @var int BE-06 — consecutive health-probe failure streak.
+     */
+    public $health_fail_count;
 
     public function clear(): void
     {
@@ -108,6 +120,7 @@ class MoodleInstance extends ModelClass
         $this->onboarding_course_id = null;
         $this->onboarding_cohort_id = null;
         $this->onboarding_welcome_message = null;
+        $this->username_strategy = 'name_based';
         $this->creation_date = date('Y-m-d H:i:s');
     }
 
@@ -150,7 +163,6 @@ class MoodleInstance extends ModelClass
         $this->name = Tools::noHtml($this->name);
         $this->url = Tools::noHtml($this->url);
         $this->notes = Tools::noHtml($this->notes);
-
         if (empty($this->name)) {
             Tools::log()->error('field-can-not-be-null', ['%fieldName%' => 'name']);
             return false;
@@ -161,14 +173,28 @@ class MoodleInstance extends ModelClass
             return false;
         }
 
-        if (!filter_var($this->url, FILTER_VALIDATE_URL) || !preg_match('/^https?:\/\//', $this->url)) {
+        // F7.10 — strict URL validation:
+        //   - FILTER_VALIDATE_URL accepts the syntax (host + scheme).
+        //   - scheme MUST be http or https (blocks file://, ftp://,
+        //     javascript:, data:, etc.).
+        //   - host MUST be non-empty and not contain control chars.
+        if (!filter_var($this->url, FILTER_VALIDATE_URL)) {
+            Tools::log()->error('invalid-moodle-url');
+            return false;
+        }
+        $scheme = strtolower((string) parse_url($this->url, PHP_URL_SCHEME));
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            Tools::log()->error('invalid-moodle-url');
+            return false;
+        }
+        $host = (string) parse_url($this->url, PHP_URL_HOST);
+        if ($host === '' || preg_match('/[\x00-\x1F\x7F]/', $host)) {
             Tools::log()->error('invalid-moodle-url');
             return false;
         }
 
         // Remove trailing slash from URL
         $this->url = rtrim($this->url, '/');
-
         return parent::test();
     }
 }

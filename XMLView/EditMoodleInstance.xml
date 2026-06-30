@@ -40,6 +40,15 @@
                     <values title="moodle-wins">moodle_wins</values>
                 </widget>
             </column>
+            <column name="username-strategy" numcolumns="3" order="185">
+                <widget type="select" fieldname="username_strategy" translate="true">
+                    <values title="username-strategy-name-based">name_based</values>
+                    <values title="username-strategy-random-alias">random_alias</values>
+                </widget>
+            </column>
+            <column name="webhook-secret" numcolumns="6" order="190">
+                <widget type="password" fieldname="webhook_secret" maxlength="500" icon="fa-solid fa-arrow-right-arrow-left"/>
+            </column>
         </group>
         <group name="custom-fields" title="custom-fields-map" numcolumns="12">
             <column name="custom-fields-map" numcolumns="12" order="250">

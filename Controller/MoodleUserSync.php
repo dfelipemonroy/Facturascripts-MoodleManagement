@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -16,6 +17,8 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+
+declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
@@ -39,24 +42,21 @@ class MoodleUserSync extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $route = Tools::config('route', '');
         AssetManager::addJs($route . '/Plugins/MoodleManagement/Assets/JS/ImportModal.js?v=' . Tools::date());
-
         // Tab 1: Mapped users
         $this->addView('ListMoodleUserMap', 'MoodleUserMap', 'mapped-users', 'fa-solid fa-link')
             ->addSearchFields(['moodle_username'])
             ->addOrderBy(['last_sync'], 'last-sync', 2)
             ->addOrderBy(['moodle_username'], 'moodle-username');
-
         $instances = [];
         $instanceModel = new MoodleInstance();
         foreach ($instanceModel->all([], ['name' => 'ASC'], 0, 0) as $inst) {
             $instances[] = ['code' => $inst->id, 'description' => $inst->name];
         }
         $this->addFilterSelect('ListMoodleUserMap', 'idinstance', 'moodle-instance', 'idinstance', $instances);
-
         // Add action buttons
         $this->addButton('ListMoodleUserMap', [
             'action' => 'sync-all-to-moodle',
@@ -65,7 +65,6 @@ class MoodleUserSync extends ListController
             'type' => 'action',
             'color' => 'info',
         ]);
-
         $this->addButton('ListMoodleUserMap', [
             'action' => 'sync-all-from-moodle',
             'icon' => 'fa-solid fa-arrow-left',
@@ -73,7 +72,6 @@ class MoodleUserSync extends ListController
             'type' => 'action',
             'color' => 'info',
         ]);
-
         $this->addButton('ListMoodleUserMap', [
             'action' => 'import-from-moodle',
             'icon' => 'fa-solid fa-download',
@@ -88,14 +86,15 @@ class MoodleUserSync extends ListController
         switch ($action) {
             case 'sync-all-to-moodle':
                 $this->syncAllToMoodle();
-                return true;
 
+                return true;
             case 'sync-all-from-moodle':
                 $this->syncAllFromMoodle();
-                return true;
 
+                return true;
             case 'import-from-moodle':
                 $this->importFromMoodle();
+
                 return true;
         }
 
@@ -105,26 +104,17 @@ class MoodleUserSync extends ListController
     private function syncAllToMoodle(): void
     {
         $mapModel = new MoodleUserMap();
-        $maps = $mapModel->all(
-            [new DataBaseWhere('sync_direction', 'moodle_to_fs', '!=')],
-            [],
-            0,
-            0
-        );
-
+        $maps = $mapModel->all([new DataBaseWhere('sync_direction', 'moodle_to_fs', '!=')], [], 0, 0);
         $synced = 0;
         $errors = 0;
-
         foreach ($maps as $map) {
             $contact = $map->getContacto();
             $instance = $map->getInstance();
-
             if (empty($contact->idcontacto) || empty($instance->id) || empty($instance->token)) {
                 continue;
             }
 
             $userData = MoodleClient::contactToMoodleUser($contact);
-
             if (empty($map->moodle_userid)) {
                 if (empty($contact->email)) {
                     $errors++;
@@ -137,10 +127,12 @@ class MoodleUserSync extends ListController
                     $map->moodle_userid = $existing[0]['id'];
                     $map->moodle_username = $existing[0]['username'] ?? '';
                 } else {
-                    $userData['username'] = MoodleClient::generateUsername($contact);
+                    // F10.5 — route through UsernameGenerator so the
+                    // per-instance strategy (name_based | random_alias)
+                    // is honoured here, not only in background workers.
+                    $userData['username'] = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\UsernameGenerator::unique($contact, $instance);
                     $userData['createpassword'] = 1;
                     $result = MoodleClient::createUser($instance, $userData);
-
                     if (isset($result['exception'])) {
                         $map->last_error = $result['message'] ?? $result['exception'];
                         $map->save();
@@ -155,7 +147,6 @@ class MoodleUserSync extends ListController
                 }
             } else {
                 $result = MoodleClient::updateUser($instance, $map->moodle_userid, $userData);
-
                 if (isset($result['exception'])) {
                     $map->last_error = $result['message'] ?? $result['exception'];
                     $map->save();
@@ -176,19 +167,12 @@ class MoodleUserSync extends ListController
     private function syncAllFromMoodle(): void
     {
         $mapModel = new MoodleUserMap();
-        $maps = $mapModel->all(
-            [
+        $maps = $mapModel->all([
                 new DataBaseWhere('sync_direction', 'fs_to_moodle', '!='),
                 new DataBaseWhere('moodle_userid', 0, '>'),
-            ],
-            [],
-            0,
-            0
-        );
-
+            ], [], 0, 0);
         $synced = 0;
         $errors = 0;
-
         // Group maps by instance for efficiency
         $byInstance = [];
         foreach ($maps as $map) {
@@ -210,10 +194,8 @@ class MoodleUserSync extends ListController
             // Batch API calls (50 users per request)
             $moodleIds = array_keys($mapsByMoodleId);
             $batches = array_chunk($moodleIds, 50);
-
             foreach ($batches as $batchIds) {
                 $result = MoodleClient::getUsersByField($instance, 'id', $batchIds);
-
                 if (isset($result['exception'])) {
                     foreach ($batchIds as $failedId) {
                         if (isset($mapsByMoodleId[$failedId])) {
@@ -233,7 +215,6 @@ class MoodleUserSync extends ListController
 
                 foreach ($batchIds as $moodleId) {
                     $map = $mapsByMoodleId[$moodleId];
-
                     if (!isset($moodleUsers[$moodleId])) {
                         $map->last_error = 'User not found in Moodle';
                         $map->save();
@@ -244,7 +225,6 @@ class MoodleUserSync extends ListController
                     $contact = $map->getContacto();
                     MoodleClient::moodleUserToContact($contact, $moodleUsers[$moodleId]);
                     $contact->save();
-
                     $map->moodle_username = $moodleUsers[$moodleId]['username'] ?? '';
                     $map->last_sync = date('Y-m-d H:i:s');
                     $map->last_error = '';
@@ -263,7 +243,6 @@ class MoodleUserSync extends ListController
         $importMode = $this->request->request->get('import_mode', '');
         $codcliente = $this->request->request->get('codcliente', '');
         $idinstance = $this->request->request->get('idinstance', '');
-
         if (empty($importMode)) {
             Tools::log()->warning('import-mode-required');
             return;
@@ -288,12 +267,7 @@ class MoodleUserSync extends ListController
         // Load Moodle instance
         if (empty($idinstance)) {
             $instanceModel = new MoodleInstance();
-            $instances = $instanceModel->all(
-                [new DataBaseWhere('status', 'active')],
-                [],
-                0,
-                1
-            );
+            $instances = $instanceModel->all([new DataBaseWhere('status', 'active')], [], 0, 1);
             if (empty($instances)) {
                 Tools::log()->warning('no-active-moodle-instance');
                 return;
@@ -326,7 +300,6 @@ class MoodleUserSync extends ListController
 
         $imported = 0;
         $skipped = 0;
-
         foreach ($users as $moodleUser) {
             if (empty($moodleUser['email']) || ($moodleUser['deleted'] ?? false)) {
                 continue;
@@ -353,7 +326,6 @@ class MoodleUserSync extends ListController
             $contact = new \FacturaScripts\Core\Model\Contacto();
             $contactWhere = [new DataBaseWhere('email', $email)];
             $contactExists = $contact->loadFromCode('', $contactWhere);
-
             if (false === $contactExists) {
                 if ($importMode === 'create_client_per_user') {
                     // Create client first — saveInsert() auto-creates a linked contact
@@ -369,8 +341,8 @@ class MoodleUserSync extends ListController
                     if (false === $cliente->save()) {
                         $username = $moodleUser['username'] ?? '?';
                         Tools::log()->warning('user-sync-failed', [
-                            '%name%' => "$username ($email)",
-                            '%message%' => 'Failed to create client',
+                        '%name%' => "$username ($email)",
+                        '%message%' => 'Failed to create client',
                         ]);
                         $skipped++;
                         continue;
@@ -389,8 +361,8 @@ class MoodleUserSync extends ListController
                     if (false === $contact->save()) {
                         $username = $moodleUser['username'] ?? '?';
                         Tools::log()->warning('user-sync-failed', [
-                            '%name%' => "$username ($email)",
-                            '%message%' => Tools::lang()->trans('email') . ": $email",
+                        '%name%' => "$username ($email)",
+                        '%message%' => Tools::lang()->trans('email') . ": $email",
                         ]);
                         $skipped++;
                         continue;

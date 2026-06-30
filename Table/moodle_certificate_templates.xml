@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<table>
+    <column>
+        <name>id</name>
+        <type>serial</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>name</name>
+        <type>character varying(100)</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>idinstance</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>is_default</name>
+        <type>boolean</type>
+        <default>false</default>
+    </column>
+    <column>
+        <name>title_text</name>
+        <type>character varying(100)</type>
+    </column>
+    <column>
+        <name>subtitle_text</name>
+        <type>character varying(200)</type>
+    </column>
+    <column>
+        <name>completed_text</name>
+        <type>character varying(200)</type>
+    </column>
+    <column>
+        <name>verify_text</name>
+        <type>character varying(300)</type>
+    </column>
+    <column>
+        <name>issuer_label</name>
+        <type>character varying(100)</type>
+    </column>
+    <column>
+        <name>primary_color</name>
+        <type>character varying(7)</type>
+    </column>
+    <column>
+        <name>accent_color</name>
+        <type>character varying(7)</type>
+    </column>
+    <column>
+        <name>title_font_size</name>
+        <type>integer</type>
+        <default>36</default>
+    </column>
+    <column>
+        <name>name_font_size</name>
+        <type>integer</type>
+        <default>32</default>
+    </column>
+    <column>
+        <name>course_font_size</name>
+        <type>integer</type>
+        <default>22</default>
+    </column>
+    <column>
+        <name>logo_path</name>
+        <type>character varying(300)</type>
+    </column>
+    <column>
+        <name>show_unique_hash</name>
+        <type>boolean</type>
+        <default>true</default>
+    </column>
+    <column>
+        <name>show_date_issued</name>
+        <type>boolean</type>
+        <default>true</default>
+    </column>
+    <column>
+        <name>show_issuer</name>
+        <type>boolean</type>
+        <default>true</default>
+    </column>
+    <column>
+        <name>notes</name>
+        <type>text</type>
+    </column>
+    <column>
+        <name>creation_date</name>
+        <type>timestamp</type>
+    </column>
+    <constraint>
+        <name>moodle_certificate_templates_pkey</name>
+        <type>PRIMARY KEY (id)</type>
+    </constraint>
+    <constraint>
+        <name>moodle_cert_tpl_fk_instance</name>
+        <type>FOREIGN KEY (idinstance) REFERENCES moodle_instances (id) ON DELETE CASCADE ON UPDATE CASCADE</type>
+    </constraint>
+</table>

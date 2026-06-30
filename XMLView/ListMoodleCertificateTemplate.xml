@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<view>
+    <columns>
+        <column name="name" display="left" order="100">
+            <widget type="text" fieldname="name" onclick="EditMoodleCertificateTemplate"/>
+        </column>
+        <column name="moodle-instance" display="left" order="110">
+            <widget type="select" fieldname="idinstance">
+                <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+            </widget>
+        </column>
+        <column name="is-default" display="center" order="120">
+            <widget type="checkbox" fieldname="is_default"/>
+        </column>
+        <column name="primary-color" display="center" order="130">
+            <widget type="color" fieldname="primary_color"/>
+        </column>
+        <column name="accent-color" display="center" order="140">
+            <widget type="color" fieldname="accent_color"/>
+        </column>
+        <column name="creation-date" display="center" order="150">
+            <widget type="datetime" fieldname="creation_date"/>
+        </column>
+    </columns>
+</view>

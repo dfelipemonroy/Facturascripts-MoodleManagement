@@ -42,7 +42,7 @@
                                 <strong>{{ group.name | default('—') }}</strong>
                             </td>
                             <td>
-                                <small class="text-muted">{{ group.description | default('—') | striptags | slice(0, 80) }}</small>
+                                <small class="text-muted">{{ mm_plain_text(group.description | default('—'), 80) }}</small>
                             </td>
                             <td class="text-center">
                                 <span class="badge bg-secondary">{{ group.memberCount | default(0) }}</span>
@@ -51,13 +51,15 @@
                                 <small class="text-muted">{{ group.id }}</small>
                             </td>
                             <td class="text-end">
+                                {# F3.2 — delegated handler via Assets/JS/mm-actions.js #}
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         data-bs-toggle="modal" data-bs-target="#membersModal"
-                                        onclick="loadGroupMembers({{ group.id }}, '{{ group.name | e('js') }}')">
+                                        data-mm-call="loadGroupMembers"
+                                        data-mm-args='[{{ group.id }}, {{ json_for_script(group.name | default('')) }}]'>
                                     <i class="fa-solid fa-users"></i>
                                 </button>
                                 <form method="post" class="d-inline"
-                                      onsubmit="return confirm('{{ trans('confirm-delete-group') }}');">
+                                      data-mm-confirm="{{ trans('confirm-delete-group') }}">
                                     <input type="hidden" name="action" value="group-delete"/>
                                     <input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>
                                     <input type="hidden" name="activetab" value="CourseGroups"/>
@@ -95,7 +97,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">{{ trans('description') }}</label>
-                    <textarea name="group_description" class="form-control" rows="3"></textarea>
+                    <textarea name="group_description" class="form-control" rows="3" maxlength="2000"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -158,11 +160,23 @@ function loadGroupMembers(groupId, groupName) {
     document.getElementById('addMemberGroupId').value = groupId;
 
     var container = document.getElementById('membersListContainer');
-    var groupData = {{ fsc.courseGroupMembers | json_encode | raw }};
-    var usersMap = {};
-    {% for user in enrolledUsers %}
-    usersMap[{{ user.id }}] = '{{ user.fullname | e('js') }} ({{ user.username | e('js') }})';
-    {% endfor %}
+    var groupData = {{ json_for_script(fsc.courseGroupMembers) }};
+    // F3.6 — load display names as raw strings via JSON; escape at
+    // insertion time rather than at Twig-render time. Avoids the
+    // "|e('js') gives a JS-safe string but HTML-unsafe" trap that
+    // previously allowed <script> in a user fullname to reach
+    // innerHTML untouched.
+    var usersMap = {
+        {% for user in enrolledUsers %}
+        {{ user.id }}: {{ json_for_script(user.fullname ~ ' (' ~ user.username ~ ')') }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    function cgEscapeHtml(t) {
+        var d = document.createElement('div');
+        d.textContent = String(t == null ? '' : t);
+        return d.innerHTML;
+    }
 
     var members = [];
     for (var i = 0; i < groupData.length; i++) {
@@ -173,21 +187,23 @@ function loadGroupMembers(groupId, groupName) {
     }
 
     if (members.length === 0) {
-        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle me-1"></i>{{ trans('no-members') }}</div>';
+        container.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-info-circle me-1"></i>{{ trans('no-members') | e('html') }}</div>';
         return;
     }
 
-    var html = '<table class="table table-sm"><thead><tr><th>{{ trans('user') }}</th><th class="text-end">{{ trans('actions') }}</th></tr></thead><tbody>';
+    var html = '<table class="table table-sm"><thead><tr><th>{{ trans('user') | e('html') }}</th><th class="text-end">{{ trans('actions') | e('html') }}</th></tr></thead><tbody>';
     for (var j = 0; j < members.length; j++) {
         var displayName = usersMap[members[j]] || ('ID: ' + members[j]);
-        html += '<tr><td><i class="fa-solid fa-user me-1"></i>' + displayName + '</td>';
+        var safeMemberId = String(parseInt(members[j], 10) || 0);
+        var safeGroupId = String(parseInt(groupId, 10) || 0);
+        html += '<tr><td><i class="fa-solid fa-user me-1"></i>' + cgEscapeHtml(displayName) + '</td>';
         html += '<td class="text-end">';
         html += '<form method="post" class="d-inline">';
         html += '<input type="hidden" name="action" value="group-remove-member"/>';
-        html += '<input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() }}"/>';
+        html += '<input type="hidden" name="multireqtoken" value="{{ fsc.multiRequestProtection.newToken() | e('html') }}"/>';
         html += '<input type="hidden" name="activetab" value="CourseGroups"/>';
-        html += '<input type="hidden" name="group_id" value="' + groupId + '"/>';
-        html += '<input type="hidden" name="member_userid" value="' + members[j] + '"/>';
+        html += '<input type="hidden" name="group_id" value="' + safeGroupId + '"/>';
+        html += '<input type="hidden" name="member_userid" value="' + safeMemberId + '"/>';
         html += '<button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-user-minus"></i></button>';
         html += '</form></td></tr>';
     }

@@ -1,8 +1,11 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
  */
+
+declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Extension\Controller;
 
@@ -15,7 +18,7 @@ class EditCliente
 {
     protected function createViews(): Closure
     {
-        return function () {
+        return function (): void {
             $this->addHtmlView('ClienteFormacion', 'Tab/ClienteFormacion', 'Cliente', 'moodle-training', 'fa-solid fa-graduation-cap');
 
             $this->addListView('ListMoodleEnrolmentCliente', 'MoodleEnrolment', 'moodle-enrolments', 'fa-solid fa-user-graduate')
@@ -26,7 +29,7 @@ class EditCliente
 
     public function loadData(): Closure
     {
-        return function ($viewName, $view) {
+        return function ($viewName, $view): void {
             if ($viewName === 'ClienteFormacion') {
                 $codcliente = $this->getViewModelValue($this->getMainViewName(), 'codcliente');
                 if (empty($codcliente)) {
@@ -40,7 +43,7 @@ class EditCliente
                 }
                 $db = new DataBase();
                 $contactIds = [];
-                $sql = "SELECT idcontacto FROM contactos WHERE codcliente = " . $db->var2str($codcliente);
+                $sql = 'SELECT idcontacto FROM contactos WHERE codcliente = ' . $db->var2str($codcliente);
                 foreach ($db->select($sql) as $row) {
                     $contactIds[] = (int)$row['idcontacto'];
                 }

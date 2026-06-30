@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -38,6 +39,16 @@ class MoodleRoleMap extends ModelClass
 
     /** @var string */
     public $creation_date;
+
+    /**
+     * @var string|null F5.22 — insert timestamp.
+     */
+    public $created_at;
+
+    /**
+     * @var string|null F5.22 — last-touch timestamp.
+     */
+    public $updated_at;
 
     public function clear(): void
     {

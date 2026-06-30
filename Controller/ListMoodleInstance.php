@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -16,6 +17,8 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+
+declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
@@ -35,7 +38,7 @@ class ListMoodleInstance extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $route = Tools::config('route');
         AssetManager::addJs($route . '/Plugins/MoodleManagement/Assets/JS/MoodleStatus.js');

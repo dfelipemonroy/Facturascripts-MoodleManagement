@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    ListMoodleWebhookLog — receiver activity for /ApiMoodleWebhook.
+    @since 2.0 — V2.0-ACTION-PLAN F10.3 · §6.16
+-->
+<view>
+    <columns>
+        <column name="date" order="100">
+            <widget type="datetime" fieldname="received_at"/>
+        </column>
+        <column name="event-type" order="110">
+            <widget type="text" fieldname="event_type"/>
+        </column>
+        <column name="outcome" order="120">
+            <widget type="text" fieldname="outcome"/>
+        </column>
+        <column name="http-status" order="125">
+            <widget type="number" fieldname="http_status"/>
+        </column>
+        <column name="signature-ok" order="130">
+            <widget type="checkbox" fieldname="signature_ok"/>
+        </column>
+        <column name="timestamp-ok" order="135" display="none">
+            <widget type="checkbox" fieldname="timestamp_ok"/>
+        </column>
+        <column name="nonce-ok" order="140" display="none">
+            <widget type="checkbox" fieldname="nonce_ok"/>
+        </column>
+        <column name="moodle-instance" order="145">
+            <widget type="select" fieldname="idinstance">
+                <values source="moodle_instances" fieldcode="id" fieldtitle="name"/>
+            </widget>
+        </column>
+        <column name="ip" order="150">
+            <widget type="text" fieldname="ip"/>
+        </column>
+        <column name="payload-bytes" order="155" display="none">
+            <widget type="number" fieldname="payload_bytes"/>
+        </column>
+        <column name="payload-hash" order="160" display="none">
+            <widget type="text" fieldname="payload_hash"/>
+        </column>
+        <column name="error-message" order="170" display="none">
+            <widget type="text" fieldname="error_message"/>
+        </column>
+    </columns>
+</view>

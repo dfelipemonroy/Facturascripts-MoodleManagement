@@ -1,8 +1,11 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
  */
+
+declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
@@ -23,7 +26,7 @@ class ListMoodleCourseMap extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addView('ListMoodleCourseMap', 'MoodleCourseMap', 'moodle-courses', 'fa-solid fa-book')
             ->addSearchFields(['shortname', 'fullname'])

@@ -1,0 +1,60 @@
+# EditorConfig — https://editorconfig.org
+# MoodleManagement plugin for FacturaScripts 2025.81
+# Conforms with V2.0-ACTION-PLAN F0.1
+
+root = true
+
+# Defaults
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+# PHP — PSR-12 requires 4 spaces
+[*.php]
+indent_size = 4
+
+# XML/XMLView — FacturaScripts convention is 4 spaces
+[*.xml]
+indent_size = 4
+
+# Twig templates — 2 spaces for better nesting readability.
+# STD-10 (2026-04-17) — also cover `*.html.twig` explicitly so
+# editors that match on the longer extension first apply the same
+# rules. EditorConfig picks the most specific section.
+[*.twig]
+indent_size = 2
+
+[*.html.twig]
+indent_size = 2
+
+# HTML
+[*.html]
+indent_size = 2
+
+# JS/CSS — 4 spaces for consistency with FS core
+[*.{js,css}]
+indent_size = 4
+
+# Data / config files — 2 spaces
+[*.{json,yml,yaml,neon}]
+indent_size = 2
+
+# INI files — 4 spaces (facturascripts.ini)
+[*.ini]
+indent_size = 4
+
+# Markdown — preserve trailing whitespace (hard line breaks)
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 2
+
+# SQL migrations
+[*.sql]
+indent_size = 4
+
+# Makefiles require tabs
+[Makefile]
+indent_style = tab

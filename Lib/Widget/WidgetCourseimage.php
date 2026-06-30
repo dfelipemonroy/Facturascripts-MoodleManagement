@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -16,8 +17,13 @@ class WidgetCourseimage extends BaseWidget
 {
     /**
      * Renders the table cell with an image thumbnail.
+     *
+     * @param object $model The row model exposing the image FK in $this->fieldname.
+     * @param string $display Alignment hint (kept for BaseWidget BC; not used).
+     * @return string HTML <td>...</td> fragment.
+     * @since 2.0 return type added
      */
-    public function tableCell($model, $display = 'center')
+    public function tableCell($model, $display = 'center'): string
     {
         $this->setValue($model);
 
@@ -30,15 +36,24 @@ class WidgetCourseimage extends BaseWidget
             return '<td class="text-center">-</td>';
         }
 
+        // Class `mm-thumb` is defined in Assets/CSS/moodle.css (F1.8).
+        // The stylesheet must be loaded by the enclosing Twig.
         return '<td class="text-center">'
-            . '<img loading="lazy" src="' . $url . '" style="max-height:40px;max-width:60px;object-fit:cover;border-radius:4px;" alt=""/>'
+            . '<img loading="lazy" src="' . $url . '" class="mm-thumb" alt=""/>'
             . '</td>';
     }
 
     /**
      * Renders the edit form widget: image picker from product variant images.
+     *
+     * @param object $model Row model.
+     * @param string $title Optional label shown above the picker.
+     * @param string $description Unused (BaseWidget BC placeholder).
+     * @param string $titleurl Unused (BaseWidget BC placeholder).
+     * @return string HTML fragment with radio-image picker.
+     * @since 2.0 return type added
      */
-    public function edit($model, $title = '', $description = '', $titleurl = '')
+    public function edit($model, $title = '', $description = '', $titleurl = ''): string
     {
         $this->setValue($model);
 
@@ -61,9 +76,11 @@ class WidgetCourseimage extends BaseWidget
                 . Tools::trans('no-product-images') . '</div></div>';
         }
 
-        // render image picker grid
+        // F3.11 — inline `style=""` and `onchange` removed.
+        // Highlighting is handled by Assets/JS/widget-courseimage.js
+        // listening on `change` events within `.mm-img-picker`.
         $html = '<div class="mb-3">' . $labelHtml;
-        $html .= '<div class="d-flex flex-wrap gap-2 mt-1">';
+        $html .= '<div class="d-flex flex-wrap gap-2 mt-1 mm-img-picker">';
 
         foreach ($images as $img) {
             $url = $this->getFileUrl($img->idfile);
@@ -71,16 +88,19 @@ class WidgetCourseimage extends BaseWidget
                 continue;
             }
 
-            $checked = ((int)$this->value === $img->idfile) ? ' checked' : '';
-            $border = ((int)$this->value === $img->idfile) ? 'border-primary border-2' : 'border';
+            $isSelected = (int) $this->value === $img->idfile;
+            $checked = $isSelected ? ' checked' : '';
+            $borderClasses = $isSelected ? 'card border-primary border-2 mm-img-picker-card'
+                                         : 'card border mm-img-picker-card';
             $radioId = 'cover_' . $img->idfile;
 
-            $html .= '<label for="' . $radioId . '" class="d-inline-block cursor-pointer" style="cursor:pointer;">'
-                . '<input type="radio" name="' . $this->fieldname . '" id="' . $radioId . '"'
-                . ' value="' . $img->idfile . '"' . $checked
-                . ' class="d-none" onchange="this.closest(\'.d-flex\').querySelectorAll(\'.card\').forEach(c=>c.classList.remove(\'border-primary\',\'border-2\'));this.closest(\'label\').querySelector(\'.card\').classList.add(\'border-primary\',\'border-2\')"/>'
-                . '<div class="card ' . $border . '" style="width:100px;height:100px;overflow:hidden;">'
-                . '<img src="' . $url . '" class="w-100 h-100" style="object-fit:cover;" alt=""/>'
+            $html .= '<label for="' . $radioId . '" class="mm-img-picker-label">'
+                . '<input type="radio" name="' . htmlspecialchars($this->fieldname, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '"'
+                . ' id="' . htmlspecialchars($radioId, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '"'
+                . ' value="' . (int) $img->idfile . '"' . $checked
+                . ' class="d-none"/>'
+                . '<div class="' . $borderClasses . '">'
+                . '<img src="' . htmlspecialchars($url, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '" class="mm-img-picker-thumb" alt=""/>'
                 . '</div>'
                 . '</label>';
         }
@@ -89,7 +109,13 @@ class WidgetCourseimage extends BaseWidget
         return $html;
     }
 
-    protected function show()
+    /**
+     * Default textual representation when widget is rendered inline.
+     *
+     * @return string
+     * @since 2.0 return type added
+     */
+    protected function show(): string
     {
         return is_null($this->value) ? '' : (string)$this->value;
     }

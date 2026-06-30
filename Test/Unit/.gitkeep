@@ -1,0 +1,2 @@
+# Unit tests — no DB, no HTTP. Mocks only.
+# Populated during Fase 9 (see docs/V2.0-ACTION-PLAN.md).

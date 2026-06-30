@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -9,6 +10,7 @@ namespace FacturaScripts\Plugins\MoodleManagement\Model;
 use FacturaScripts\Core\Model\Base\ModelClass;
 use FacturaScripts\Core\Model\Base\ModelTrait;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Enum\CertificateStatus;
 
 class MoodleCertificate extends ModelClass
 {
@@ -61,6 +63,20 @@ class MoodleCertificate extends ModelClass
 
     /** @var string */
     public $last_sync;
+
+    /**
+     * @var string|null Operator nick that originally inserted the row.
+     *                  Populated by FS core's audit-trail layer (F5.15).
+     *                  Declared as a real property to avoid PHP 8.2 dynamic-property
+     *                  deprecation warnings.
+     */
+    public $created_by;
+
+    /**
+     * @var string|null Operator nick that last touched the row. Same
+     *                  provenance as `$created_by`.
+     */
+    public $updated_by;
 
     public function clear(): void
     {
@@ -115,4 +131,39 @@ class MoodleCertificate extends ModelClass
         return $instance;
     }
 
+    /**
+     * Lifecycle state derived from `date_expire`.
+     *
+     * Maps to the `CertificateStatus` enum:
+     *   - Empty / future date       -> ACTIVE
+     *   - Date in the past          -> EXPIRED
+     *
+     * Revocation is tracked separately once the audit-driven
+     * `revoked_at` column lands in Fase 10.
+     *
+     * @since 2.0
+     */
+    public function derivedStatus(): string
+    {
+        if (empty($this->date_expire)) {
+            return CertificateStatus::ACTIVE;
+        }
+        $exp = strtotime((string) $this->date_expire);
+        if ($exp === false) {
+            return CertificateStatus::ACTIVE;
+        }
+        return $exp < time() ? CertificateStatus::EXPIRED : CertificateStatus::ACTIVE;
+    }
+
+    /**
+     * Bootstrap contextual class used by ListMoodleCertificate row
+     * highlighting. Drives the colour of the list row without any
+     * additional SQL or widget configuration.
+     *
+     * @since 2.0 — V2.0-ACTION-PLAN F3.8 · §3.11
+     */
+    public function color(): string
+    {
+        return CertificateStatus::bootstrapContext($this->derivedStatus());
+    }
 }

@@ -65,37 +65,39 @@
                 <span>
                     <strong id="selectedCount">0</strong> {{ trans('selected-items') }}
                 </span>
+                {# F3.2 — bulk action bar: inline onclick replaced by
+                   data-mm-call/args delegated through Assets/JS/mm-actions.js #}
                 <div class="d-flex flex-wrap gap-1">
                     <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-success" onclick="bulkAction('cm-show')"
+                        <button type="button" class="btn btn-outline-success" data-mm-call="bulkAction" data-mm-args='["cm-show"]'
                                 title="{{ trans('show-module') }}">
                             <i class="fa-solid fa-eye me-1"></i>{{ trans('show-module') }}
                         </button>
-                        <button type="button" class="btn btn-outline-warning" onclick="bulkAction('cm-hide')"
+                        <button type="button" class="btn btn-outline-warning" data-mm-call="bulkAction" data-mm-args='["cm-hide"]'
                                 title="{{ trans('hide-module') }}">
                             <i class="fa-solid fa-eye-slash me-1"></i>{{ trans('hide-module') }}
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="bulkAction('cm-stealth')"
+                        <button type="button" class="btn btn-outline-secondary" data-mm-call="bulkAction" data-mm-args='["cm-stealth"]'
                                 title="{{ trans('module-stealth') }}">
                             <i class="fa-solid fa-link me-1"></i>{{ trans('module-stealth') }}
                         </button>
                     </div>
                     <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-info" onclick="bulkAction('cm-duplicate')"
+                        <button type="button" class="btn btn-outline-info" data-mm-call="bulkAction" data-mm-args='["cm-duplicate"]'
                                 title="{{ trans('duplicate-module') }}">
                             <i class="fa-solid fa-copy me-1"></i>{{ trans('duplicate-module') }}
                         </button>
-                        <button type="button" class="btn btn-outline-primary" onclick="showMoveModal()"
+                        <button type="button" class="btn btn-outline-primary" data-mm-call="showMoveModal"
                                 title="{{ trans('move-module') }}">
                             <i class="fa-solid fa-arrows-alt me-1"></i>{{ trans('move-module') }}
                         </button>
                     </div>
                     <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-secondary" onclick="bulkAction('cm-moveright')"
+                        <button type="button" class="btn btn-outline-secondary" data-mm-call="bulkAction" data-mm-args='["cm-moveright"]'
                                 title="{{ trans('indent-right') }}">
                             <i class="fa-solid fa-indent"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="bulkAction('cm-moveleft')"
+                        <button type="button" class="btn btn-outline-secondary" data-mm-call="bulkAction" data-mm-args='["cm-moveleft"]'
                                 title="{{ trans('indent-left') }}">
                             <i class="fa-solid fa-outdent"></i>
                         </button>
@@ -106,18 +108,18 @@
                             <i class="fa-solid fa-users me-1"></i>{{ trans('group-mode') }}
                         </button>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" onclick="bulkAction('cm-nogroups'); return false;">
+                            <li><a class="dropdown-item" href="#" data-mm-call="bulkAction" data-mm-args='["cm-nogroups"]' data-mm-preventdefault="1">
                                 <i class="fa-solid fa-user me-2"></i>{{ trans('no-groups') }}
                             </a></li>
-                            <li><a class="dropdown-item" href="#" onclick="bulkAction('cm-separategroups'); return false;">
+                            <li><a class="dropdown-item" href="#" data-mm-call="bulkAction" data-mm-args='["cm-separategroups"]' data-mm-preventdefault="1">
                                 <i class="fa-solid fa-users-rectangle me-2"></i>{{ trans('separate-groups') }}
                             </a></li>
-                            <li><a class="dropdown-item" href="#" onclick="bulkAction('cm-visiblegroups'); return false;">
+                            <li><a class="dropdown-item" href="#" data-mm-call="bulkAction" data-mm-args='["cm-visiblegroups"]' data-mm-preventdefault="1">
                                 <i class="fa-solid fa-users me-2"></i>{{ trans('visible-groups') }}
                             </a></li>
                         </ul>
                     </div>
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="bulkAction('cm-delete')"
+                    <button type="button" class="btn btn-outline-danger btn-sm" data-mm-call="bulkAction" data-mm-args='["cm-delete"]'
                             title="{{ trans('delete-module') }}">
                         <i class="fa-solid fa-trash me-1"></i>{{ trans('delete-module') }}
                     </button>
@@ -161,17 +163,18 @@
                             </button>
                             {# Section action buttons #}
                             <div class="btn-group btn-group-sm me-2 flex-shrink-0" style="z-index: 5;">
+                                {# F3.2 — section action buttons via mm-actions.js delegation. #}
                                 {% if not isGeneral %}
                                     {% if not isFirst %}
                                         <button type="button" class="btn btn-outline-secondary btn-sm"
-                                                onclick="moveSectionAfter({{ sectionDbId }}, 'up')"
+                                                data-mm-call="moveSectionAfter" data-mm-args='[{{ sectionDbId }}, "up"]'
                                                 title="{{ trans('move-up') }}">
                                             <i class="fa-solid fa-arrow-up"></i>
                                         </button>
                                     {% endif %}
                                     {% if not isLast %}
                                         <button type="button" class="btn btn-outline-secondary btn-sm"
-                                                onclick="moveSectionAfter({{ sectionDbId }}, 'down')"
+                                                data-mm-call="moveSectionAfter" data-mm-args='[{{ sectionDbId }}, "down"]'
                                                 title="{{ trans('move-down') }}">
                                             <i class="fa-solid fa-arrow-down"></i>
                                         </button>
@@ -179,20 +182,21 @@
                                 {% endif %}
                                 {% if section.visible | default(1) == 0 %}
                                     <button type="button" class="btn btn-outline-success btn-sm"
-                                            onclick="sectionAction('section-show', {{ sectionDbId }})"
+                                            data-mm-call="sectionAction" data-mm-args='["section-show", {{ sectionDbId }}]'
                                             title="{{ trans('show-module') }}">
                                         <i class="fa-solid fa-eye"></i>
                                     </button>
                                 {% else %}
                                     <button type="button" class="btn btn-outline-warning btn-sm"
-                                            onclick="sectionAction('section-hide', {{ sectionDbId }})"
+                                            data-mm-call="sectionAction" data-mm-args='["section-hide", {{ sectionDbId }}]'
                                             title="{{ trans('hide-module') }}">
                                         <i class="fa-solid fa-eye-slash"></i>
                                     </button>
                                 {% endif %}
                                 {% if not isGeneral %}
                                     <button type="button" class="btn btn-outline-danger btn-sm"
-                                            onclick="confirmDeleteSection({{ sectionDbId }}, '{{ section.name | default('Section') | e('js') }}')"
+                                            data-mm-call="confirmDeleteSection"
+                                            data-mm-args='[{{ sectionDbId }}, {{ json_for_script(section.name | default('Section')) }}]'
                                             title="{{ trans('delete-section') }}">
                                         <i class="fa-solid fa-trash"></i>
                                     </button>
@@ -205,7 +209,7 @@
                          aria-labelledby="heading-{{ sectionId }}" data-bs-parent="#courseContentAccordion">
                         <div class="accordion-body p-0">
                             {% if section.summary is defined and section.summary is not empty %}
-                                <div class="px-3 pt-2 text-muted small">{{ section.summary | striptags }}</div>
+                                <div class="px-3 pt-2 text-muted small">{{ mm_plain_text(section.summary) }}</div>
                             {% endif %}
                             {% if modules is empty %}
                                 <div class="px-3 py-2 text-muted">
@@ -223,7 +227,7 @@
                                             <tr class="{{ isHidden ? 'opacity-50' : '' }}">
                                                 <td style="width: 30px;" class="text-center">
                                                     <input type="checkbox" class="form-check-input cm-checkbox"
-                                                           value="{{ module.id }}" onchange="updateBulkBar()"/>
+                                                           value="{{ module.id }}" data-mm-change-call="updateBulkBar"/>
                                                 </td>
                                                 <td class="text-center" style="width: 36px;">
                                                     {% set modIcon = {
@@ -279,33 +283,35 @@
                                                 </td>
                                                 <td style="width: 210px;" class="text-end">
                                                     <div class="btn-group btn-group-sm">
+                                                        {# F3.2 — module row actions via mm-actions.js delegation. #}
                                                         <button type="button" class="btn btn-outline-secondary btn-sm"
-                                                                onclick="moduleDetail({{ module.id }})"
+                                                                data-mm-call="moduleDetail" data-mm-args='[{{ module.id }}]'
                                                                 title="{{ trans('module-detail') }}">
                                                             <i class="fa-solid fa-info-circle"></i>
                                                         </button>
                                                         {% if isHidden %}
                                                             <button type="button"
                                                                     class="btn btn-outline-success btn-sm"
-                                                                    onclick="moduleAction('cm-show', {{ module.id }})"
+                                                                    data-mm-call="moduleAction" data-mm-args='["cm-show", {{ module.id }}]'
                                                                     title="{{ trans('show-module') }}">
                                                                 <i class="fa-solid fa-eye"></i>
                                                             </button>
                                                         {% else %}
                                                             <button type="button"
                                                                     class="btn btn-outline-warning btn-sm"
-                                                                    onclick="moduleAction('cm-hide', {{ module.id }})"
+                                                                    data-mm-call="moduleAction" data-mm-args='["cm-hide", {{ module.id }}]'
                                                                     title="{{ trans('hide-module') }}">
                                                                 <i class="fa-solid fa-eye-slash"></i>
                                                             </button>
                                                         {% endif %}
                                                         <button type="button" class="btn btn-outline-info btn-sm"
-                                                                onclick="moduleAction('cm-duplicate', {{ module.id }})"
+                                                                data-mm-call="moduleAction" data-mm-args='["cm-duplicate", {{ module.id }}]'
                                                                 title="{{ trans('duplicate-module') }}">
                                                             <i class="fa-solid fa-copy"></i>
                                                         </button>
                                                         <button type="button" class="btn btn-outline-danger btn-sm"
-                                                                onclick="confirmDeleteModule({{ module.id }}, '{{ module.name | default('') | e('js') }}')"
+                                                                data-mm-call="confirmDeleteModule"
+                                                                data-mm-args='[{{ module.id }}, {{ json_for_script(module.name | default('')) }}]'
                                                                 title="{{ trans('delete-module') }}">
                                                             <i class="fa-solid fa-trash"></i>
                                                         </button>
@@ -317,36 +323,36 @@
                                                         <ul class="dropdown-menu dropdown-menu-end">
                                                             {% if isStealth %}
                                                                 <li><a class="dropdown-item" href="#"
-                                                                       onclick="moduleAction('cm-show', {{ module.id }}); return false;">
+                                                                       data-mm-call="moduleAction" data-mm-args='["cm-show", {{ module.id }}]' data-mm-preventdefault="1">
                                                                     <i class="fa-solid fa-eye me-2"></i>{{ trans('show-module') }}
                                                                 </a></li>
                                                             {% elseif not isHidden %}
                                                                 <li><a class="dropdown-item" href="#"
-                                                                       onclick="moduleAction('cm-stealth', {{ module.id }}); return false;">
+                                                                       data-mm-call="moduleAction" data-mm-args='["cm-stealth", {{ module.id }}]' data-mm-preventdefault="1">
                                                                     <i class="fa-solid fa-link me-2"></i>{{ trans('module-stealth') }}
                                                                 </a></li>
                                                             {% endif %}
                                                             <li><hr class="dropdown-divider"></li>
                                                             <li><a class="dropdown-item" href="#"
-                                                                   onclick="moduleAction('cm-moveright', {{ module.id }}); return false;">
+                                                                   data-mm-call="moduleAction" data-mm-args='["cm-moveright", {{ module.id }}]' data-mm-preventdefault="1">
                                                                 <i class="fa-solid fa-indent me-2"></i>{{ trans('indent-right') }}
                                                             </a></li>
                                                             <li><a class="dropdown-item" href="#"
-                                                                   onclick="moduleAction('cm-moveleft', {{ module.id }}); return false;">
+                                                                   data-mm-call="moduleAction" data-mm-args='["cm-moveleft", {{ module.id }}]' data-mm-preventdefault="1">
                                                                 <i class="fa-solid fa-outdent me-2"></i>{{ trans('indent-left') }}
                                                             </a></li>
                                                             <li><hr class="dropdown-divider"></li>
                                                             <li class="dropdown-header">{{ trans('group-mode') }}</li>
                                                             <li><a class="dropdown-item {{ groupMode == 0 ? 'active' : '' }}" href="#"
-                                                                   onclick="moduleAction('cm-nogroups', {{ module.id }}); return false;">
+                                                                   data-mm-call="moduleAction" data-mm-args='["cm-nogroups", {{ module.id }}]' data-mm-preventdefault="1">
                                                                 <i class="fa-solid fa-user me-2"></i>{{ trans('no-groups') }}
                                                             </a></li>
                                                             <li><a class="dropdown-item {{ groupMode == 1 ? 'active' : '' }}" href="#"
-                                                                   onclick="moduleAction('cm-separategroups', {{ module.id }}); return false;">
+                                                                   data-mm-call="moduleAction" data-mm-args='["cm-separategroups", {{ module.id }}]' data-mm-preventdefault="1">
                                                                 <i class="fa-solid fa-users-rectangle me-2"></i>{{ trans('separate-groups') }}
                                                             </a></li>
                                                             <li><a class="dropdown-item {{ groupMode == 2 ? 'active' : '' }}" href="#"
-                                                                   onclick="moduleAction('cm-visiblegroups', {{ module.id }}); return false;">
+                                                                   data-mm-call="moduleAction" data-mm-args='["cm-visiblegroups", {{ module.id }}]' data-mm-preventdefault="1">
                                                                 <i class="fa-solid fa-users me-2"></i>{{ trans('visible-groups') }}
                                                             </a></li>
                                                         </ul>
@@ -385,7 +391,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ trans('cancel') }}</button>
-                <button type="button" class="btn btn-primary" onclick="executeMoveAction()">
+                <button type="button" class="btn btn-primary" data-mm-call="executeMoveAction">
                     <i class="fa-solid fa-arrows-alt me-1"></i>{{ trans('move-module') }}
                 </button>
             </div>
@@ -548,6 +554,28 @@
         showModuleInfoFromContents(cmid);
     }
 
+    // F2.4 — escape untrusted Moodle content before DOM insertion.
+    // `mod.name`, `mod.description`, `mod.url` etc. come from Moodle
+    // course authors who are NOT trusted to produce safe HTML.
+    function mmEscapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        var div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    }
+
+    // Extra layer for URLs used inside an href="..." attribute.
+    // Reject any scheme that is not http(s), mailto, or a same-origin
+    // path. Fallback is the literal string '#' which is inert.
+    function mmSafeUrl(url) {
+        if (!url) return '#';
+        var s = String(url).trim();
+        if (s.length === 0) return '#';
+        if (s[0] === '/' || s[0] === '#') return s;
+        if (/^https?:\/\//i.test(s) || /^mailto:/i.test(s)) return s;
+        return '#';
+    }
+
     function showModuleInfoFromContents(cmid) {
         const body = document.getElementById('moduleDetailBody');
         {% if contents is not empty %}
@@ -555,8 +583,8 @@
             {% for section in contents %}
                 {% for module in section.modules | default([]) %}
                     {{ module.id }}: {
-                        name: {{ module.name | default('—') | json_encode | raw }},
-                        modname: {{ module.modname | default('') | json_encode | raw }},
+                        name: {{ json_for_script(module.name | default('—')) }},
+                        modname: {{ json_for_script(module.modname | default('')) }},
                         id: {{ module.id }},
                         instance: {{ module.instance | default(0) }},
                         visible: {{ module.visible | default(1) }},
@@ -565,9 +593,9 @@
                         groupmode: {{ module.groupmode | default(0) }},
                         completion: {{ module.completion | default(0) }},
                         section: {{ section.section | default(0) }},
-                        sectionName: {{ section.name | default('Section') | json_encode | raw }},
-                        description: {{ module.description | default('') | json_encode | raw }},
-                        url: {{ module.url | default('') | json_encode | raw }}
+                        sectionName: {{ json_for_script(section.name | default('Section')) }},
+                        description: {{ json_for_script(module.description | default('')) }},
+                        url: {{ json_for_script(module.url | default('')) }}
                     },
                 {% endfor %}
             {% endfor %}
@@ -586,30 +614,42 @@
         const groupLabels = {0: '{{ trans("no-groups") | e("js") }}', 1: '{{ trans("separate-groups") | e("js") }}', 2: '{{ trans("visible-groups") | e("js") }}'};
         const visibleLabel = mod.visible ? (mod.visibleoncoursepage ? '{{ trans("yes") | e("js") }}' : '{{ trans("module-stealth") | e("js") }}') : '{{ trans("module-hidden") | e("js") }}';
 
+        // Pre-escape all untrusted Moodle fields (F2.4). Server-side
+        // allowlist-based rich text for mod.description is tracked
+        // for Fase 4 when the controller is revisited.
+        const safe = {
+            name:        mmEscapeHtml(mod.name),
+            modname:     mmEscapeHtml(mod.modname),
+            sectionName: mmEscapeHtml(mod.sectionName),
+            description: mmEscapeHtml(mod.description),
+            url:         mmEscapeHtml(mod.url),
+            urlHref:     mmEscapeHtml(mmSafeUrl(mod.url))
+        };
+
         body.innerHTML = `
             <table class="table table-sm">
-                <tr><th style="width:40%">{{ trans("name") | e("js") }}</th><td>${mod.name}</td></tr>
-                <tr><th>{{ trans("type") | e("js") }}</th><td>${mod.modname}</td></tr>
+                <tr><th style="width:40%">{{ trans("name") | e("js") }}</th><td>${safe.name}</td></tr>
+                <tr><th>{{ trans("type") | e("js") }}</th><td>${safe.modname}</td></tr>
                 <tr><th>ID (cmid)</th><td>${mod.id}</td></tr>
                 <tr><th>Instance ID</th><td>${mod.instance}</td></tr>
-                <tr><th>{{ trans("section") | e("js") }}</th><td>${mod.sectionName} (#${mod.section})</td></tr>
+                <tr><th>{{ trans("section") | e("js") }}</th><td>${safe.sectionName} (#${mod.section})</td></tr>
                 <tr><th>{{ trans("visible") | e("js") }}</th><td>${visibleLabel}</td></tr>
                 <tr><th>{{ trans("indent") | e("js") }}</th><td>${mod.indent}</td></tr>
                 <tr><th>{{ trans("group-mode") | e("js") }}</th><td>${groupLabels[mod.groupmode] || mod.groupmode}</td></tr>
                 <tr><th>Completion</th><td>${completionLabels[mod.completion] || mod.completion}</td></tr>
-                ${mod.description ? `<tr><th>{{ trans("description") | e("js") }}</th><td>${mod.description}</td></tr>` : ''}
-                ${mod.url ? `<tr><th>URL</th><td><a href="${mod.url}" target="_blank" rel="noopener">${mod.url}</a></td></tr>` : ''}
+                ${mod.description ? `<tr><th>{{ trans("description") | e("js") }}</th><td>${safe.description}</td></tr>` : ''}
+                ${mod.url ? `<tr><th>URL</th><td><a href="${safe.urlHref}" target="_blank" rel="noopener noreferrer">${safe.url}</a></td></tr>` : ''}
             </table>
             <div class="text-end">
                 <div class="btn-group btn-group-sm">
                     ${mod.visible
-                        ? `<button class="btn btn-outline-warning" onclick="moduleAction('cm-hide', ${mod.id})" data-bs-dismiss="modal"><i class="fa-solid fa-eye-slash me-1"></i>{{ trans("hide-module") | e("js") }}</button>`
-                        : `<button class="btn btn-outline-success" onclick="moduleAction('cm-show', ${mod.id})" data-bs-dismiss="modal"><i class="fa-solid fa-eye me-1"></i>{{ trans("show-module") | e("js") }}</button>`
+                        ? `<button class="btn btn-outline-warning" data-mm-call="moduleAction" data-mm-args='["cm-hide", ${mod.id}]' data-bs-dismiss="modal"><i class="fa-solid fa-eye-slash me-1"></i>{{ trans("hide-module") | e("js") }}</button>`
+                        : `<button class="btn btn-outline-success" data-mm-call="moduleAction" data-mm-args='["cm-show", ${mod.id}]' data-bs-dismiss="modal"><i class="fa-solid fa-eye me-1"></i>{{ trans("show-module") | e("js") }}</button>`
                     }
-                    <button class="btn btn-outline-info" onclick="moduleAction('cm-duplicate', ${mod.id})" data-bs-dismiss="modal">
+                    <button class="btn btn-outline-info" data-mm-call="moduleAction" data-mm-args='["cm-duplicate", ${mod.id}]' data-bs-dismiss="modal">
                         <i class="fa-solid fa-copy me-1"></i>{{ trans("duplicate-module") | e("js") }}
                     </button>
-                    <button class="btn btn-outline-danger" onclick="confirmDeleteModule(${mod.id}, '${mod.name.replace(/'/g, "\\'")}')" data-bs-dismiss="modal">
+                    <button class="btn btn-outline-danger" data-mm-call="confirmDeleteModule" data-mm-args='[${mod.id}, ${JSON.stringify(safe.name)}]' data-bs-dismiss="modal">
                         <i class="fa-solid fa-trash me-1"></i>{{ trans("delete-module") | e("js") }}
                     </button>
                 </div>

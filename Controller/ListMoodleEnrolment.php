@@ -1,11 +1,15 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
  */
 
+declare(strict_types=1);
+
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
+use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
 use FacturaScripts\Core\Tools;
 
@@ -20,7 +24,7 @@ class ListMoodleEnrolment extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addView('ListMoodleEnrolment', 'MoodleEnrolment', 'moodle-enrolments', 'fa-solid fa-user-graduate')
             ->addSearchFields(['moodle_userid', 'moodle_courseid', 'notes'])
@@ -49,6 +53,19 @@ class ListMoodleEnrolment extends ListController
         $this->addFilterAutocomplete('ListMoodleEnrolment', 'idcontacto', 'contact', 'idcontacto', 'contactos', 'idcontacto', 'descripcion');
 
         $this->addFilterSelect('ListMoodleEnrolment', 'idinstance', 'moodle-instance', 'idinstance', $this->getInstanceValues());
+
+        // F13 DISCOVERED-02 — hide soft-deleted rows by default.
+        $this->addFilterSelectWhere('ListMoodleEnrolment', 'state', [
+            [
+                'label' => Tools::lang()->trans('active'),
+                'where' => [new DataBaseWhere('deleted_at', null, 'IS')],
+                'default' => true,
+            ],
+            [
+                'label' => Tools::lang()->trans('all'),
+                'where' => [],
+            ],
+        ]);
     }
 
     protected function execPreviousAction($action)

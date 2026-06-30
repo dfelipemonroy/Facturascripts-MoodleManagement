@@ -1,3 +1,20 @@
+# Development-only documentation, QA harness, and agent context —
+# untracked; they live in the working tree for contributors but do
+# NOT ship in commits / release ZIP / PR diffs.
+CLAUDE.md
+.docs-dev/
 docs/
-vendor/
+qa/
+
+/vendor/
 .phpunit.cache/
+.phpunit.result.cache
+
+# PHP-CS-Fixer / PHPStan caches
+.php-cs-fixer.cache
+
+# PHPUnit coverage reports (produced locally, kept out of repo)
+.phpunit.cache/coverage-html/
+.phpunit.cache/coverage.xml
+.phpunit.cache/junit.xml
+.phpunit.cache/result

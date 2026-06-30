@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    MoodleManagement plugin - audit log table.
+    @since 2.0 V2.0-ACTION-PLAN F4.4 / §4.18
+
+    Append-only trail of sensitive actions (IDOR denials, rate-limit
+    hits, password-reset / bulk-enrol operations). Rows are never
+    updated once inserted; retention policy recommends 1 year.
+-->
+<table>
+    <column>
+        <name>id</name>
+        <type>serial</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>operator_nick</name>
+        <type>character varying(50)</type>
+    </column>
+    <column>
+        <name>action</name>
+        <type>character varying(80)</type>
+        <null>NO</null>
+    </column>
+    <column>
+        <name>outcome</name>
+        <type>character varying(20)</type>
+        <default>'ok'</default>
+    </column>
+    <column>
+        <name>target_type</name>
+        <type>character varying(50)</type>
+    </column>
+    <column>
+        <name>target_id</name>
+        <type>integer</type>
+    </column>
+    <column>
+        <name>payload_hash</name>
+        <type>character varying(64)</type>
+    </column>
+    <column>
+        <name>ip</name>
+        <type>character varying(45)</type>
+    </column>
+    <column>
+        <name>user_agent</name>
+        <type>character varying(250)</type>
+    </column>
+    <column>
+        <name>created_at</name>
+        <type>timestamp</type>
+        <default>CURRENT_TIMESTAMP</default>
+    </column>
+    <!-- SEC-14 (2026-04-17): tamper-evidence hash chain. -->
+    <column>
+        <name>row_hash</name>
+        <type>character varying(64)</type>
+    </column>
+    <column>
+        <name>prev_hash</name>
+        <type>character varying(64)</type>
+    </column>
+
+    <constraint>
+        <name>moodle_audit_log_pkey</name>
+        <type>PRIMARY KEY (id)</type>
+    </constraint>
+</table>

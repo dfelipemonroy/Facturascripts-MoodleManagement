@@ -1,0 +1,183 @@
+name: CI
+
+# @since 2.0 — V2.0-ACTION-PLAN F9.9
+#
+# Runs on every push / PR affecting the MoodleManagement plugin.
+# Three parallel jobs:
+#   - lint           PHPCS + PHP-CS-Fixer dry-run
+#   - analyse        PHPStan level 5
+#   - test           PHPUnit unit + integration (SQLite, in-memory)
+#
+# Matrix covers PHP 8.0, 8.1, 8.2 (plugin min_version is PHP 8.0+).
+
+on:
+  push:
+    branches:
+      - main
+      - 'v2.0-dev'
+      - 'v2.0/**'
+    paths:
+      - 'Plugins/MoodleManagement/**'
+  pull_request:
+    branches:
+      - main
+      - 'v2.0-dev'
+    paths:
+      - 'Plugins/MoodleManagement/**'
+  workflow_dispatch:
+
+jobs:
+
+  lint:
+    name: Lint (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.0', '8.2']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer, cs2pr
+
+      - name: Install dev tooling
+        working-directory: Plugins/MoodleManagement
+        run: |
+          composer require --dev --no-progress --no-interaction \
+            "squizlabs/php_codesniffer:^3.7" \
+            "friendsofphp/php-cs-fixer:^3.40"
+
+      - name: PHPCS (PSR-12)
+        working-directory: Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpcs --report=checkstyle | cs2pr
+
+      - name: PHP-CS-Fixer (dry-run)
+        working-directory: Plugins/MoodleManagement
+        run: |
+          vendor/bin/php-cs-fixer fix --dry-run --diff --no-interaction
+
+      # FE-02 (2026-04-17) — `| json_encode | raw` in a Twig template
+      # is a script-context XSS sink whenever the input can contain
+      # `</script>`, an apostrophe, or an ampersand. Force every
+      # interpolation that lands inside a `<script>` block to route
+      # through the `json_for_script` Twig function (or a controller-
+      # produced pre-encoded `*Json` string).
+      - name: Twig JSON safety linter
+        working-directory: Plugins/MoodleManagement
+        run: |
+          set -e
+          matches=$(grep -Rn --include='*.twig' -E 'json_encode[[:space:]]*\|[[:space:]]*raw' View/ || true)
+          if [ -n "$matches" ]; then
+            echo "::error::FE-02 regression: raw json_encode usage in Twig templates."
+            echo "Use {{ json_for_script(value) }} instead."
+            echo "$matches"
+            exit 1
+          fi
+          echo "Twig JSON safety linter: OK"
+
+  analyse:
+    name: Static analysis (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.0', '8.2']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      # F14 — PHPStan needs FS core on disk so its autoload resolves
+       # `FacturaScripts\Core\*` used throughout the plugin.
+      - name: Clone FacturaScripts core
+        run: |
+          git clone --depth 1 --branch main \
+            https://github.com/NeoRazorX/facturascripts.git /tmp/fs-core
+          cp -r Plugins/MoodleManagement /tmp/fs-core/Plugins/MoodleManagement
+
+      - name: Install FS core vendor
+        working-directory: /tmp/fs-core
+        run: |
+          composer install --no-progress --no-interaction --no-dev
+
+      - name: Install PHPStan
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
+        run: |
+          composer require --dev --no-progress --no-interaction \
+            "phpstan/phpstan:^1.10"
+
+      - name: PHPStan level 5
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpstan analyse --no-progress --error-format=github
+
+  test:
+    name: PHPUnit (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.0', '8.1', '8.2']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: xdebug
+          extensions: pdo_sqlite, mbstring, dom, libxml, openssl
+
+      # F14 — integration tests instantiate FS core models, which
+       # need the FacturaScripts source tree on disk. Clone FS core
+       # next to the plugin, copy the plugin into its Plugins/
+       # directory, and run PHPUnit from there so the two-level
+       # dirname() walk in Test/bootstrap.php resolves correctly.
+      - name: Clone FacturaScripts core
+        run: |
+          git clone --depth 1 --branch main \
+            https://github.com/NeoRazorX/facturascripts.git /tmp/fs-core
+          cp -r Plugins/MoodleManagement /tmp/fs-core/Plugins/MoodleManagement
+
+      - name: Install FS core vendor
+        working-directory: /tmp/fs-core
+        run: |
+          composer install --no-progress --no-interaction --no-dev
+
+      - name: Install PHPUnit in plugin vendor
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
+        run: |
+          composer require --dev --no-progress --no-interaction \
+            "phpunit/phpunit:^9.6"
+
+      - name: Run unit tests
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpunit --testsuite=Unit --no-coverage --colors=never
+
+      - name: Run integration tests
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpunit --testsuite=Integration --no-coverage --colors=never
+
+      - name: Run coverage report (PHP 8.2 only)
+        if: matrix.php == '8.2'
+        working-directory: /tmp/fs-core/Plugins/MoodleManagement
+        run: |
+          vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml --colors=never
+
+      - name: Upload coverage artifact (PHP 8.2 only)
+        if: matrix.php == '8.2'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: /tmp/fs-core/Plugins/MoodleManagement/coverage.xml
+          retention-days: 30

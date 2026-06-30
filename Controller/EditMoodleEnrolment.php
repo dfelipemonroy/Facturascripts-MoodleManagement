@@ -1,8 +1,11 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
  */
+
+declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
@@ -30,10 +33,9 @@ class EditMoodleEnrolment extends EditController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         parent::createViews();
-
         $route = FS_ROUTE;
         AssetManager::addJs($route . '/Plugins/MoodleManagement/Assets/JS/EnrolmentAutofill.js?v=' . Tools::date());
     }
@@ -43,26 +45,27 @@ class EditMoodleEnrolment extends EditController
         switch ($action) {
             case 'enrol-user':
                 $this->enrolAction();
-                return true;
 
+                return true;
             case 'unenrol-user':
                 $this->unenrolAction();
-                return true;
 
+                return true;
             case 'suspend-user':
                 $this->suspendAction();
-                return true;
 
+                return true;
             case 'reactivate-user':
                 $this->reactivateAction();
-                return true;
 
+                return true;
             case 'get-moodle-userid':
                 $this->getMoodleUserIdAction();
-                return false;
 
+                return false;
             case 'get-moodle-courseid':
                 $this->getMoodleCourseIdAction();
+
                 return false;
         }
 
@@ -123,12 +126,9 @@ class EditMoodleEnrolment extends EditController
     private function getMoodleUserIdAction(): void
     {
         $this->setTemplate(false);
-
         $idcontacto = (int)$this->request->request->get('idcontacto', 0);
         $idinstance = (int)$this->request->request->get('idinstance', 0);
-
         $result = ['moodle_userid' => 0];
-
         if ($idcontacto > 0 && $idinstance > 0) {
             $userMap = new MoodleUserMap();
             $where = [
@@ -146,11 +146,8 @@ class EditMoodleEnrolment extends EditController
     private function getMoodleCourseIdAction(): void
     {
         $this->setTemplate(false);
-
         $idcourseMap = (int)$this->request->request->get('idcourse_map', 0);
-
         $result = ['moodle_courseid' => 0, 'idinstance' => 0];
-
         if ($idcourseMap > 0) {
             $courseMap = new MoodleCourseMap();
             if ($courseMap->loadFromCode($idcourseMap)) {

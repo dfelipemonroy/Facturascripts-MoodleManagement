@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<ruleset name="MoodleManagement">
+    <description>PSR-12 ruleset for MoodleManagement plugin (FacturaScripts 2025.81).
+        Conforms with V2.0-ACTION-PLAN F0.2.</description>
+
+    <!-- Paths to scan -->
+    <file>Controller</file>
+    <file>Model</file>
+    <file>Lib</file>
+    <file>Worker</file>
+    <file>Extension</file>
+    <file>Test</file>
+    <file>scripts</file>
+    <file>Cron.php</file>
+    <file>Init.php</file>
+
+    <!-- Excluded paths -->
+    <exclude-pattern>*/Dinamic/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/Assets/JS/chart*.js</exclude-pattern>
+    <exclude-pattern>*/Assets/JS/vendor/*</exclude-pattern>
+    <exclude-pattern>*/docs/*</exclude-pattern>
+    <exclude-pattern>*/.docs-dev/*</exclude-pattern>
+
+    <!-- PSR-12 is the baseline -->
+    <rule ref="PSR12">
+        <!-- Allow side effects in Init.php (plugin bootstrap) -->
+        <exclude-pattern>Init.php</exclude-pattern>
+        <!-- scripts/benchmark.php is a CLI tool; side effects are its purpose -->
+        <exclude-pattern>scripts/*.php</exclude-pattern>
+    </rule>
+
+    <!-- Line length: 120 soft / 200 hard (FS convention is looser than strict
+         PSR-12; the legacy MoodleClient god class carries long docblock URLs
+         + multi-arg WS calls that would otherwise require mid-argument line
+         breaks). -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120"/>
+            <property name="absoluteLineLimit" value="200"/>
+        </properties>
+    </rule>
+
+    <!-- Enforce short array syntax [] over array() -->
+    <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+
+    <!-- Lib/Moodle/BoundClient.php intentionally declares the BoundClient
+         plus per-domain facade classes in one file for discoverability.
+         The PSR-1 "one class per file" rule is relaxed for that specific
+         file only. -->
+    <rule ref="PSR1.Classes.ClassDeclaration">
+        <exclude-pattern>Lib/Moodle/BoundClient.php</exclude-pattern>
+    </rule>
+
+    <!-- Encoding -->
+    <arg name="encoding" value="utf-8"/>
+
+    <!-- Show progress, colors and sniff codes -->
+    <arg name="colors"/>
+    <arg value="ps"/>
+
+    <!-- Tab width (for alignment checks) -->
+    <arg name="tab-width" value="4"/>
+</ruleset>

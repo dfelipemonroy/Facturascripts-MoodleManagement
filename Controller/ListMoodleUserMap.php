@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -17,8 +18,11 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+declare(strict_types=1);
+
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
+use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
@@ -34,7 +38,7 @@ class ListMoodleUserMap extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addView('ListMoodleUserMap', 'MoodleUserMap', 'moodle-user-mappings', 'fa-solid fa-users-between-lines')
             ->addSearchFields(['moodle_username'])
@@ -55,5 +59,19 @@ class ListMoodleUserMap extends ListController
             ['code' => 'moodle_to_fs', 'description' => Tools::trans('moodle-to-fs')],
         ];
         $this->addFilterSelect('ListMoodleUserMap', 'sync_direction', 'sync-direction', 'sync_direction', $directions);
+
+        // F13 DISCOVERED-02 — hide soft-deleted rows by default.
+        // Operators who need to see trashed rows use /ListMoodleTrash.
+        $this->addFilterSelectWhere('ListMoodleUserMap', 'state', [
+            [
+                'label' => Tools::lang()->trans('active'),
+                'where' => [new DataBaseWhere('deleted_at', null, 'IS')],
+                'default' => true,
+            ],
+            [
+                'label' => Tools::lang()->trans('all'),
+                'where' => [],
+            ],
+        ]);
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -17,11 +18,14 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+declare(strict_types=1);
+
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\ListController;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Enum\CohortLifecycle;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCohort;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
@@ -37,7 +41,7 @@ class ListMoodleCohort extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         $this->addView('ListMoodleCohort', 'MoodleCohort', 'moodle-cohorts', 'fa-solid fa-people-group')
             ->addSearchFields(['name', 'idnumber', 'description'])
@@ -57,6 +61,33 @@ class ListMoodleCohort extends ListController
         ]);
 
         $this->addFilterCheckbox('ListMoodleCohort', 'sync_active', 'sync-active', 'sync_active');
+
+        // F13 DISCOVERED-02 / F18.33 (ex-U4 migrated from v2.1 backlog)
+        // — hide soft-deleted rows by default, and expose the four
+        // `CohortLifecycle` states as explicit filter options backed
+        // by `source / sync_active / deleted_at` predicates.
+        $this->addFilterSelectWhere('ListMoodleCohort', 'lifecycle', [
+            [
+                'label' => Tools::lang()->trans('active'),
+                'where' => [new DataBaseWhere('deleted_at', null, 'IS')],
+                'default' => true,
+            ],
+            [
+                'label' => Tools::lang()->trans('all'),
+                'where' => [],
+            ],
+            [
+                'label' => Tools::lang()->trans(CohortLifecycle::TRASHED),
+                'where' => [new DataBaseWhere('deleted_at', null, 'IS NOT')],
+            ],
+            [
+                'label' => Tools::lang()->trans(CohortLifecycle::DETACHED),
+                'where' => [
+                    new DataBaseWhere('deleted_at', null, 'IS'),
+                    new DataBaseWhere('sync_active', false),
+                ],
+            ],
+        ]);
 
         $this->addButton('ListMoodleCohort', [
             'action' => 'import-cohorts-from-moodle',
@@ -189,7 +220,6 @@ class ListMoodleCohort extends ListController
         $errors = 0;
 
         foreach ($cohorts as $cohort) {
-
             $instance = $cohort->getInstance();
             if (empty($instance->id) || empty($instance->token)) {
                 Tools::log()->warning('cohort-sync-error', [
@@ -317,12 +347,12 @@ class ListMoodleCohort extends ListController
     private function syncCohortMembersFromGroup(MoodleCohort $model, MoodleInstance $instance): void
     {
         $db = $this->dataBase;
-        $sql = "SELECT m.moodle_userid FROM moodle_user_map m"
-            . " INNER JOIN contactos c ON c.idcontacto = m.idcontacto"
-            . " INNER JOIN clientes cl ON cl.codcliente = c.codcliente"
-            . " WHERE cl.codgrupo = " . $db->var2str($model->codgrupo)
-            . " AND m.idinstance = " . $db->var2str($model->idinstance)
-            . " AND m.moodle_userid > 0";
+        $sql = 'SELECT m.moodle_userid FROM moodle_user_map m'
+            . ' INNER JOIN contactos c ON c.idcontacto = m.idcontacto'
+            . ' INNER JOIN clientes cl ON cl.codcliente = c.codcliente'
+            . ' WHERE cl.codgrupo = ' . $db->var2str($model->codgrupo)
+            . ' AND m.idinstance = ' . $db->var2str($model->idinstance)
+            . ' AND m.moodle_userid > 0';
 
         $rows = $db->select($sql);
         if (empty($rows)) {

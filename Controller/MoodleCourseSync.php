@@ -1,8 +1,11 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
  */
+
+declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
@@ -24,7 +27,7 @@ class MoodleCourseSync extends ListController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         // Courses tab
         $this->addView('ListMoodleCourseMap', 'MoodleCourseMap', 'moodle-courses', 'fa-solid fa-book')
@@ -250,7 +253,7 @@ class MoodleCourseSync extends ListController
                 continue;
             }
 
-            $courseIds = array_map(fn($m) => $m->moodle_courseid, $instanceMaps);
+            $courseIds = array_map(fn ($m) => $m->moodle_courseid, $instanceMaps);
             $result = MoodleClient::getCourses($instance, $courseIds);
 
             if (isset($result['exception'])) {

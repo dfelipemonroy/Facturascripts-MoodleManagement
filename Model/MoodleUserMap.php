@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -23,10 +24,12 @@ use FacturaScripts\Core\Model\Base\ModelClass;
 use FacturaScripts\Core\Model\Base\ModelTrait;
 use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Model\SoftDeleteTrait;
 
 class MoodleUserMap extends ModelClass
 {
     use ModelTrait;
+    use SoftDeleteTrait;
 
     /** @var int */
     public $id;
@@ -57,6 +60,34 @@ class MoodleUserMap extends ModelClass
 
     /** @var string */
     public $creation_date;
+
+    /**
+     * @var string|null ISO timestamp; non-null marks the row as
+     *                  soft-deleted (F5.20 column + F13 DISCOVERED-02
+     *                  trait wiring). The papelera (F10.4) surfaces
+     *                  these rows for restore or purge.
+     * @since 2.0 — F13 DISCOVERED-02
+     */
+    public $deleted_at;
+
+    /**
+     * @var string|null Operator nick that originally inserted the row.
+     *                  Populated by FS core's audit-trail layer (F5.15).
+     *                  Declared as a real property to avoid PHP 8.2 dynamic-property
+     *                  deprecation warnings.
+     */
+    public $created_by;
+
+    /**
+     * @var string|null Operator nick that last touched the row. Same
+     *                  provenance as `$created_by`.
+     */
+    public $updated_by;
+
+    /**
+     * @var int F6.1 — flag set by BadgeSyncWorker to schedule re-sync.
+     */
+    public $badge_sync_needed;
 
     public function clear(): void
     {

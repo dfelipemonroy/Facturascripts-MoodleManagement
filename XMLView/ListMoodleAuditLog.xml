@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    ListMoodleAuditLog — read-only trail of sensitive actions.
+    @since 2.0 — V2.0-ACTION-PLAN F10.3 · §6.16
+-->
+<view>
+    <columns>
+        <column name="date" order="100">
+            <widget type="datetime" fieldname="created_at"/>
+        </column>
+        <column name="action" order="110">
+            <widget type="text" fieldname="action"/>
+        </column>
+        <column name="outcome" order="120">
+            <widget type="text" fieldname="outcome"/>
+        </column>
+        <column name="operator" order="130">
+            <widget type="text" fieldname="operator_nick"/>
+        </column>
+        <column name="target-type" order="140">
+            <widget type="text" fieldname="target_type"/>
+        </column>
+        <column name="target-id" order="150">
+            <widget type="number" fieldname="target_id"/>
+        </column>
+        <column name="ip" order="160">
+            <widget type="text" fieldname="ip"/>
+        </column>
+        <column name="user-agent" display="none" order="170">
+            <widget type="text" fieldname="user_agent"/>
+        </column>
+        <column name="payload-hash" display="none" order="180">
+            <widget type="text" fieldname="payload_hash"/>
+        </column>
+    </columns>
+</view>

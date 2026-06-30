@@ -1,8 +1,211 @@
-# MoodleManagement v1.2
+# MoodleManagement v2.0
 
 Plugin para FacturaScripts que permite gestionar plataformas Moodle directamente desde el ERP. Conecta tu sistema de facturación con tu LMS mediante la API REST de Moodle.
 
 *[English version below](#english--inglés)*
+
+## Arquitectura — Flujo de datos
+
+El diagrama muestra cómo una factura se convierte en una matrícula activa y, eventualmente, en un certificado entregado por email.
+
+```mermaid
+flowchart LR
+    subgraph FS["FacturaScripts"]
+        direction TB
+        FC[FacturaCliente<br/>pagada=true]
+        PC[PresupuestoCliente<br/>PedidoCliente]
+        CT[Contacto]
+        PR[Producto<br/>moodle_course=true]
+    end
+
+    subgraph WQ["WorkQueue (async workers)"]
+        direction TB
+        EW[EnrolmentWorker]
+        PW[PreEnrolmentWorker]
+        CSW[ContactSyncWorker]
+        CDW[ContactDeleteWorker]
+        OW[OnboardingWorker]
+        BSW[BadgeSyncWorker]
+    end
+
+    subgraph PLUG["Plugin models"]
+        direction TB
+        UM[MoodleUserMap]
+        CM[MoodleCourseMap]
+        EN[MoodleEnrolment]
+        CE[MoodleCertificate]
+    end
+
+    subgraph MOODLE["Moodle LMS (REST WS)"]
+        direction TB
+        MU[core_user_*]
+        ME[enrol_manual_*]
+        MB[core_badges_*]
+        MM[core_message_*]
+    end
+
+    subgraph OUT["Output"]
+        direction TB
+        PDF[PDF<br/>CertificatePdfGenerator]
+        EMAIL[Email<br/>NewMail + ExpiryNotifier]
+    end
+
+    FC -- "Model.FacturaCliente.Update" --> EW
+    PC -- "Model.Presupuesto/Pedido.Update" --> PW
+    CT -- "Model.Contacto.Update" --> CSW
+    CT -- "Model.Contacto.Delete" --> CDW
+    UM -. "Model.MoodleUserMap.Insert" .-> OW
+    UM -. "Model.MoodleUserMap.Save (cascade-risk, F6.1)" .-> BSW
+
+    EW --> EN
+    PW --> EN
+    CSW --> MU
+    CDW --> MU
+    OW --> ME
+    OW --> MM
+    BSW --> MB
+
+    EN --> ME
+    UM <--> MU
+    CM <--> MU
+    PR --> CM
+
+    EN --> CE
+    CE --> PDF
+    CE --> EMAIL
+
+    classDef fs fill:#d0e6ff,stroke:#0060b0,color:#000;
+    classDef wq fill:#fff4c2,stroke:#b08000,color:#000;
+    classDef plug fill:#d4edda,stroke:#0c6b2a,color:#000;
+    classDef moodle fill:#f8d7da,stroke:#a02030,color:#000;
+    classDef out fill:#e7d4f5,stroke:#5a2a8a,color:#000;
+    class FC,PC,CT,PR fs
+    class EW,PW,CSW,CDW,OW,BSW wq
+    class UM,CM,EN,CE plug
+    class MU,ME,MB,MM moodle
+    class PDF,EMAIL out
+```
+
+**Leyenda rápida**:
+- **Flechas sólidas**: evento `Model.X.Update`/`Insert`/`Delete` que dispara el worker correspondiente.
+- **Flechas punteadas**: eventos en vigilancia activa para la Fase 6 (cascadas pendientes de cortar).
+- Los cron jobs (`healthCheck`, `userSync`, `courseSync`, `reconciliation`, `cleanup`, `expiryCheck`) consumen los mismos modelos pero se ejecutan en horario propio — no aparecen en este diagrama para mantenerlo legible.
+
+### Capas añadidas en v2.0
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.4 · §9.4`
+>
+> El siguiente diagrama complementa el flujo principal con las
+> piezas introducidas durante la auditoría v2.0: capa de seguridad,
+> endpoint de webhooks, papelera, registros de auditoría y sincronía
+> de progreso académico. Se mantiene en un diagrama aparte para no
+> saturar el canvas principal.
+
+```mermaid
+flowchart TB
+    subgraph EDGE["Capa de entrada"]
+        direction TB
+        HTTP[Request HTTP]
+        WH[POST /ApiMoodleWebhook]
+        PDF[GET /MoodleCertificatePdf]
+    end
+
+    subgraph SEC["Security primitives"]
+        direction TB
+        RL[RateLimiter<br/>F2.10]
+        CSRF[Signed URL<br/>F2.9 HMAC-SHA256]
+        IPV[IpValidator<br/>F7.1 SSRF guard]
+        TC[TokenCipher<br/>F5.12 AES-256-GCM]
+        HSAN[HtmlSanitizer<br/>F2.1]
+        CSP[CspHeader<br/>F2.11]
+    end
+
+    subgraph WHOOK["Webhook pipeline F10.1"]
+        direction TB
+        WV[WebhookVerifier]
+        WD[WebhookDispatcher]
+        WL[(moodle_webhook_log)]
+        subgraph HND["Handlers"]
+            direction TB
+            H1[EnrolmentCreated]
+            H2[EnrolmentDeleted]
+            H3[CourseCompleted]
+            H4[UserUpdated]
+        end
+    end
+
+    subgraph JOBS["Cron jobs (every 6h / 1d)"]
+        direction TB
+        PS[progressSync<br/>F10.2]
+        ES[expiryCheck<br/>F6.10]
+        REC[reconciliation]
+        CLE[cleanup + papelera]
+    end
+
+    subgraph AUDIT["Observability"]
+        direction TB
+        AL[(moodle_audit_log)]
+        BL[BufferedLogger<br/>F10.10]
+        PM[PiiMasker<br/>F8.5]
+    end
+
+    subgraph DATA["Plugin data"]
+        direction TB
+        MI[(moodle_instances<br/>+ webhook_secret<br/>+ username_strategy)]
+        EN2[(moodle_enrolments<br/>+ progress_percent<br/>+ deleted_at)]
+    end
+
+    HTTP --> RL
+    HTTP --> CSRF
+    WH --> WV
+    PDF --> CSRF
+
+    WV --> TC
+    WV --> WL
+    WV --> WD
+    WD --> H1 & H2 & H3 & H4
+
+    H1 & H2 & H3 & H4 --> EN2
+
+    MI -. "AES-256-GCM at rest" .-> TC
+
+    PS --> EN2
+    ES --> EN2
+    REC --> EN2
+    CLE --> EN2
+
+    WV --> AL
+    CSRF --> AL
+    RL --> AL
+    PS --> BL
+    BL --> AL
+    AL -. "pii-masked" .-> PM
+
+    classDef edge fill:#d9e8ff,stroke:#002b70,color:#000;
+    classDef sec fill:#ffe9c2,stroke:#a25100,color:#000;
+    classDef hook fill:#d4edda,stroke:#0c6b2a,color:#000;
+    classDef job fill:#fff4c2,stroke:#b08000,color:#000;
+    classDef audit fill:#f8d7da,stroke:#a02030,color:#000;
+    classDef data fill:#e7d4f5,stroke:#5a2a8a,color:#000;
+    class HTTP,WH,PDF edge
+    class RL,CSRF,IPV,TC,HSAN,CSP sec
+    class WV,WD,WL,H1,H2,H3,H4 hook
+    class PS,ES,REC,CLE job
+    class AL,BL,PM audit
+    class MI,EN2 data
+```
+
+**Notas**:
+- La capa **Security primitives** agrupa los helpers de `Lib/Security/*`
+  introducidos en las Fases 2, 5 y 7. Cualquier controlador expuesto
+  al exterior pasa por al menos uno de ellos.
+- **WebhookDispatcher** mantiene la separación "verificar → auditar →
+  despachar". El registro `moodle_webhook_log` se escribe tanto en
+  éxito como en rechazo, facilitando el triage desde
+  `ListMoodleAuditLog` (F10.3).
+- **BufferedLogger** (F10.10) acumula eventos de los cron loops y
+  los vuelca agrupados, reduciendo I/O de log en fase de alta
+  actividad.
 
 ## Funcionalidades
 
@@ -135,8 +338,32 @@ Plugin para FacturaScripts que permite gestionar plataformas Moodle directamente
 ## Requisitos
 
 - FacturaScripts >= 2025.6
-- Moodle >= 4.0 (recomendado 4.5+)
+- Moodle >= 4.1 LTS (soportadas hasta 5.x; 4.0 marcado automáticamente como `unsupported`)
 - PHP >= 8.0 con extensión cURL
+- MySQL 5.7+ / MariaDB 10.4+ / PostgreSQL 13+
+
+### Matriz de versiones soportadas (v2.0)
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.6 · §9.7`
+>
+> Esta tabla es el contrato de soporte del plugin. Ver
+> `docs/SUPPORTED-VERSIONS.md` para el detalle por componente.
+
+| Dimensión      | Soportado                                                           | No soportado |
+|----------------|---------------------------------------------------------------------|--------------|
+| FacturaScripts | 2025.6 → 2025.latest                                                | < 2025.6 (bloqueado por `facturascripts.ini::min_version`) |
+| PHP            | 8.0, 8.1, 8.2 (CI matrix); 8.3 best-effort                          | < 8.0 |
+| Moodle         | 4.1 LTS + (`MoodleClient::MIN_MOODLE_RELEASE = '4.1'`)              | 4.0 marcado `unsupported` · < 4.0 bloqueado |
+| MySQL / MariaDB| MySQL 5.7+, MariaDB 10.4+                                           | MySQL 5.6, MariaDB < 10.4 |
+| PostgreSQL     | 13+                                                                 | < 13 |
+| Navegadores    | Chrome/Edge últimos 2, Firefox últimos 2, Safari 16+                | IE 11, Safari < 16 |
+| cURL           | >= 7.50 (HTTP/2 + TLS moderno)                                      | < 7.50 |
+
+Combinaciones probadas por CI (`.github/workflows/ci.yml`):
+
+- PHP 8.0 + FS 2025.6 + MySQL 8.0
+- PHP 8.1 + FS 2025.81 + MySQL 8.0
+- PHP 8.2 + FS 2025.81 + MySQL 8.0 (también genera reporte de cobertura)
 
 ## Instalación
 
@@ -386,6 +613,25 @@ El sistema de mensajería permite comunicación bidireccional entre FacturaScrip
 - El auto-refresh del chat consulta la API de Moodle cada 5 segundos; se pausa automáticamente cuando la pestaña del navegador no está visible
 - El badge de la barra de navegación se actualiza cada 30 segundos
 
+## Limitaciones conocidas (v2.0)
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.1 · §9.1`
+
+| Ámbito            | Limitación                                                                                     | Seguimiento |
+|-------------------|------------------------------------------------------------------------------------------------|-------------|
+| Webhooks          | El receptor espera payloads en el formato interno definido por el plugin (ver `docs/EVENTS.md`). Moodle no emite webhooks por defecto; se requiere un mediador (Event Observer + curl).                         | v2.1 — cliente de referencia en PHP incluido en docs. |
+| Papelera          | La papelera (F10.4) permite restaurar o purgar, pero la eliminación desde las vistas principales sigue siendo física. Para soft-delete masivo, marcar `deleted_at` desde SQL o vía worker.                       | v2.1 — hook `execBeforeDelete` en modelos. |
+| Dashboard         | El dashboard cachea el payload durante 60 s (F10.9). Tras una sincronización masiva, usar `?refresh=1` para forzar una lectura fresca.                                                                           | Documentado en-place. |
+| Username alias    | El modo `random_alias` solo aplica al crear cuentas nuevas. Los usuarios ya mapeados con nombre derivado conservan su username (para cambiarlo se debe des-enrolar, renombrar en Moodle y re-mapear).            | v2.1 — asistente de renombrado. |
+| Localización      | Las traducciones cubren ES variantes + EN + FR + PT (PT/BR) + IT + DE + CA + GL + EU + CA-VL + PL + CS. El resto hace fallback a inglés.                                                                        | Open PR — idiomas adicionales vía pull request. |
+| Navegadores       | Chart.js 4.x (F3.1) requiere Chrome/Edge últimos 2, Firefox últimos 2, Safari 16+. IE11 no soportado.                                                                                                           | Constraint formalizado en `docs/SUPPORTED-VERSIONS.md`. |
+| Moodle mínimo     | Moodle 4.1 LTS. Instancias 4.0 marcadas `status=unsupported` automáticamente; versiones < 4.0 bloqueadas (ver `MoodleClient::MIN_MOODLE_RELEASE`).                                                              | Política estable. |
+| MoodleClient      | Clase god (~1600 LOC) con superficie legacy. Fase 8 creó facades namespaced (`Lib/Moodle/Api/*`) pero la migración de llamadores es gradual.                                                                     | v2.2 — deprecación de llamadas directas tras periodo 6 meses. |
+| Certificados      | El generador PDF usa Cezpdf (dependencia de FS core) con plantillas ROT50/Template simples. Plantillas HTML/CSS full están en el backlog.                                                                        | v2.1 — renderer Twig → wkhtmltopdf. |
+| Concurrencia      | Los locks cooperativos (`Lib/Cron/Lock`) usan `GET_LOCK`/`pg_try_advisory_lock`. Si el motor es SQLite (solo tests), los locks son no-ops.                                                                       | By design — SQLite es solo para tests. |
+
+Ver también: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md), [`docs/UPGRADE.md`](UPGRADE.md), [`docs/SUPPORTED-VERSIONS.md`](docs/SUPPORTED-VERSIONS.md).
+
 ## Idiomas soportados
 
 Español (ES, AR, CL, CO, CR, DO, EC, GT, MX, PA, PE, UY), Inglés, Francés, Portugués (PT, BR), Italiano, Alemán, Catalán, Gallego, Euskera, Valenciano, Polaco y Checo.
@@ -407,11 +653,213 @@ LGPL v3 - GNU Lesser General Public License
 
 ---
 
-# MoodleManagement v1.2
+# MoodleManagement v2.0
 
 FacturaScripts plugin for managing Moodle platforms directly from your ERP. Connect your billing system with your LMS through the Moodle REST API.
 
 *[Versión en español arriba](#moodlemanagement-v10)*
+
+## Architecture — Data Flow
+
+The diagram shows how a paid invoice becomes an active enrolment and eventually a certificate delivered by email.
+
+```mermaid
+flowchart LR
+    subgraph FS["FacturaScripts"]
+        direction TB
+        FC[FacturaCliente<br/>pagada=true]
+        PC[PresupuestoCliente<br/>PedidoCliente]
+        CT[Contacto]
+        PR[Producto<br/>moodle_course=true]
+    end
+
+    subgraph WQ["WorkQueue (async workers)"]
+        direction TB
+        EW[EnrolmentWorker]
+        PW[PreEnrolmentWorker]
+        CSW[ContactSyncWorker]
+        CDW[ContactDeleteWorker]
+        OW[OnboardingWorker]
+        BSW[BadgeSyncWorker]
+    end
+
+    subgraph PLUG["Plugin models"]
+        direction TB
+        UM[MoodleUserMap]
+        CM[MoodleCourseMap]
+        EN[MoodleEnrolment]
+        CE[MoodleCertificate]
+    end
+
+    subgraph MOODLE["Moodle LMS (REST WS)"]
+        direction TB
+        MU[core_user_*]
+        ME[enrol_manual_*]
+        MB[core_badges_*]
+        MM[core_message_*]
+    end
+
+    subgraph OUT["Output"]
+        direction TB
+        PDF[PDF<br/>CertificatePdfGenerator]
+        EMAIL[Email<br/>NewMail + ExpiryNotifier]
+    end
+
+    FC -- "Model.FacturaCliente.Update" --> EW
+    PC -- "Model.Presupuesto/Pedido.Update" --> PW
+    CT -- "Model.Contacto.Update" --> CSW
+    CT -- "Model.Contacto.Delete" --> CDW
+    UM -. "Model.MoodleUserMap.Insert" .-> OW
+    UM -. "Model.MoodleUserMap.Save (cascade-risk, F6.1)" .-> BSW
+
+    EW --> EN
+    PW --> EN
+    CSW --> MU
+    CDW --> MU
+    OW --> ME
+    OW --> MM
+    BSW --> MB
+
+    EN --> ME
+    UM <--> MU
+    CM <--> MU
+    PR --> CM
+
+    EN --> CE
+    CE --> PDF
+    CE --> EMAIL
+
+    classDef fs fill:#d0e6ff,stroke:#0060b0,color:#000;
+    classDef wq fill:#fff4c2,stroke:#b08000,color:#000;
+    classDef plug fill:#d4edda,stroke:#0c6b2a,color:#000;
+    classDef moodle fill:#f8d7da,stroke:#a02030,color:#000;
+    classDef out fill:#e7d4f5,stroke:#5a2a8a,color:#000;
+    class FC,PC,CT,PR fs
+    class EW,PW,CSW,CDW,OW,BSW wq
+    class UM,CM,EN,CE plug
+    class MU,ME,MB,MM moodle
+    class PDF,EMAIL out
+```
+
+**Quick legend**:
+- **Solid arrows**: `Model.X.Update`/`Insert`/`Delete` event that fires the corresponding worker.
+- **Dotted arrows**: events tracked for active remediation in Phase 6 (cascades to be cut).
+- Cron jobs (`healthCheck`, `userSync`, `courseSync`, `reconciliation`, `cleanup`, `expiryCheck`) consume the same models but run on their own schedule — omitted here to keep the diagram readable.
+
+### Layers added in v2.0
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.4 · §9.4`
+>
+> The diagram below complements the main flow with the components
+> introduced during the v2.0 audit: the security layer, the
+> webhook endpoint, the trash viewer, audit logs, and the academic
+> progress sync. Kept separate to avoid overloading the main
+> canvas.
+
+```mermaid
+flowchart TB
+    subgraph EDGE["Inbound layer"]
+        direction TB
+        HTTP[HTTP request]
+        WH[POST /ApiMoodleWebhook]
+        PDF[GET /MoodleCertificatePdf]
+    end
+
+    subgraph SEC["Security primitives"]
+        direction TB
+        RL[RateLimiter<br/>F2.10]
+        CSRF[Signed URL<br/>F2.9 HMAC-SHA256]
+        IPV[IpValidator<br/>F7.1 SSRF guard]
+        TC[TokenCipher<br/>F5.12 AES-256-GCM]
+        HSAN[HtmlSanitizer<br/>F2.1]
+        CSP[CspHeader<br/>F2.11]
+    end
+
+    subgraph WHOOK["Webhook pipeline F10.1"]
+        direction TB
+        WV[WebhookVerifier]
+        WD[WebhookDispatcher]
+        WL[(moodle_webhook_log)]
+        subgraph HND["Handlers"]
+            direction TB
+            H1[EnrolmentCreated]
+            H2[EnrolmentDeleted]
+            H3[CourseCompleted]
+            H4[UserUpdated]
+        end
+    end
+
+    subgraph JOBS["Cron jobs (6h / daily)"]
+        direction TB
+        PS[progressSync<br/>F10.2]
+        ES[expiryCheck<br/>F6.10]
+        REC[reconciliation]
+        CLE[cleanup + trash]
+    end
+
+    subgraph AUDIT["Observability"]
+        direction TB
+        AL[(moodle_audit_log)]
+        BL[BufferedLogger<br/>F10.10]
+        PM[PiiMasker<br/>F8.5]
+    end
+
+    subgraph DATA["Plugin data"]
+        direction TB
+        MI[(moodle_instances<br/>+ webhook_secret<br/>+ username_strategy)]
+        EN2[(moodle_enrolments<br/>+ progress_percent<br/>+ deleted_at)]
+    end
+
+    HTTP --> RL
+    HTTP --> CSRF
+    WH --> WV
+    PDF --> CSRF
+
+    WV --> TC
+    WV --> WL
+    WV --> WD
+    WD --> H1 & H2 & H3 & H4
+
+    H1 & H2 & H3 & H4 --> EN2
+
+    MI -. "AES-256-GCM at rest" .-> TC
+
+    PS --> EN2
+    ES --> EN2
+    REC --> EN2
+    CLE --> EN2
+
+    WV --> AL
+    CSRF --> AL
+    RL --> AL
+    PS --> BL
+    BL --> AL
+    AL -. "pii-masked" .-> PM
+
+    classDef edge fill:#d9e8ff,stroke:#002b70,color:#000;
+    classDef sec fill:#ffe9c2,stroke:#a25100,color:#000;
+    classDef hook fill:#d4edda,stroke:#0c6b2a,color:#000;
+    classDef job fill:#fff4c2,stroke:#b08000,color:#000;
+    classDef audit fill:#f8d7da,stroke:#a02030,color:#000;
+    classDef data fill:#e7d4f5,stroke:#5a2a8a,color:#000;
+    class HTTP,WH,PDF edge
+    class RL,CSRF,IPV,TC,HSAN,CSP sec
+    class WV,WD,WL,H1,H2,H3,H4 hook
+    class PS,ES,REC,CLE job
+    class AL,BL,PM audit
+    class MI,EN2 data
+```
+
+**Notes**:
+- The **Security primitives** group gathers the helpers under
+  `Lib/Security/*` introduced in Phases 2, 5, and 7. Any
+  externally-exposed controller runs through at least one of them.
+- **WebhookDispatcher** keeps the "verify → audit → dispatch"
+  separation. `moodle_webhook_log` captures every request
+  (accepted or rejected) for triage via `ListMoodleAuditLog`
+  (F10.3).
+- **BufferedLogger** (F10.10) batches cron loop events and flushes
+  them in bulk, reducing log I/O during high-activity windows.
 
 ## Features
 
@@ -544,8 +992,32 @@ FacturaScripts plugin for managing Moodle platforms directly from your ERP. Conn
 ## Requirements
 
 - FacturaScripts >= 2025.6
-- Moodle >= 4.0 (4.5+ recommended)
+- Moodle >= 4.1 LTS (4.0 is automatically flagged as `unsupported`, supported through 5.x)
 - PHP >= 8.0 with cURL extension
+- MySQL 5.7+ / MariaDB 10.4+ / PostgreSQL 13+
+
+### Supported versions matrix (v2.0)
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.6 · §9.7`
+>
+> This table is the plugin's support contract. See
+> `docs/SUPPORTED-VERSIONS.md` for component-level detail.
+
+| Dimension       | Supported                                                             | Not supported |
+|-----------------|-----------------------------------------------------------------------|---------------|
+| FacturaScripts  | 2025.6 → 2025.latest                                                 | < 2025.6 (blocked by `facturascripts.ini::min_version`) |
+| PHP             | 8.0, 8.1, 8.2 (CI matrix); 8.3 best-effort                            | < 8.0 |
+| Moodle          | 4.1 LTS + (`MoodleClient::MIN_MOODLE_RELEASE = '4.1'`)                | 4.0 flagged `unsupported` · < 4.0 blocked |
+| MySQL / MariaDB | MySQL 5.7+, MariaDB 10.4+                                             | MySQL 5.6, MariaDB < 10.4 |
+| PostgreSQL      | 13+                                                                   | < 13 |
+| Browsers        | Chrome/Edge latest 2, Firefox latest 2, Safari 16+                    | IE 11, Safari < 16 |
+| cURL            | >= 7.50 (HTTP/2 + modern TLS)                                         | < 7.50 |
+
+Combinations exercised by CI (`.github/workflows/ci.yml`):
+
+- PHP 8.0 + FS 2025.6 + MySQL 8.0
+- PHP 8.1 + FS 2025.81 + MySQL 8.0
+- PHP 8.2 + FS 2025.81 + MySQL 8.0 (also emits coverage report)
 
 ## Installation
 
@@ -794,6 +1266,25 @@ The messaging system enables bidirectional communication between FacturaScripts 
 - Only conversations involving the WS user can be read (no access to third-party conversations)
 - Chat auto-refresh queries the Moodle API every 5 seconds; it pauses automatically when the browser tab is not visible
 - The navbar badge refreshes every 30 seconds
+
+## Known Limitations (v2.0)
+
+> `@since 2.0 — V2.0-ACTION-PLAN F11.1 · §9.1`
+
+| Area             | Limitation                                                                                                   | Tracking |
+|------------------|--------------------------------------------------------------------------------------------------------------|----------|
+| Webhooks         | The receiver expects payloads in the plugin's internal format (see `docs/EVENTS.md`). Moodle does not emit webhooks natively; a bridge (Event Observer + curl) is required. | v2.1 — reference PHP bridge in docs. |
+| Trash            | The trash viewer (F10.4) supports restore/purge but the primary List views still perform physical delete. For bulk soft-delete, set `deleted_at` via SQL or a dedicated worker. | v2.1 — `execBeforeDelete` hook in models. |
+| Dashboard        | The dashboard caches its payload for 60 s (F10.9). After a bulk sync use `?refresh=1` to force a fresh read. | Documented in-place. |
+| Username alias   | `random_alias` applies only to newly created accounts. Users already mapped with a name-based username keep it — to change, un-enrol, rename in Moodle, and re-map. | v2.1 — rename wizard. |
+| Localisation     | Translations cover ES variants + EN + FR + PT(PT/BR) + IT + DE + CA + GL + EU + CA-VL + PL + CS. Missing locales fall back to English. | Open PR — additional languages welcome. |
+| Browsers         | Chart.js 4.x (F3.1) requires Chrome/Edge latest 2, Firefox latest 2, Safari 16+. IE11 is not supported.     | Constraint formalised in `docs/SUPPORTED-VERSIONS.md`. |
+| Minimum Moodle   | Moodle 4.1 LTS. Instances on 4.0 are flagged `status=unsupported` automatically; < 4.0 is blocked (see `MoodleClient::MIN_MOODLE_RELEASE`). | Stable policy. |
+| MoodleClient     | Legacy god class (~1600 LOC). Fase 8 introduced namespaced facades (`Lib/Moodle/Api/*`); caller migration is gradual. | v2.2 — direct-call deprecation after 6-month grace period. |
+| Certificates     | The PDF generator uses Cezpdf (FS core dep) with ROT50/Template simple skins. Full HTML/CSS templates are backlogged. | v2.1 — Twig + wkhtmltopdf renderer. |
+| Concurrency      | Cooperative locks (`Lib/Cron/Lock`) use `GET_LOCK` / `pg_try_advisory_lock`. Under SQLite (tests only) the locks are no-ops. | By design — SQLite is test-only. |
+
+See also: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md), [`UPGRADE.md`](UPGRADE.md), [`docs/SUPPORTED-VERSIONS.md`](docs/SUPPORTED-VERSIONS.md).
 
 ## Supported Languages
 

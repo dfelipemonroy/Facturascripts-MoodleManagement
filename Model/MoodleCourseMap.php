@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -17,7 +18,6 @@ use FacturaScripts\Core\Model\Base\ModelClass;
 use FacturaScripts\Core\Model\Base\ModelTrait;
 use FacturaScripts\Core\Model\Producto;
 use FacturaScripts\Core\Model\ProductoImagen;
-use FacturaScripts\Core\Model\Variante;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 
@@ -90,6 +90,20 @@ class MoodleCourseMap extends ModelClass
 
     /** @var string */
     public $creation_date;
+
+    /**
+     * @var string|null Operator nick that originally inserted the row.
+     *                  Populated by FS core's audit-trail layer (F5.15).
+     *                  Declared as a real property to avoid PHP 8.2 dynamic-property
+     *                  deprecation warnings.
+     */
+    public $created_by;
+
+    /**
+     * @var string|null Operator nick that last touched the row. Same
+     *                  provenance as `$created_by`.
+     */
+    public $updated_by;
 
     public function clear(): void
     {
@@ -281,8 +295,10 @@ class MoodleCourseMap extends ModelClass
         // find the first image file
         $imageFile = null;
         foreach ($overviewFiles as $file) {
-            if (!empty($file['fileurl']) && !empty($file['mimetype'])
-                && strpos($file['mimetype'], 'image/') === 0) {
+            if (
+                !empty($file['fileurl']) && !empty($file['mimetype'])
+                && strpos($file['mimetype'], 'image/') === 0
+            ) {
                 $imageFile = $file;
                 break;
             }

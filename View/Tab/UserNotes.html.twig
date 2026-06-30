@@ -20,7 +20,7 @@
                     {{ formToken() }}
                     <div class="row">
                         <div class="col-md-9 mb-2">
-                            <textarea name="note_text" class="form-control" rows="2"
+                            <textarea name="note_text" class="form-control" rows="2" maxlength="2000"
                                       placeholder="{{ trans('write-note-placeholder') }}" required></textarea>
                         </div>
                         <div class="col-md-2 mb-2">
@@ -59,7 +59,11 @@
                     <tbody>
                         {% for note in notes %}
                             <tr>
-                                <td>{{ note.text | raw }}</td>
+                                {# F2.3 — stored XSS fix: note.text comes from Moodle
+                                   (core_notes_get_course_notes) and originally from
+                                   operator input. Use `nl2br` so line breaks render
+                                   while HTML is entity-escaped. Never |raw here. #}
+                                <td>{{ note.text | nl2br }}</td>
                                 <td class="text-center align-middle">
                                     {% if note.publishstate == 'site' %}
                                         <span class="badge bg-primary">{{ trans('note-type-site') }}</span>
@@ -78,7 +82,7 @@
                                 </td>
                                 <td class="text-center align-middle">
                                     <form method="post" class="d-inline"
-                                          onsubmit="return confirm('{{ trans('confirm-delete') }}');">
+                                          data-mm-confirm="{{ trans('confirm-delete') }}">
                                         <input type="hidden" name="action" value="delete-note">
                                         <input type="hidden" name="activetab" value="UserNotes">
                                         <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}">

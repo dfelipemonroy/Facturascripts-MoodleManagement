@@ -1,7 +1,34 @@
+{# Inline style moved to Assets/CSS/moodle.css (.mm-menu-badge). F1.8 #}
+<link rel="stylesheet" href="{{ asset('Plugins/MoodleManagement/Assets/CSS/moodle.css') }}"/>
+{# F3.2 — global event delegation for data-mm-* attributes,
+   loaded once via the menu extension so it is available on every
+   FS page the plugin might render content on. #}
+<script src="{{ asset('Plugins/MoodleManagement/Assets/JS/mm-actions.js') }}" defer></script>
+{# F3.11 — image picker highlighter for WidgetCourseimage; loaded
+   globally so the widget works on any product detail page. #}
+<script src="{{ asset('Plugins/MoodleManagement/Assets/JS/widget-courseimage.js') }}" defer></script>
+{# F3.5 — expose plugin-owned translation strings to JS callers.
+   Keep this map small: only keys referenced by Assets/JS/* or
+   inline scripts that build user-facing text. Twig autoescapes
+   via |json_encode + |e('js'), safe to inline. #}
+<script>
+window.FS_I18N = window.FS_I18N || {};
+(function (map) {
+    var extra = {
+        'certificate-not-saved-yet': {{ trans('certificate-not-saved-yet') | json_encode | raw }},
+        'common-error':              {{ trans('action-failed') | json_encode | raw }}
+    };
+    for (var k in extra) {
+        if (Object.prototype.hasOwnProperty.call(extra, k) && !(k in map)) {
+            map[k] = extra[k];
+        }
+    }
+})(window.FS_I18N);
+</script>
 <li class="nav-item" title="{{ trans('moodle-conversations') }}" id="moodleChatNavItem">
-    <a class="nav-link" href="ListMoodleConversation">
+    <a class="nav-link" href="ListMoodleConversation" aria-label="{{ trans('moodle-conversations') }}">
         <i class="fa-solid fa-comments" aria-hidden="true"></i>
-        <span id="moodleChatBadge" class="badge bg-danger rounded-pill d-none" style="position: relative; top: -8px; left: -5px; font-size: 0.6rem;"></span>
+        <span id="moodleChatBadge" class="badge bg-danger rounded-pill d-none mm-menu-badge"></span>
     </a>
 </li>
 <script>
@@ -29,12 +56,22 @@
         }
     }
 
+    // F3.3 — polling with exponential backoff.
+    // Baseline 30 s; doubles on failure up to 10 min.
+    var unreadBaseMs = 30000;
+    var unreadMaxMs = 600000;
+    var unreadDelay = unreadBaseMs;
+
     function fetchUnread() {
-        fetch('ListMoodleConversation?action=get-unread-count', {
+        return fetch('ListMoodleConversation?action=get-unread-count', {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            if (!r.ok) { throw new Error('http_' + r.status); }
+            return r.json();
+        })
         .then(function(data) {
+            unreadDelay = unreadBaseMs;
             var badge = document.getElementById('moodleChatBadge');
             if (!badge) return;
             if (data.unread && data.unread > 0) {
@@ -44,19 +81,25 @@
                 badge.classList.add('d-none');
             }
         })
-        .catch(function() {});
+        .catch(function() {
+            unreadDelay = Math.min(unreadDelay * 2, unreadMaxMs);
+        });
+    }
+
+    function scheduleUnread() {
+        setTimeout(function () {
+            fetchUnread().finally(scheduleUnread);
+        }, unreadDelay);
     }
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             repositionChatIcon();
-            fetchUnread();
+            fetchUnread().finally(scheduleUnread);
         });
     } else {
         repositionChatIcon();
-        fetchUnread();
+        fetchUnread().finally(scheduleUnread);
     }
-
-    setInterval(fetchUnread, 30000);
 })();
 </script>

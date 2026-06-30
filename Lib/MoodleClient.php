@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -21,50 +22,339 @@ namespace FacturaScripts\Plugins\MoodleManagement\Lib;
 
 use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\CircuitBreaker;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\RetryPolicy;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\IpValidator;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 
+/**
+ * Legacy monolithic Moodle WS client — 100+ static helpers wrapping
+ * the REST API. Historically the only entry point for every worker
+ * and cron in the plugin.
+ *
+ * `@deprecated since 2.0` — new code should route through the
+ * `Lib\Moodle\Api\*` facade classes, each of which is focused on a
+ * single Moodle domain (UserApi, CourseApi, EnrolmentApi …). The
+ * facades are transport-equivalent (they delegate to this class
+ * under the hood) so migrating a call site is mechanical.
+ *
+ * The v2.0 line still ships the static API unchanged; the v2.1 line
+ * will collapse the static methods into delegators and eventually
+ * remove them once every caller has migrated. Tracked in
+ * `docs/V2.1-BACKLOG.md` as ARCH-01.
+ *
+ * @since 2.0 — ARCH-01 deprecation notice (2026-04-17)
+ */
 class MoodleClient
 {
+    /**
+     * F8.7 — fluent entry point for instance-bound API access.
+     * See {@see \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\BoundClient}.
+     *
+     * @since 2.0
+     */
+    public static function forInstance(MoodleInstance $instance): \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\BoundClient
+    {
+        return new \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\BoundClient($instance);
+    }
+
+    /**
+     * F7.21 — per-request cache of course payloads so multiple
+     * callers asking for the same course ID inside one request
+     * share the WS round-trip. Reset on every PHP process.
+     *
+     * @since 2.0
+     * @var array<int, array<int, array>> keyed [instanceId][courseId]
+     */
+    private static $courseCache = [];
+
+    /**
+     * Default HTTP timeout (seconds) for synchronous (UI) Moodle API calls.
+     * Cron jobs may override via $timeout parameter (see Fase 7 F7.7).
+     *
+     * @since 2.0
+     */
+    public const TIMEOUT_SECONDS = 60;
+
+    /**
+     * TCP connect timeout (seconds) — separate from overall timeout.
+     *
+     * @since 2.0
+     */
+    public const CONNECT_TIMEOUT_SECONDS = 15;
+
+    /**
+     * curl POSTREDIR bitmask for 301/302/303 redirects.
+     * Will be deprecated when SSRF hardening lands (Fase 7 F7.1) and
+     * follow-redirects is disabled.
+     *
+     * @since 2.0
+     */
+    public const REDIRECT_METHODS_BITMASK = 7;
+
+    /**
+     * Maximum response size (bytes) the client accepts before aborting.
+     * Enforced by CURLOPT_WRITEFUNCTION in Fase 7 F7.6.
+     *
+     * @since 2.0
+     */
+    public const MAX_RESPONSE_BYTES = 20 * 1024 * 1024;
+
+    /**
+     * Timeout (seconds) used when the caller announces a cron
+     * context via $options['timeout_profile'] = 'cron'. Longer than
+     * the interactive default because cron can afford the wait.
+     *
+     * @since 2.0 F7.7
+     */
+    public const CRON_TIMEOUT_SECONDS = 300;
+
     /**
      * Call a Moodle Web Service function via REST API.
      *
      * @param MoodleInstance $instance The Moodle instance to call
      * @param string $function The WS function name (e.g. core_webservice_get_site_info)
      * @param array $params Additional parameters for the function
+     * @param array $options {
+     * @type string $timeout_profile 'ui' (default 60s) or 'cron' (300s).
+     * @type int $timeout          Explicit override in seconds.
+     * @type int $max_bytes        Override MAX_RESPONSE_BYTES.
+     *           }
      * @return array The decoded JSON response, or an error array
      */
-    public static function callApi(MoodleInstance $instance, string $function, array $params = []): array
-    {
+    public static function callApi(
+        MoodleInstance $instance,
+        string $function,
+        array $params = [],
+        array $options = []
+    ): array {
         $endpoint = rtrim($instance->url, '/') . '/webservice/rest/server.php';
 
-        $postData = array_merge([
+        // F7.1 — SSRF gate. Rejects requests whose host resolves to
+        // a private/loopback/link-local address (AWS metadata,
+        // intranet Moodle instances misconfigured as public URL,
+        // localhost dev machine reachable from prod worker).
+        // Kept ahead of the transport check so private-IP targets
+        // surface as SSRF (the more specific finding) regardless of
+        // scheme.
+        //
+        // SEC-03 rev 2 (2026-04-19) — dev-mode escape hatch with a
+        // double gate so production is never bypassed accidentally:
+        //   * `FS_DEBUG = true`  — deployment-wide dev signal
+        //   * `instance.environment = 'development'` — per-instance
+        //                                              opt-in
+        // Both conditions must hold. A prod deployment where an
+        // operator sneaks `environment=development` into the row
+        // still fails the gate because FS_DEBUG is false.
+        try {
+            IpValidator::assertPublicHost($endpoint);
+        } catch (\Throwable $e) {
+            $context = [
+                '%instance%' => (int) $instance->id,
+                '%endpoint%' => $endpoint,
+                '%reason%' => $e->getMessage(),
+            ];
+            if (self::isDevelopmentEnvironment() && self::isDevInstance($instance)) {
+                self::logOnce('moodle-ssrf-dev-bypass:' . (int) $instance->id, static function () use ($context): void {
+                    Tools::log()->notice(Tools::lang()->trans('moodle-ssrf-dev-bypass', $context), $context);
+                });
+            } else {
+                Tools::log()->warning(Tools::lang()->trans('moodle-ssrf-rejected', $context), $context);
+                return [
+                    'exception' => 'ssrf_rejected',
+                    'message' => 'host_private_or_unresolvable',
+                ];
+            }
+        }
+
+        // SEC-03 (2026-04-17) — refuse plain-HTTP transports in
+        // production. The Moodle token travels as `wstoken` in the
+        // POST body; without TLS anyone on the wire can harvest it
+        // and mint further WS calls. FS_DEBUG escapes the check so
+        // developers running local stacks (http://localhost, …)
+        // can still exercise the client; production installs must
+        // keep FS_DEBUG false.
+        if (!self::endpointUsesTls($endpoint) && !self::isDevelopmentEnvironment()) {
+            $context = [
+                '%instance%' => (int) $instance->id,
+                '%endpoint%' => $endpoint,
+            ];
+            Tools::log()->warning(Tools::lang()->trans('moodle-insecure-transport-rejected', $context), $context);
+            return [
+                'exception' => 'insecure_transport',
+                'message' => 'https_required',
+            ];
+        }
+
+        // BE-02 (2026-04-17) — CircuitBreaker gate before touching the
+        // network. If the per-instance breaker is OPEN, fail fast with
+        // a distinct exception code so callers can surface a "Moodle
+        // temporarily unavailable" message rather than having every
+        // worker pile onto a dead instance.
+        //
+        // `logOnce` dedupes the notice per instance per request: a
+        // single page that fires 6 WS calls used to leave 6 identical
+        // `moodle-circuit-open` rows in the log; now the first call
+        // reports, the rest are silent.
+        $instanceId = (int) $instance->id;
+        if (!CircuitBreaker::allow($instanceId)) {
+            $context = [
+                '%instance%' => $instanceId,
+                '%function%' => $function,
+            ];
+            self::logOnce('moodle-circuit-open:' . $instanceId, static function () use ($context): void {
+                Tools::log()->notice(Tools::lang()->trans('moodle-circuit-open', $context), $context);
+            });
+            return [
+                'exception' => 'circuit_open',
+                'message' => 'instance_temporarily_unavailable',
+            ];
+        }
+
+        $result = self::dispatchWithRetry($instance, $function, $params, $options, $endpoint);
+
+        // BE-02 — feed the breaker with the attempt outcome.
+        if (isset($result['exception'])) {
+            $tag = (string) $result['exception'];
+            // Do not count infrastructure-level rejections as upstream
+            // failures: SSRF, insecure_transport, circuit_open are
+            // decided locally, not by Moodle.
+            if (!in_array($tag, ['ssrf_rejected', 'insecure_transport', 'circuit_open'], true)) {
+                CircuitBreaker::reportFailure($instanceId);
+            }
+        } else {
+            CircuitBreaker::reportSuccess($instanceId);
+        }
+
+        return $result;
+    }
+
+    /**
+     * BE-02 wrapper — wraps a single HTTP dispatch inside RetryPolicy
+     * so transient errors (connect timeout, 5xx) are retried with
+     * exponential back-off. The retry decision honours
+     * `RetryPolicy::PERMANENT_EXCEPTIONS` so auth failures and similar
+     * permanent errors short-circuit immediately.
+     *
+     * Callers can opt out by passing `$options['retry_enabled'] = false`
+     * — used by cron probes that want a single shot. The default
+     * `retry_max_attempts = 3` and `retry_base_delay_ms = 500` are
+     * modest so UI calls do not stall.
+     *
+     * @since 2.0 — BE-02 (2026-04-17)
+     */
+    private static function dispatchWithRetry(
+        MoodleInstance $instance,
+        string $function,
+        array $params,
+        array $options,
+        string $endpoint
+    ): array {
+        $retryEnabled = (bool) ($options['retry_enabled'] ?? true);
+        $maxAttempts = $retryEnabled
+            ? max(1, (int) ($options['retry_max_attempts'] ?? 3))
+            : 1;
+        $baseDelayMs = max(50, (int) ($options['retry_base_delay_ms'] ?? 500));
+
+        $fn = static function () use ($instance, $function, $params, $options, $endpoint): array {
+            return self::dispatchSingle($instance, $function, $params, $options, $endpoint);
+        };
+
+        $tag = 'moodle-ws|' . $function . '|instance=' . (int) $instance->id;
+        $result = RetryPolicy::execute($fn, $maxAttempts, $baseDelayMs, $tag);
+        return is_array($result) ? $result : [];
+    }
+
+    /**
+     * Single HTTP dispatch attempt. Split out of `callApi` in BE-02
+     * (2026-04-17) so retry + breaker can wrap the raw transport
+     * without re-running SSRF / transport gating on every attempt.
+     */
+    private static function dispatchSingle(
+        MoodleInstance $instance,
+        string $function,
+        array $params,
+        array $options,
+        string $endpoint
+    ): array {
+        // F7.13 — always force JSON output, regardless of whatever
+        // the caller may have passed in $params.
+        $postData = array_merge($params, [
             'wstoken' => $instance->token,
             'wsfunction' => $function,
             'moodlewsrestformat' => 'json',
-        ], $params);
+        ]);
+
+        // F7.7 — adaptive timeout: callers in cron context ask for
+        // the longer budget explicitly; everything else uses the
+        // 60s UI default so interactive pages don't hang.
+        $timeout = (int) ($options['timeout'] ?? (
+            ($options['timeout_profile'] ?? 'ui') === 'cron'
+                ? self::CRON_TIMEOUT_SECONDS
+                : self::TIMEOUT_SECONDS
+        ));
+
+        // F7.6 — bounded response buffer. Prevents an abusive Moodle
+        // (compromised or misconfigured) from forcing PHP to reserve
+        // hundreds of MB of heap per WS call.
+        $maxBytes = max(1024, (int) ($options['max_bytes'] ?? self::MAX_RESPONSE_BYTES));
+        $buffer = '';
+        $exceeded = false;
+
+        // SEC-08 (2026-04-17) — also advertise the token via an
+        // `Authorization: Bearer` header.
+        $headers = [
+            'Authorization: Bearer ' . $instance->token,
+            'Accept: application/json',
+        ];
 
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $endpoint,
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($postData),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 60,
-            CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_POSTREDIR => 7,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_RETURNTRANSFER => false, // we own the buffer via WRITEFUNCTION
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT_SECONDS,
+            CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$buffer, &$exceeded, $maxBytes) {
+                if ($exceeded) {
+                    return 0;
+                }
+                $buffer .= $chunk;
+                if (strlen($buffer) > $maxBytes) {
+                    $exceeded = true;
+                    return 0;
+                }
+                return strlen($chunk);
+            },
         ]);
 
-        $response = curl_exec($ch);
+        curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         curl_close($ch);
 
-        if ($response === false) {
+        if ($exceeded) {
+            $context = [
+                '%instance%' => (int) $instance->id,
+                '%function%' => $function,
+                '%max_bytes%' => $maxBytes,
+            ];
+            Tools::log()->warning(Tools::lang()->trans('moodle-response-too-large', $context), $context);
+            return [
+                'exception' => 'response_too_large',
+                'message' => 'response_exceeded_max_bytes',
+            ];
+        }
+
+        $response = $buffer;
+        if ($response === '' && $httpCode === 0) {
             return [
                 'exception' => 'curl_error',
-                'message' => $error,
+                'message' => $error !== '' ? $error : 'empty_response',
             ];
         }
 
@@ -96,7 +386,100 @@ class MoodleClient
             return is_array($inner) ? $inner : [];
         }
 
-        return $decoded ?? [];
+        $result = is_array($decoded) ? $decoded : [];
+
+        // BE-05 (2026-04-17) — Moodle WS functions that process a list
+        // (core_user_create_users, core_enrol_manual_enrol_users, …)
+        // answer HTTP 200 even when individual items failed; the
+        // partial failures are reported through the top-level
+        // `warnings` array. Surface that signal so callers can tell
+        // full success from partial.
+        if (!empty($result['warnings']) && is_array($result['warnings'])) {
+            $context = [
+                '%instance%' => (int) $instance->id,
+                '%function%' => $function,
+                '%warnings%' => array_slice($result['warnings'], 0, 10),
+            ];
+            Tools::log()->warning(Tools::lang()->trans('moodle-ws-partial-failures', $context), $context);
+            if (!empty($options['fail_on_partial'])) {
+                return [
+                    'exception' => 'partial_failure',
+                    'message' => 'moodle_ws_returned_warnings',
+                    'warnings' => $result['warnings'],
+                    'data' => $result,
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Returns true when the endpoint URL declares the `https` scheme.
+     * Case-insensitive and tolerant of malformed input.
+     *
+     * @since 2.0 — SEC-03
+     */
+    public static function endpointUsesTls(string $endpoint): bool
+    {
+        $scheme = parse_url($endpoint, PHP_URL_SCHEME);
+        return is_string($scheme) && strtolower($scheme) === 'https';
+    }
+
+    /**
+     * Returns true when the stack is running in a development context
+     * where `http://` endpoints are acceptable. Production installs must
+     * never enable `FS_DEBUG`, so the flag doubles as a deployment mode
+     * hint.
+     *
+     * @since 2.0 — SEC-03
+     */
+    public static function isDevelopmentEnvironment(): bool
+    {
+        return defined('FS_DEBUG') && (bool) constant('FS_DEBUG');
+    }
+
+    /**
+     * Returns true when the instance row is explicitly flagged
+     * `environment = 'development'`. Used with
+     * `isDevelopmentEnvironment()` to unlock the SSRF / HTTP dev
+     * escape hatch without relaxing prod.
+     *
+     * @since 2.0 — SEC-03 rev 2 (2026-04-19)
+     */
+    public static function isDevInstance(MoodleInstance $instance): bool
+    {
+        if (empty($instance->environment)) {
+            return false;
+        }
+        return strtolower((string) $instance->environment) === 'development';
+    }
+
+    /**
+     * Per-request in-memory dedupe. Runs the `$emit` callback once
+     * per `$key`; subsequent calls with the same key are no-ops.
+     *
+     * Used to avoid filling the FS log table with identical rows
+     * when a single page triggers many WS calls to an instance whose
+     * circuit breaker is OPEN (6 calls → 6 identical log rows).
+     *
+     * Scope is the current PHP process, so the dedup resets between
+     * requests — operators still see the event on each page load,
+     * just once instead of N times.
+     *
+     * @since 2.0 — 2026-04-19
+     *
+     * @var array<string, bool>
+     */
+    private static $loggedOnce = [];
+
+    private static function logOnce(string $key, callable $emit): void
+    {
+        if (isset(self::$loggedOnce[$key])) {
+            return;
+        }
+        self::$loggedOnce[$key] = true;
+        $emit();
     }
 
     /**
@@ -109,7 +492,21 @@ class MoodleClient
     }
 
     /**
+     * Minimum Moodle version officially supported by the plugin.
+     * Populated from the `release` field of
+     * core_webservice_get_site_info — format "4.1.5+ (Build: ...)".
+     *
+     * @since 2.0 F7.18 · §2.25
+     */
+    public const MIN_MOODLE_RELEASE = '4.1';
+
+    /**
      * Apply site info data to the instance model.
+     *
+     * @since 2.0 — F7.18 verifies the Moodle release against
+     *             MIN_MOODLE_RELEASE. On old releases we still
+     *             store the site info but switch `status` to
+     *             'unsupported' so the dashboard surfaces it.
      */
     public static function applySiteInfo(MoodleInstance $instance, array $siteInfo): void
     {
@@ -122,6 +519,24 @@ class MoodleClient
         $instance->available_functions = isset($siteInfo['functions']) ? count($siteInfo['functions']) : 0;
         $instance->last_check = date('Y-m-d H:i:s');
         $instance->last_error = '';
+
+        // F7.18 — sanity check the Moodle release against the
+        // minimum we support. `release` is a string like
+        // "4.1.5+ (Build: 20240611)". Extract the leading dotted
+        // version and compare with version_compare.
+        $release = trim((string) $instance->moodle_release);
+        $releaseNumber = (string) strtok($release, ' +'); // "4.1.5"
+        if ($releaseNumber !== '' && version_compare($releaseNumber, self::MIN_MOODLE_RELEASE, '<')) {
+            $instance->status = 'unsupported';
+            $instance->last_error = 'moodle-version-too-old';
+            Tools::log()->warning('moodle-version-too-old', [
+                'instance' => (int) $instance->id,
+                'release' => $releaseNumber,
+                'required' => self::MIN_MOODLE_RELEASE,
+            ]);
+            return;
+        }
+
         $instance->status = 'active';
     }
 
@@ -178,7 +593,7 @@ class MoodleClient
      */
     public static function updateUser(MoodleInstance $instance, int $moodleUserId, array $userData): array
     {
-        $params = ["users[0][id]" => $moodleUserId];
+        $params = ['users[0][id]' => $moodleUserId];
         foreach ($userData as $key => $value) {
             $params["users[0][$key]"] = $value;
         }
@@ -247,7 +662,7 @@ class MoodleClient
      */
     public static function updateCohort(MoodleInstance $instance, int $cohortId, array $cohortData): array
     {
-        $params = ["cohorts[0][id]" => $cohortId];
+        $params = ['cohorts[0][id]' => $cohortId];
         foreach ($cohortData as $key => $value) {
             $params["cohorts[0][$key]"] = $value;
         }
@@ -321,6 +736,58 @@ class MoodleClient
     }
 
     /**
+     * F7.21 — fetch a single course by id with per-request cache.
+     * Repeated calls for the same (instance, courseId) inside one
+     * request share the WS round-trip. Used by the dashboard,
+     * widgets, and reconciliation scanners that previously issued
+     * redundant getCourses calls.
+     *
+     * @since 2.0
+     * @return array|null Course payload on success; null on miss.
+     */
+    public static function getCourseById(MoodleInstance $instance, int $courseId): ?array
+    {
+        $iid = (int) $instance->id;
+        if ($iid <= 0 || $courseId <= 0) {
+            return null;
+        }
+        if (isset(self::$courseCache[$iid][$courseId])) {
+            return self::$courseCache[$iid][$courseId];
+        }
+        $result = self::getCourses($instance, [$courseId]);
+        if (isset($result['exception']) || empty($result)) {
+            return null;
+        }
+        $course = $result[0] ?? null;
+        if (is_array($course)) {
+            self::$courseCache[$iid][$courseId] = $course;
+        }
+        return $course;
+    }
+
+    /**
+     * Admin utility — wipe the per-request course cache. Callers
+     * that mutate a course (e.g. update metadata, duplicate) use
+     * this to avoid returning stale data from the same request.
+     */
+    public static function resetCourseCache(?int $instanceId = null, ?int $courseId = null): void
+    {
+        // F13 DISCOVERED-06 — the overviewCache must stay in sync,
+        // otherwise a reset(clear) would leave stale overviewfiles
+        // attached to a course that the admin just edited.
+        if ($instanceId === null) {
+            self::$courseCache = [];
+            self::$overviewCache = [];
+            return;
+        }
+        if ($courseId === null) {
+            unset(self::$courseCache[$instanceId], self::$overviewCache[$instanceId]);
+            return;
+        }
+        unset(self::$courseCache[$instanceId][$courseId], self::$overviewCache[$instanceId][$courseId]);
+    }
+
+    /**
      * Get courses by field (id, shortname, idnumber, category).
      */
     public static function getCoursesByField(MoodleInstance $instance, string $field = '', string $value = ''): array
@@ -363,7 +830,7 @@ class MoodleClient
      */
     public static function updateCourse(MoodleInstance $instance, int $courseId, array $courseData): array
     {
-        $params = ["courses[0][id]" => $courseId];
+        $params = ['courses[0][id]' => $courseId];
         foreach ($courseData as $key => $value) {
             $params["courses[0][$key]"] = $value;
         }
@@ -438,7 +905,7 @@ class MoodleClient
      */
     public static function updateCategory(MoodleInstance $instance, int $categoryId, array $categoryData): array
     {
-        $params = ["categories[0][id]" => $categoryId];
+        $params = ['categories[0][id]' => $categoryId];
         foreach ($categoryData as $key => $value) {
             $params["categories[0][$key]"] = $value;
         }
@@ -500,21 +967,77 @@ class MoodleClient
      */
     public static function generateUsername(Contacto $contact): string
     {
-        if (!empty($contact->email)) {
-            // Use the part before @ as username
-            $parts = explode('@', $contact->email);
-            $username = strtolower(trim($parts[0]));
-            // Remove invalid chars for Moodle username (only lowercase alphanumeric, -, _, .)
-            $username = preg_replace('/[^a-z0-9\-_.]/', '', $username);
-            if (!empty($username)) {
-                return $username;
+        return self::buildUsernameCandidate($contact);
+    }
+
+    /**
+     * F7.3 — uniqueness-aware username generator. When an
+     * instance is provided the candidate is verified against
+     * `core_user_get_users_by_field`, and on collision a numeric
+     * suffix is appended ("diego", "diego1", … "diego99"). If 99
+     * suffixes are all taken, 8 random hex chars are appended as
+     * last-resort entropy.
+     *
+     * @since 2.0 F7.3 · §2.11
+     */
+    public static function generateUniqueUsername(Contacto $contact, MoodleInstance $instance): string
+    {
+        $base = self::buildUsernameCandidate($contact);
+        if (empty($instance->id) || empty($instance->token)) {
+            return $base;
+        }
+
+        $candidate = $base;
+        for ($i = 0; $i <= 99; $i++) {
+            if ($i > 0) {
+                $candidate = $base . $i;
+            }
+            $result = self::getUsersByField($instance, 'username', [$candidate]);
+            if (isset($result['exception'])) {
+                // Don't hard-fail on API glitches — fall back to base.
+                return $base;
+            }
+            if (empty($result)) {
+                return $candidate;
             }
         }
 
-        // Fallback: nombre.apellidos
+        // Extremely unlikely branch: 100 consecutive collisions.
+        try {
+            $suffix = bin2hex(random_bytes(4));
+        } catch (\Throwable $e) {
+            $suffix = substr(md5(microtime(true) . $base), 0, 8);
+        }
+        return $base . '-' . $suffix;
+    }
+
+    /**
+     * Internal — normalise a Contacto into a Moodle-valid username
+     * (lowercase, [a-z0-9._-] only). No uniqueness check here —
+     * callers should use generateUniqueUsername() for account
+     * creation paths.
+     */
+    private static function buildUsernameCandidate(Contacto $contact): string
+    {
+        if (!empty($contact->email)) {
+            $parts = explode('@', $contact->email);
+            $username = strtolower(trim($parts[0]));
+            $username = preg_replace('/[^a-z0-9\-_.]/', '', $username);
+            if (self::hasAlnum($username)) {
+                return $username;
+            }
+        }
         $base = strtolower(trim(($contact->nombre ?? '') . '.' . ($contact->apellidos ?? '')));
         $base = preg_replace('/[^a-z0-9\-_.]/', '', str_replace(' ', '.', $base));
-        return !empty($base) ? $base : 'user' . time();
+        // F14 — require at least one alphanumeric so a lone '.' or
+        // '-' from a name-only contact doesn't survive as username.
+        return self::hasAlnum($base) ? $base : 'user' . time();
+    }
+
+    /** True when $s contains at least one ASCII alphanumeric. */
+    private static function hasAlnum(?string $s): bool
+    {
+        return $s !== null && $s !== '' && (bool) preg_match('/[a-z0-9]/i', $s);
     }
 
     // ---- Field mapping methods ----
@@ -533,6 +1056,15 @@ class MoodleClient
             'lastnamephonetic' => '',
             'middlename' => '',
             'alternatename' => '',
+            // F7.19 — when the payload feeds create_users, Moodle
+            // honours preferences[].auth_forcepasswordchange so
+            // the first login forces a password reset. update_users
+            // ignores the preference silently, so sending it on
+            // every call is free. Opt-out with `$data = contactToMoodleUser(...);
+            // unset($data['preferences']);` at the call site.
+            'preferences' => [
+                ['type' => 'auth_forcepasswordchange', 'value' => '1'],
+            ],
         ];
 
         if (!empty($contact->telefono1)) {
@@ -617,6 +1149,13 @@ class MoodleClient
     /**
      * Determine sync winner based on priority rule and timestamps.
      * Returns 'fs', 'moodle', or 'conflict'.
+     *
+     * @since 2.0 F7.5 — both sides are normalised to UTC epoch
+     *        before comparison. Previously strtotime($fsModified)
+     *        used the server's default timezone (often Europe/Madrid)
+     *        while $moodleModified arrived as a raw UTC epoch —
+     *        comparing them introduced a 1-2h drift that flipped
+     *        the winner incorrectly near the hour boundary.
      */
     public static function resolveConflict(string $priority, ?string $fsModified, ?string $moodleModified): string
     {
@@ -635,8 +1174,10 @@ class MoodleClient
                 if (empty($moodleModified)) {
                     return 'fs';
                 }
-                $fsTime = strtotime($fsModified);
-                $moodleTime = is_numeric($moodleModified) ? (int)$moodleModified : strtotime($moodleModified);
+                $fsTime = self::parseToUtcEpoch($fsModified);
+                $moodleTime = is_numeric($moodleModified)
+                    ? (int) $moodleModified
+                    : self::parseToUtcEpoch((string) $moodleModified);
                 return $fsTime >= $moodleTime ? 'fs' : 'moodle';
             default:
                 return 'conflict';
@@ -644,60 +1185,170 @@ class MoodleClient
     }
 
     /**
-     * Get course overview files from Moodle.
-     * Uses getCoursesByField which returns overviewfiles (getCourses does not).
+     * F7.5 — parse a SQL timestamp string to a UTC Unix epoch so
+     * resolveConflict can compare apples-to-apples with Moodle's
+     * `timemodified`. Falls back to strtotime() when the input
+     * does not parse cleanly.
      */
-    public static function getOverviewFiles(MoodleInstance $instance, int $courseId): array
+    private static function parseToUtcEpoch(string $value): int
     {
-        $result = self::getCoursesByField($instance, 'id', (string)$courseId);
-        $courses = $result['courses'] ?? [];
-        if (!empty($courses[0]['overviewfiles'])) {
-            return $courses[0]['overviewfiles'];
+        try {
+            $dt = new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+            return $dt->getTimestamp();
+        } catch (\Throwable $e) {
+            return (int) strtotime($value);
         }
-        return [];
     }
 
     /**
-     * Download a file from Moodle (appending WS token to URL).
+     * Get course overview files from Moodle.
+     * Uses getCoursesByField which returns overviewfiles (getCourses does not).
+     *
+     * F13 DISCOVERED-06 — per-request memoisation matching the
+     * pattern F7.21 applied to getCourseById. A single admin screen
+     * often renders several cards for the same course (widget,
+     * dashboard, certificate) and each one asks for the overview
+     * files; without the cache that's N identical WS round-trips.
+     *
+     * Cache is cleared together with the main courseCache via
+     * resetCourseCache(); see note inline in that method.
+     */
+    private static array $overviewCache = [];
+
+    public static function getOverviewFiles(MoodleInstance $instance, int $courseId): array
+    {
+        $iid = (int) $instance->id;
+        if ($iid <= 0 || $courseId <= 0) {
+            return [];
+        }
+        if (isset(self::$overviewCache[$iid][$courseId])) {
+            return self::$overviewCache[$iid][$courseId];
+        }
+        $result = self::getCoursesByField($instance, 'id', (string)$courseId);
+        $courses = $result['courses'] ?? [];
+        $files = !empty($courses[0]['overviewfiles']) ? $courses[0]['overviewfiles'] : [];
+        self::$overviewCache[$iid][$courseId] = $files;
+        return $files;
+    }
+
+    /**
+     * MIME types accepted by downloadFile(). `image/svg+xml` is
+     * deliberately excluded: SVG can carry <script>/<foreignObject>
+     * and would be XSS-inert only if sanitised, which we don't do
+     * for file attachments. F3.9 + §3.12 of the audit.
+     *
+     * @since 2.0
+     */
+    private const DOWNLOAD_MIME_ALLOWLIST = [
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'image/gif',
+        'image/webp',
+        'application/pdf',
+    ];
+
+    /**
+     * Download a file from Moodle.
+     *
+     * @since 2.0 — hardened at several phases:
+     *   F3.9  — Content-Type allowlist (no SVG).
+     *   F7.1  — SSRF guard + no-follow-redirects.
+     *   F7.2  — token moved from URL query string to Authorization
+     *           header. Query-logs and HTTP Referer headers no
+     *           longer leak the WS token.
+     *   F7.6  — bounded download buffer (MAX_RESPONSE_BYTES).
+     *   F7.11 — response Content-Type re-verified after download.
+     *
      * Returns the local filename on success, or empty string on failure.
      */
     public static function downloadFile(MoodleInstance $instance, string $fileUrl): string
     {
-        $separator = strpos($fileUrl, '?') !== false ? '&' : '?';
-        $url = $fileUrl . $separator . 'token=' . $instance->token;
+        // F7.1 — SSRF gate. Same dev-mode bypass as callApi
+        // (SEC-03 rev 2): FS_DEBUG = true AND instance flagged
+        // environment='development'.
+        try {
+            IpValidator::assertPublicHost($fileUrl);
+        } catch (\Throwable $e) {
+            if (self::isDevelopmentEnvironment() && self::isDevInstance($instance)) {
+                Tools::log()->notice('moodle-download-ssrf-dev-bypass', [
+                    'instance' => (int) $instance->id,
+                    'reason' => $e->getMessage(),
+                ]);
+            } else {
+                Tools::log()->warning('moodle-download-ssrf-rejected', [
+                    'instance' => (int) $instance->id,
+                    'reason' => $e->getMessage(),
+                ]);
+                return '';
+            }
+        }
+
+        // F7.6 — bounded buffer.
+        $buffer = '';
+        $exceeded = false;
+        $maxBytes = self::MAX_RESPONSE_BYTES;
 
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 60,
-            CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_URL => $fileUrl,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_TIMEOUT => self::TIMEOUT_SECONDS,
+            CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT_SECONDS,
+            CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
+            // F7.2 — token in Authorization header, not in URL.
+            // Moodle 4.1+ accepts "Authorization: Bearer <wstoken>"
+            // on pluginfile.php and webservice/pluginfile.php.
+            // Older Moodle installs that still require ?token= can
+            // downgrade by setting instance->legacy_file_auth=1.
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $instance->token,
+            ],
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$buffer, &$exceeded, $maxBytes) {
+                if ($exceeded) {
+                    return 0;
+                }
+                $buffer .= $chunk;
+                if (strlen($buffer) > $maxBytes) {
+                    $exceeded = true;
+                    return 0;
+                }
+                return strlen($chunk);
+            },
         ]);
 
-        $content = curl_exec($ch);
+        curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
         curl_close($ch);
 
-        if ($content === false || $httpCode !== 200) {
+        if ($exceeded || $httpCode !== 200 || $buffer === '') {
             return '';
         }
 
-        if (false === strpos($contentType ?? '', 'image/')) {
+        // F3.9 + F7.11 — strict MIME allowlist verified against the
+        // actual response Content-Type (not just the URL pattern).
+        // Strip charset / boundary suffix before comparing:
+        //   "image/png; charset=binary" -> "image/png".
+        $normalisedCt = strtolower(trim((string) strtok((string) $contentType, ';')));
+        if (!in_array($normalisedCt, self::DOWNLOAD_MIME_ALLOWLIST, true)) {
+            Tools::log()->warning('moodle-download-bad-mime', [
+                'url_host' => parse_url($fileUrl, PHP_URL_HOST),
+                'received_content_type' => $normalisedCt,
+            ]);
             return '';
         }
 
         $urlPath = parse_url($fileUrl, PHP_URL_PATH);
-        $filename = basename($urlPath);
+        $filename = basename((string) $urlPath);
         if (empty($filename)) {
             $filename = 'moodle_course_image.jpg';
         }
 
         $folder = Tools::folder('MyFiles');
         $localPath = $folder . '/' . $filename;
-        file_put_contents($localPath, $content);
+        file_put_contents($localPath, $buffer);
 
         return $filename;
     }
@@ -1544,7 +2195,13 @@ class MoodleClient
 
     /**
      * Create calendar events in Moodle.
-     * @param array $events Each event: ['name' => string, 'description' => string, 'courseid' => int, 'userid' => int, 'timestart' => int, 'timeduration' => int, 'eventtype' => 'user'|'course'|'site']
+     *
+     * @param array $events Each event: [
+     *                      'name' => string, 'description' => string,
+     *                      'courseid' => int, 'userid' => int,
+     *                      'timestart' => int, 'timeduration' => int,
+     *                      'eventtype' => 'user'|'course'|'site',
+     *                      ]
      */
     public static function createCalendarEvents(MoodleInstance $instance, array $events): array
     {

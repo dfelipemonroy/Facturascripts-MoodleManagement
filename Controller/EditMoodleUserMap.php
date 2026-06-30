@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2025 Diego Felipe Monroy <dfelipe.monroyc@gmail.com>
@@ -17,13 +18,18 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+declare(strict_types=1);
+
 namespace FacturaScripts\Plugins\MoodleManagement\Controller;
 
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\EditController;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Audit;
 use FacturaScripts\Plugins\MoodleManagement\Lib\BadgeSyncHelper;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Http\RequestCompat;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\RateLimiter;
 
 class EditMoodleUserMap extends EditController
 {
@@ -77,7 +83,7 @@ class EditMoodleUserMap extends EditController
         return $data;
     }
 
-    protected function createViews()
+    protected function createViews(): void
     {
         parent::createViews();
 
@@ -98,7 +104,7 @@ class EditMoodleUserMap extends EditController
         $this->addHtmlView('UserCalendar', 'Tab/UserCalendar', 'MoodleUserMap', 'moodle-calendar', 'fa-solid fa-calendar-days');
     }
 
-    protected function loadData($viewName, $view)
+    protected function loadData($viewName, $view): void
     {
         switch ($viewName) {
             case 'ListMoodleEnrolment':
@@ -149,8 +155,108 @@ class EditMoodleUserMap extends EditController
         }
     }
 
+    /**
+     * Actions that mutate Moodle state or send messages on behalf of
+     * the mapped user. F4.2 requires every one of them to pass
+     * {@see canManageCurrentUserMap()} before running, so a low-
+     * privileged operator cannot flip state on a UserMap belonging
+     * to a client they do not manage.
+     *
+     * The AJAX-only `load-chat-messages` endpoint is NOT in this
+     * list because it is read-only.
+     *
+     * @since 2.0 F4.2
+     */
+    private const GUARDED_ACTIONS = [
+        'sync-to-moodle',
+        'sync-from-moodle',
+        'sync-badges',
+        'send-message',
+        'send-chat-message',
+        'enrol-batch',
+        'unenrol-batch',
+        'suspend-batch',
+        'create-note',
+        'delete-note',
+        'create-calendar-event',
+        'delete-calendar-event',
+    ];
+
+    /**
+     * Per-action rate limits (hits allowed per 60 s window, per actor).
+     * See F4.3 · §4.17. Hitting the cap returns 429 with Retry-After.
+     *
+     * Tuning rationale:
+     *   - sync-to-moodle / sync-from-moodle are expensive (WS round-trip
+     *     + potential user-create). Low limit blocks abuse.
+     *   - send-message hits Moodle messaging API per target — strict.
+     *   - send-chat-message is the operator live-chat, higher limit.
+     *   - Note and calendar actions are cheap and hand-driven, relaxed.
+     *
+     * @since 2.0 F4.3
+     * @var array<string, int>
+     */
+    private const ACTION_RATE_LIMITS = [
+        'sync-to-moodle' => 3,    // = 3 per minute ≈ 180/hour.
+        'sync-from-moodle' => 3,
+        'sync-badges' => 5,
+        'send-message' => 10,
+        'send-chat-message' => 30,
+        'enrol-batch' => 5,
+        'unenrol-batch' => 5,
+        'suspend-batch' => 5,
+        'create-note' => 20,
+        'delete-note' => 20,
+        'create-calendar-event' => 20,
+        'delete-calendar-event' => 20,
+    ];
+
     protected function execPreviousAction($action)
     {
+        // F4.2 — guard mutating actions against horizontal IDOR.
+        if (in_array($action, self::GUARDED_ACTIONS, true) && !$this->canManageCurrentUserMap()) {
+            $actor = (string) ($this->user->nick ?? 'unknown');
+            Audit::record('usermap.' . $action, Audit::FORBIDDEN, [
+                'operator_nick' => $actor,
+                'target_type' => 'moodle_user_map',
+                'target_id' => (int) $this->request->get('code'),
+                'ip' => RequestCompat::clientIp($this->request),
+                'user_agent' => RequestCompat::header($this->request, 'User-Agent'),
+            ]);
+            Tools::log()->warning('usermap-action-forbidden', [
+                'action' => $action,
+                'actor' => $actor,
+            ]);
+            $this->response->setStatusCode(403);
+            $this->toolBox()->i18nLog()->warning('not-allowed-modify');
+            return false;
+        }
+
+        // F4.3 — rate-limit sensitive actions.
+        if (isset(self::ACTION_RATE_LIMITS[$action])) {
+            $limit = self::ACTION_RATE_LIMITS[$action];
+            $actor = (string) ($this->user->nick ?? RequestCompat::clientIp($this->request) ?: 'anon');
+            $bucket = 'usermap.' . $action;
+            if (!RateLimiter::check($actor, $bucket, $limit)) {
+                Audit::record('usermap.' . $action, Audit::RATE_LIMITED, [
+                    'operator_nick' => $actor,
+                    'target_type' => 'moodle_user_map',
+                    'target_id' => (int) $this->request->get('code'),
+                    'ip' => RequestCompat::clientIp($this->request),
+                    'payload' => ['limit_per_minute' => $limit],
+                ]);
+                Tools::log()->warning('usermap-action-rate-limited', [
+                    'action' => $action,
+                    'actor' => $actor,
+                    'limit' => $limit,
+                ]);
+                $this->response->headers->set('Retry-After', '60');
+                $this->response->setStatusCode(429);
+                $this->toolBox()->i18nLog()->warning('too-many-requests');
+                return false;
+            }
+        }
+
         switch ($action) {
             case 'sync-to-moodle':
                 $this->syncToMoodleAction();
@@ -200,6 +306,68 @@ class EditMoodleUserMap extends EditController
         }
 
         return parent::execPreviousAction($action);
+    }
+
+    /**
+     * Authorization helper for the guarded actions above.
+     *
+     * Access rules (ordered, first match wins):
+     *   1. FS admin flag -> allow.
+     *   2. Same codcliente as the UserMap's contact -> allow.
+     *   3. Virtual permission `moodle.manage-all-usermaps` declared
+     *      on one of the user's roles -> allow.
+     *   4. Else deny.
+     *
+     * @since 2.0 F4.2 · §2.4
+     */
+    protected function canManageCurrentUserMap(): bool
+    {
+        $user = $this->user ?? null;
+        if ($user === null) {
+            return false;
+        }
+
+        // Admin bypass.
+        if (!empty($user->admin)) {
+            return true;
+        }
+
+        $model = $this->getModel();
+        if (empty($model) || empty($model->idcontacto)) {
+            return false;
+        }
+
+        // Virtual role permission — admins can opt role-holders into
+        // cross-client management without flipping the admin flag.
+        if (method_exists($user, 'can') && $user->can('moodle.manage-all-usermaps')) {
+            return true;
+        }
+
+        $userCodcliente = (string) ($user->codcliente ?? '');
+        if ($userCodcliente === '') {
+            return false;
+        }
+
+        $cliente = new \FacturaScripts\Dinamic\Model\Cliente();
+        if (!$cliente->load($userCodcliente)) {
+            return false;
+        }
+
+        // Primary contact match.
+        if ((int) $cliente->idcontactofact === (int) $model->idcontacto) {
+            return true;
+        }
+
+        // Secondary: any contact of that Cliente.
+        $contacto = new \FacturaScripts\Dinamic\Model\Contacto();
+        if (
+            $contacto->loadFromCode($model->idcontacto)
+            && (string) $contacto->codcliente === $userCodcliente
+        ) {
+            return true;
+        }
+
+        return false;
     }
 
     private function loadAcademicProgress(): void
@@ -260,8 +428,10 @@ class EditMoodleUserMap extends EditController
                 $model->moodle_userid = $existing[0]['id'];
                 $model->moodle_username = $existing[0]['username'] ?? '';
             } else {
-                // Create new user in Moodle
-                $userData['username'] = MoodleClient::generateUsername($contact);
+                // Create new user in Moodle — route through
+                // UsernameGenerator so F10.5 random_alias strategy is
+                // honoured when the admin has enabled it.
+                $userData['username'] = \FacturaScripts\Plugins\MoodleManagement\Lib\Moodle\UsernameGenerator::unique($contact, $instance);
                 $userData['createpassword'] = 1;
                 $result = MoodleClient::createUser($instance, $userData);
 
@@ -454,7 +624,8 @@ class EditMoodleUserMap extends EditController
             $errorcode = strtolower($result['errorcode'] ?? '');
             $message = strtolower($result['message'] ?? '');
             // No conversation yet — show empty chat ready for first message
-            if (str_contains($errorcode, 'conversationdoesntexist')
+            if (
+                str_contains($errorcode, 'conversationdoesntexist')
                 || str_contains($errorcode, 'conversation')
                 || str_contains($message, 'conversation')
                 || str_contains($message, 'conversación')

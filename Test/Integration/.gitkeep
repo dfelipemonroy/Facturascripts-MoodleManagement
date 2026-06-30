@@ -1,0 +1,2 @@
+# Integration tests — in-memory SQLite + mocked HTTP client.
+# Populated during Fase 9 (see docs/V2.0-ACTION-PLAN.md).

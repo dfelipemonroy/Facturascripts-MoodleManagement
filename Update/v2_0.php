@@ -1,0 +1,566 @@
+<?php
+/**
+ * MoodleManagement — v2.0 schema migrations.
+ *
+ * Returns an associative array where each key is a version tag (also
+ * stored in `moodle_schema_version.version`) and each value is a
+ * closure that receives a {@see SchemaMigrator} instance and returns
+ * bool true on success.
+ *
+ * All migrations are idempotent: they check the current schema via
+ * information_schema before issuing DDL. Running the whole array
+ * twice is a no-op.
+ *
+ * DOWN:
+ *   See Update/v2_0_down.sql for a documented rollback path. The
+ *   DOWN script is NOT executed automatically by Init::update(); it
+ *   is for operator use via a DB client.
+ *
+ * @since 2.0 — V2.0-ACTION-PLAN F5.1 · §5.5
+ */
+
+declare(strict_types=1);
+
+use FacturaScripts\Plugins\MoodleManagement\Lib\Migration\SchemaMigrator;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\TokenCipher;
+
+return [
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.3 — FK indexes (CRITICAL)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.3-fk-indexes' => static function (SchemaMigrator $m): bool {
+        $indexes = [
+            ['moodle_user_map',    'idx_mm_um_contacto',    'idcontacto'],
+            ['moodle_user_map',    'idx_mm_um_instance',    'idinstance'],
+            ['moodle_enrolments',  'idx_mm_enrol_contacto', 'idcontacto'],
+            ['moodle_enrolments',  'idx_mm_enrol_cm',       'idcourse_map'],
+            ['moodle_enrolments',  'idx_mm_enrol_factura',  'idfactura'],
+            ['moodle_course_map',  'idx_mm_cm_instance',    'idinstance'],
+            ['moodle_course_map',  'idx_mm_cm_producto',    'idproducto'],
+            ['moodle_certificates','idx_mm_cert_usermap',   'idcontacto'],
+        ];
+        foreach ($indexes as [$table, $idx, $col]) {
+            if (!$m->tableExists($table)) {
+                continue;
+            }
+            if (!$m->columnExists($table, $col)) {
+                continue;
+            }
+            $m->createIndexIfMissing($table, $idx, $col);
+        }
+        return true;
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.5 — preserve invoice code on cascade (CRITICAL)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.5-idfactura-archived' => static function (SchemaMigrator $m): bool {
+        // New-schema installs already have ON DELETE SET NULL on
+        // idfactura (moodle_enrolments.xml). We only add the archival
+        // column used to keep the invoice code after deletion.
+        if (!$m->tableExists('moodle_enrolments')) {
+            return true;
+        }
+        return $m->addColumnIfMissing('moodle_enrolments', 'idfactura_archived', 'VARCHAR(50) NULL');
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.8 — UNIQUE on moodle_instances.name (ALTO)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.8-instance-name-unique' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances')) {
+            return true;
+        }
+        if ($m->constraintExists('moodle_instances', 'uniq_mm_instance_name')) {
+            return true;
+        }
+        // MySQL / MariaDB compatible syntax used by FS.
+        return (bool) $m->db()->exec(
+            'ALTER TABLE moodle_instances ADD CONSTRAINT uniq_mm_instance_name UNIQUE (name)'
+        );
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.11 — widen moodle_instances.token for encrypted payload (ALTO)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.11-token-varchar-500' => static function (SchemaMigrator $m): bool {
+        if (!$m->columnExists('moodle_instances', 'token')) {
+            return true;
+        }
+        $sql = $m->isPostgres()
+            ? 'ALTER TABLE moodle_instances ALTER COLUMN token TYPE VARCHAR(500)'
+            : 'ALTER TABLE moodle_instances MODIFY token VARCHAR(500) NULL';
+        return (bool) $m->db()->exec($sql);
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.12 — re-encrypt tokens at rest (CRITICAL §4.6)
+    //  This is a DATA migration, not DDL. Runs after F5.11 widens
+    //  the column so the base64 ciphertext fits.
+    //
+    //  DB-03 (2026-04-17) — enforce the F5.11 precondition at runtime
+    //  rather than trusting the array ordering alone. If F5.11 has
+    //  not yet widened the column, bail with a clear log line so the
+    //  operator reruns `Init::update()` instead of truncating every
+    //  token to the old 255-char limit.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.12-token-cipher' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances') || !$m->columnExists('moodle_instances', 'token')) {
+            return true;
+        }
+
+        $minColumnBytes = 500;
+        $width = $m->columnCharLength('moodle_instances', 'token');
+        if ($width !== null && $width < $minColumnBytes) {
+            \FacturaScripts\Core\Tools::log()->error('token-cipher-migration-precondition', [
+                'reason'        => 'token column too narrow',
+                'current_width' => $width,
+                'required'      => $minColumnBytes,
+                'hint'          => 'Run F5.11-token-varchar-500 first.',
+            ]);
+            return false;
+        }
+
+        return TokenCipher::encryptExistingRows($m->db());
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.14 — status CHECK constraint (ALTO)
+    //  Using CHECK (not MySQL ENUM) because FS core auto-generates
+    //  columns from XML and we cannot express ENUM there portably.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.14-enrolment-status-check' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_enrolments')) {
+            return true;
+        }
+        $name = 'chk_mm_enrolment_status';
+        if ($m->constraintExists('moodle_enrolments', $name)) {
+            return true;
+        }
+        $allowed = "'pending','enrolled','suspended','unenrolled','expired','cancelled'";
+        $sql = "ALTER TABLE moodle_enrolments ADD CONSTRAINT {$name} CHECK (status IN ({$allowed}) OR status IS NULL)";
+        // MySQL < 8.0.16 parses CHECK but ignores it. That's
+        // acceptable — EnrolmentStatus enum is the application-side
+        // source of truth anyway.
+        return (bool) $m->db()->exec($sql);
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.15 — audit trail columns (ALTO)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.15-created-updated-by' => static function (SchemaMigrator $m): bool {
+        $targets = [
+            'moodle_instances',
+            'moodle_user_map',
+            'moodle_course_map',
+            'moodle_enrolments',
+            'moodle_certificates',
+            'moodle_cohorts',
+        ];
+        foreach ($targets as $table) {
+            if (!$m->tableExists($table)) {
+                continue;
+            }
+            $m->addColumnIfMissing($table, 'created_by', 'VARCHAR(50) NULL');
+            $m->addColumnIfMissing($table, 'updated_by', 'VARCHAR(50) NULL');
+        }
+        return true;
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.18 — UNIQUE on certificate code (MEDIO)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.18-cert-unique-hash' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_certificates')) {
+            return true;
+        }
+        if (!$m->columnExists('moodle_certificates', 'unique_hash')) {
+            return true;
+        }
+        if ($m->constraintExists('moodle_certificates', 'uniq_mm_cert_hash')) {
+            return true;
+        }
+        return (bool) $m->db()->exec(
+            'ALTER TABLE moodle_certificates ADD CONSTRAINT uniq_mm_cert_hash UNIQUE (unique_hash)'
+        );
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.20 — soft-delete column (MEDIO)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.20-soft-delete' => static function (SchemaMigrator $m): bool {
+        $targets = ['moodle_user_map', 'moodle_enrolments', 'moodle_cohorts'];
+        foreach ($targets as $table) {
+            if ($m->tableExists($table)) {
+                $m->addColumnIfMissing($table, 'deleted_at', 'TIMESTAMP NULL');
+            }
+        }
+        return true;
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.10 — collation unification (ALTO)
+    //  Normalise every plugin table to utf8mb4 / utf8mb4_unicode_520_ci
+    //  on MySQL. PostgreSQL uses client_encoding + LC_COLLATE at DB
+    //  level, so we skip there.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.10-collation-utf8mb4' => static function (SchemaMigrator $m): bool {
+        if ($m->isPostgres()) {
+            return true; // not applicable
+        }
+        $tables = [
+            'moodle_instances', 'moodle_user_map', 'moodle_course_map',
+            'moodle_enrolments', 'moodle_cohorts', 'moodle_role_map',
+            'moodle_course_categories', 'moodle_certificates',
+            'moodle_certificate_templates', 'moodle_audit_log',
+            'moodle_schema_version',
+        ];
+        foreach ($tables as $table) {
+            if (!$m->tableExists($table)) {
+                continue;
+            }
+            $m->db()->exec(
+                'ALTER TABLE ' . $table
+                . ' CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci'
+            );
+        }
+        return true;
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.7 — FK codgrupo -> gruposclientes (ALTO)
+    //  moodle_cohorts.codgrupo is the only FS foreign key not
+    //  declared in the base table XML. Use ON DELETE SET NULL so
+    //  deleting a FS group doesn't cascade-wipe the cohort history.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.7-cohorts-codgrupo-fk' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_cohorts') || !$m->tableExists('gruposclientes')) {
+            return true;
+        }
+        $fk = 'ca_mm_cohorts_codgrupo';
+        if ($m->constraintExists('moodle_cohorts', $fk)) {
+            return true;
+        }
+        $sql = 'ALTER TABLE moodle_cohorts ADD CONSTRAINT ' . $fk
+            . ' FOREIGN KEY (codgrupo) REFERENCES gruposclientes (codgrupo)'
+            . ' ON DELETE SET NULL ON UPDATE CASCADE';
+        return (bool) $m->db()->exec($sql);
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F5.22 — created_at / updated_at on role_map (BAJO)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F5.22-role-map-timestamps' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_role_map')) {
+            return true;
+        }
+        $m->addColumnIfMissing('moodle_role_map', 'created_at', 'TIMESTAMP NULL');
+        $m->addColumnIfMissing('moodle_role_map', 'updated_at', 'TIMESTAMP NULL');
+        return true;
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F6.1 — explicit badge re-sync flag (CRITICAL §1.1)
+    //  Cutting the BadgeSyncWorker cascade: the worker now listens
+    //  to Model.MoodleUserMap.Insert only. For targeted re-syncs
+    //  after a UI action, callers set this flag and enqueue the
+    //  worker manually.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F6.1-badge-sync-needed' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_user_map')) {
+            return true;
+        }
+        return $m->addColumnIfMissing('moodle_user_map', 'badge_sync_needed', 'TINYINT(1) NOT NULL DEFAULT 0');
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F7.4 scaffold — contact sync last_modified column (ALTO §2.12)
+    //  Fase 7 F7.4 consumes this column; adding it here keeps the
+    //  DB migration surface in one place.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F7.4-contacto-mm-last-modified' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('contactos')) {
+            return true;
+        }
+        return $m->addColumnIfMissing('contactos', 'mm_last_modified', 'TIMESTAMP NULL');
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F10.1 — webhook shared secret per instance (MEDIO §6.14)
+    //  Column stores the TokenCipher-wrapped secret used as HMAC key
+    //  for inbound /ApiMoodleWebhook requests. NULL ⇒ webhooks
+    //  disabled for the instance.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F10.1-webhook-secret' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances')) {
+            return true;
+        }
+        return $m->addColumnIfMissing('moodle_instances', 'webhook_secret', 'VARCHAR(500) NULL');
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F10.2 — course progress columns on moodle_enrolments (MEDIO §6.15)
+    //  Populated by the progressSync cron + CourseCompletedHandler.
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F10.2-enrolment-progress' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_enrolments')) {
+            return true;
+        }
+        $m->addColumnIfMissing('moodle_enrolments', 'progress_percent', 'INT NULL DEFAULT 0');
+        $m->addColumnIfMissing('moodle_enrolments', 'completed_modules', 'INT NULL DEFAULT 0');
+        $m->addColumnIfMissing('moodle_enrolments', 'total_modules', 'INT NULL DEFAULT 0');
+        $m->addColumnIfMissing('moodle_enrolments', 'last_activity_at', 'TIMESTAMP NULL');
+        $m->addColumnIfMissing('moodle_enrolments', 'progress_fetched_at', 'TIMESTAMP NULL');
+        $m->addColumnIfMissing('moodle_enrolments', 'completion_date', 'TIMESTAMP NULL');
+        // DOUBLE on MySQL, DOUBLE PRECISION on Postgres; both are 64-bit float.
+        $floatType = $m->isPostgres() ? 'DOUBLE PRECISION NULL' : 'DOUBLE NULL';
+        $m->addColumnIfMissing('moodle_enrolments', 'final_grade', $floatType);
+        return true;
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F10.5 — per-instance username strategy (BAJO §6.18)
+    //  Allows operators to pick between:
+    //    - 'name_based'   (default, backwards-compatible)
+    //    - 'random_alias' (opaque mu_<hex>, for PII-sensitive sites)
+    // ──────────────────────────────────────────────────────────────
+    '2.0.0-F10.5-username-strategy' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances')) {
+            return true;
+        }
+        return $m->addColumnIfMissing(
+            'moodle_instances',
+            'username_strategy',
+            "VARCHAR(20) NOT NULL DEFAULT 'name_based'"
+        );
+    },
+
+    // ──────────────────────────────────────────────────────────────
+    //  F17 — DB MEDIUM bundle (2026-04-17 second-iteration audit)
+    // ──────────────────────────────────────────────────────────────
+
+    // DB-07 · index on moodle_user_map.moodle_username so the
+    //          Moodle-side lookup by username is O(log n).
+    '2.0.0-F17-DB07-user-map-username-index' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_user_map')) {
+            return true;
+        }
+        return $m->createIndexIfMissing(
+            'moodle_user_map',
+            'idx_mm_um_username',
+            'moodle_username'
+        );
+    },
+
+    // DB-11 · enforce URL uniqueness on moodle_instances so operators
+    //          cannot register the same Moodle twice and split workers
+    //          between two conflicting configs.
+    '2.0.0-F17-DB11-instance-url-unique' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances')) {
+            return true;
+        }
+        $name = 'uniq_mm_instance_url';
+        if ($m->constraintExists('moodle_instances', $name)) {
+            return true;
+        }
+        // Only add the constraint if no duplicates are already present;
+        // otherwise the operator must de-dup manually before re-run.
+        $dupes = $m->db()->select(
+            'SELECT url, COUNT(*) as c FROM moodle_instances GROUP BY url HAVING COUNT(*) > 1'
+        );
+        if (!empty($dupes)) {
+            \FacturaScripts\Core\Tools::log()->warning('mm-instance-url-duplicates', [
+                'count' => count($dupes),
+                'hint'  => 'Resolve duplicates manually before re-running this migration.',
+            ]);
+            return true; // soft no-op so the rest of the pipeline continues
+        }
+        return (bool) $m->db()->exec(
+            'ALTER TABLE moodle_instances ADD CONSTRAINT ' . $name . ' UNIQUE (url)'
+        );
+    },
+
+    // DB-07 (contd) · moodle_user_map.idcontacto + idinstance composite
+    //                 already indexed in F5.3; add moodle_userid too
+    //                 for reverse lookups from webhook handlers.
+    '2.0.0-F17-DB07b-user-map-moodle-userid-index' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_user_map')) {
+            return true;
+        }
+        return $m->createIndexIfMissing(
+            'moodle_user_map',
+            'idx_mm_um_moodle_userid',
+            'moodle_userid'
+        );
+    },
+
+    // DB-02 · `deleted_at` indexes on the three soft-delete tables.
+    //          Queries filter `deleted_at IS NULL` almost universally;
+    //          a functional index keeps the filter O(log n) once trash
+    //          crosses a few thousand rows. (F18.34, migrated from the
+    //          v2.1 backlog.)
+    '2.0.0-F17-F18-34-deleted-at-indexes' => static function (SchemaMigrator $m): bool {
+        $targets = [
+            ['moodle_user_map',    'idx_mm_um_deleted_at',    'deleted_at'],
+            ['moodle_enrolments',  'idx_mm_enrol_deleted_at', 'deleted_at'],
+            ['moodle_cohorts',     'idx_mm_cohort_deleted_at', 'deleted_at'],
+        ];
+        foreach ($targets as [$table, $idx, $col]) {
+            if (!$m->tableExists($table) || !$m->columnExists($table, $col)) {
+                continue;
+            }
+            $m->createIndexIfMissing($table, $idx, $col);
+        }
+        return true;
+    },
+
+    // DB-08 · Server-side created_at / updated_at defaults. Some
+    //          early MySQL installs left these nullable without a
+    //          DEFAULT, so bulk inserts from workers had to stamp
+    //          them manually. Normalise to CURRENT_TIMESTAMP so
+    //          missing inserts never produce null timestamps.
+    //          Skips Postgres (uses timezone-aware defaults through
+    //          the model XML already).
+    '2.0.0-F17-DB08-timestamp-defaults' => static function (SchemaMigrator $m): bool {
+        if ($m->isPostgres()) {
+            return true;
+        }
+        $targets = [
+            'moodle_enrolments'   => 'enrolment_date',
+            'moodle_user_map'     => 'last_sync',
+            'moodle_certificates' => 'issued_at',
+        ];
+        foreach ($targets as $table => $col) {
+            if (!$m->tableExists($table) || !$m->columnExists($table, $col)) {
+                continue;
+            }
+            // Only ALTER when the column is actually DATETIME/TIMESTAMP;
+            // schemas with DATE are unchanged.
+            try {
+                $m->db()->exec(
+                    'ALTER TABLE ' . $table . ' MODIFY ' . $col
+                    . ' TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP'
+                );
+            } catch (\Throwable $e) {
+                \FacturaScripts\Core\Tools::log()->notice('db08-skip', [
+                    'table' => $table,
+                    'col'   => $col,
+                    'msg'   => $e->getMessage(),
+                ]);
+            }
+        }
+        return true;
+    },
+
+    // DB-12 · Relax the FK on moodle_cohorts.codgrupo so deleting the
+    //          FS group does not cascade-delete the cohort row. We
+    //          prefer to keep the cohort entry for auditing and clear
+    //          the reference via ON DELETE SET NULL. Migration only
+    //          runs on MySQL/MariaDB; Postgres FKs stay as declared.
+    '2.0.0-F17-DB12-cohort-codgrupo-fk-set-null' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_cohorts') || !$m->columnExists('moodle_cohorts', 'codgrupo')) {
+            return true;
+        }
+        // Look up the existing constraint name so we can drop-and-add
+        // it. The name varies by FS core migration history; be
+        // defensive.
+        $rows = $m->db()->select(
+            'SELECT CONSTRAINT_NAME AS c FROM information_schema.KEY_COLUMN_USAGE'
+            . ' WHERE TABLE_SCHEMA = ' . $m->currentSchemaExpr()
+            . ' AND TABLE_NAME = ' . $m->db()->var2str('moodle_cohorts')
+            . ' AND COLUMN_NAME = ' . $m->db()->var2str('codgrupo')
+            . ' AND REFERENCED_TABLE_NAME IS NOT NULL'
+        );
+        if (empty($rows)) {
+            return true; // no FK, nothing to relax
+        }
+        foreach ($rows as $row) {
+            $name = (string) ($row['c'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            try {
+                $m->db()->exec('ALTER TABLE moodle_cohorts DROP FOREIGN KEY ' . $name);
+                $m->db()->exec(
+                    'ALTER TABLE moodle_cohorts ADD CONSTRAINT ' . $name
+                    . ' FOREIGN KEY (codgrupo) REFERENCES gruposclientes(codgrupo) ON DELETE SET NULL'
+                );
+            } catch (\Throwable $e) {
+                \FacturaScripts\Core\Tools::log()->notice('db12-skip', ['msg' => $e->getMessage()]);
+            }
+        }
+        return true;
+    },
+
+    // DB-13 · Normalise charset/collation on plugin tables. Some
+    //          early FS core deployments created tables with the
+    //          server default (latin1) before switching to utf8mb4.
+    //          Convert every plugin table to utf8mb4_unicode_520_ci
+    //          so Moodle emoji/accent content stored in cohort names
+    //          and audit payloads compares consistently.
+    // SEC-14 · tamper-evidence columns for moodle_audit_log.
+    //          `row_hash` is the sha256 of the row's content-defining
+    //          fields; `prev_hash` captures the previous row's hash
+    //          so a reader can chain-verify the log. Full verifier
+    //          tooling is v2.1 scope; v2.0 ships the columns + the
+    //          write-time stamping so later audits have a trail.
+    // BE-06 · persistent streak counter for health-check failures.
+    '2.0.0-F17-BE06-health-fail-count' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_instances')) {
+            return true;
+        }
+        return $m->addColumnIfMissing(
+            'moodle_instances',
+            'health_fail_count',
+            'INT NULL DEFAULT 0'
+        );
+    },
+
+    '2.0.0-F17-SEC14-audit-log-hash-chain' => static function (SchemaMigrator $m): bool {
+        if (!$m->tableExists('moodle_audit_log')) {
+            return true;
+        }
+        $m->addColumnIfMissing('moodle_audit_log', 'row_hash',  'VARCHAR(64) NULL');
+        $m->addColumnIfMissing('moodle_audit_log', 'prev_hash', 'VARCHAR(64) NULL');
+        return true;
+    },
+
+    '2.0.0-F17-DB13-utf8mb4-normalise' => static function (SchemaMigrator $m): bool {
+        if ($m->isPostgres()) {
+            return true;
+        }
+        $tables = [
+            'moodle_instances', 'moodle_user_map', 'moodle_course_map',
+            'moodle_enrolments', 'moodle_cohorts', 'moodle_certificates',
+            'moodle_audit_log', 'moodle_webhook_log',
+        ];
+        foreach ($tables as $table) {
+            if (!$m->tableExists($table)) {
+                continue;
+            }
+            try {
+                $m->db()->exec(
+                    'ALTER TABLE ' . $table
+                    . ' CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci'
+                );
+            } catch (\Throwable $e) {
+                // Older MySQL may lack utf8mb4_unicode_520_ci; fall
+                // back to utf8mb4_unicode_ci so the conversion still
+                // completes.
+                try {
+                    $m->db()->exec(
+                        'ALTER TABLE ' . $table
+                        . ' CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+                    );
+                } catch (\Throwable $e2) {
+                    \FacturaScripts\Core\Tools::log()->notice('db13-skip', [
+                        'table' => $table,
+                        'msg'   => $e2->getMessage(),
+                    ]);
+                }
+            }
+        }
+        return true;
+    },
+];

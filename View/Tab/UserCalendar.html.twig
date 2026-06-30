@@ -64,8 +64,9 @@
                                 <td><strong>{{ event.name }}</strong></td>
                                 <td>
                                     {% if event.description is defined and event.description is not empty %}
-                                        {{ event.description | striptags | slice(0, 100) }}
-                                        {% if event.description | striptags | length > 100 %}...{% endif %}
+                                        {% set _descPlain = mm_plain_text(event.description) %}
+                                        {{ _descPlain | slice(0, 100) }}
+                                        {% if _descPlain | length > 100 %}...{% endif %}
                                     {% else %}
                                         <span class="text-muted">—</span>
                                     {% endif %}
@@ -88,7 +89,7 @@
                                 </td>
                                 <td class="text-center align-middle">
                                     <form method="post" class="d-inline"
-                                          onsubmit="return confirm('{{ trans('confirm-delete') }}');">
+                                          data-mm-confirm="{{ trans('confirm-delete') }}">
                                         <input type="hidden" name="action" value="delete-calendar-event">
                                         <input type="hidden" name="activetab" value="UserCalendar">
                                         <input type="hidden" name="code" value="{{ model.primaryColumnValue() }}">
