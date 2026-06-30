@@ -291,11 +291,6 @@ parameters:
 			path: Controller/MoodleDashboard.php
 
 		-
-			message: "#^Constant FS_DB_TYPE not found\\.$#"
-			count: 1
-			path: Controller/MoodleDashboard.php
-
-		-
 			message: "#^Parameter \\#1 \\$response of static method FacturaScripts\\\\Plugins\\\\MoodleManagement\\\\Lib\\\\Security\\\\CspHeader\\:\\:apply\\(\\) expects Symfony\\\\Component\\\\HttpFoundation\\\\Response, FacturaScripts\\\\Core\\\\Response given\\.$#"
 			count: 1
 			path: Controller/MoodleDashboard.php
@@ -424,11 +419,6 @@ parameters:
 			message: "#^Ternary operator condition is always true\\.$#"
 			count: 1
 			path: Lib/CertificatePdfGenerator.php
-
-		-
-			message: "#^Constant FS_DB_TYPE not found\\.$#"
-			count: 1
-			path: Lib/ClienteTrainingHelper.php
 
 		-
 			message: "#^PHPDoc tag @var above a method has no effect\\.$#"

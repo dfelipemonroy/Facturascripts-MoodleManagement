@@ -107,7 +107,7 @@ final class CacheCompat
     }
 
     /**
-     * @return mixed|null  The stored payload, or null on miss.
+     * @return mixed|null The stored payload, or null on miss.
      */
     private static function rawGet(string $key)
     {

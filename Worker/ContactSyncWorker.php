@@ -14,9 +14,9 @@ use FacturaScripts\Core\Model\Contacto;
 use FacturaScripts\Core\Model\WorkEvent;
 use FacturaScripts\Core\Template\WorkerClass;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
-use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 /**
  * Propagates changes made to a FacturaScripts Contacto to the mapped
@@ -59,7 +59,7 @@ class ContactSyncWorker extends WorkerClass
         // within the last 30 s, the most recent state has already
         // been pushed to Moodle and the queued event is redundant.
         $cacheKey = self::DEDUPE_PREFIX . $contactId;
-        if (\FacturaScripts\Core\CacheCompat::get($cacheKey)) {
+        if (CacheCompat::get($cacheKey)) {
             return $this->done();
         }
 
@@ -114,7 +114,7 @@ class ContactSyncWorker extends WorkerClass
 
         // F6.8 — stamp the dedupe window on successful completion so
         // subsequent queued events for the same contact skip.
-        \FacturaScripts\Core\CacheCompat::set($cacheKey, true, self::DEDUPE_WINDOW);
+        CacheCompat::set($cacheKey, true, self::DEDUPE_WINDOW);
 
         return $this->done();
     }

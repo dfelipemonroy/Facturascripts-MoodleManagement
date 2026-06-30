@@ -449,7 +449,7 @@ class MoodleClient
      */
     public static function isDevInstance(MoodleInstance $instance): bool
     {
-        if (!isset($instance->environment)) {
+        if (empty($instance->environment)) {
             return false;
         }
         return strtolower((string) $instance->environment) === 'development';

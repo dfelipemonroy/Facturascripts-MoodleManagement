@@ -85,15 +85,15 @@ class MoodleEnrolment extends ModelClass
     public $deleted_at;
     /**
      * @var string|null Operator nick that originally inserted the row.
-     * Populated by FS core's audit-trail layer (F5.15).
-     * Declared as a real property to avoid PHP 8.2 dynamic-property
-     * deprecation warnings.
+     *                  Populated by FS core's audit-trail layer (F5.15).
+     *                  Declared as a real property to avoid PHP 8.2 dynamic-property
+     *                  deprecation warnings.
      */
     public $created_by;
 
     /**
      * @var string|null Operator nick that last touched the row. Same
-     * provenance as `$created_by`.
+     *                  provenance as `$created_by`.
      */
     public $updated_by;
 

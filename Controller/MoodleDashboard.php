@@ -13,9 +13,9 @@ use FacturaScripts\Core\Base\Controller;
 use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\User;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Security\CspHeader;
 use FacturaScripts\Plugins\MoodleManagement\Lib\View\JsonForScript;
-use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 class MoodleDashboard extends Controller
 {
@@ -154,12 +154,12 @@ class MoodleDashboard extends Controller
         // Excludes soft-deleted enrolments and those without a
         // progress_fetched_at timestamp (never visited).
         $progressBuckets = [
-            '0%'      => 0,
-            '1-25%'   => 0,
-            '26-50%'  => 0,
-            '51-75%'  => 0,
-            '76-99%'  => 0,
-            '100%'    => 0,
+            '0%' => 0,
+            '1-25%' => 0,
+            '26-50%' => 0,
+            '51-75%' => 0,
+            '76-99%' => 0,
+            '100%' => 0,
         ];
         $sql = 'SELECT progress_percent FROM moodle_enrolments'
             . " WHERE status = 'enrolled' AND progress_percent IS NOT NULL";

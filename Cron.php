@@ -26,13 +26,13 @@ use FacturaScripts\Core\Template\CronClass;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Core\Where;
 use FacturaScripts\Dinamic\Model\PresupuestoCliente;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Cron\Lock;
 use FacturaScripts\Plugins\MoodleManagement\Lib\MoodleClient;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleCourseMap;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleEnrolment;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleInstance;
 use FacturaScripts\Plugins\MoodleManagement\Model\MoodleUserMap;
-use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
 
 class Cron extends CronClass
 {
@@ -263,7 +263,7 @@ class Cron extends CronClass
                 // flapping instances (one transient failure then one
                 // OK) do not look identical to a genuinely sick one.
                 if (property_exists($instance, 'health_fail_count')) {
-                    $instance->health_fail_count = (int) ($instance->health_fail_count ?? 0) + 1;
+                    $instance->health_fail_count = (int) $instance->health_fail_count + 1;
                     if ($instance->health_fail_count >= self::HEALTH_QUARANTINE_THRESHOLD) {
                         Tools::log(self::JOB_NAME)->error('health-check-quarantine', [
                             'instance' => (int) $instance->id,
@@ -282,7 +282,7 @@ class Cron extends CronClass
 
             MoodleClient::applySiteInfo($instance, $result);
             // BE-06 — a successful probe resets the streak.
-            if (property_exists($instance, 'health_fail_count') && (int) ($instance->health_fail_count ?? 0) !== 0) {
+            if (property_exists($instance, 'health_fail_count') && (int) $instance->health_fail_count !== 0) {
                 $instance->health_fail_count = 0;
             }
             $instance->save();

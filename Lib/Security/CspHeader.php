@@ -9,7 +9,6 @@ declare(strict_types=1);
 
 namespace FacturaScripts\Plugins\MoodleManagement\Lib\Security;
 
-
 /**
  * Builds a Content-Security-Policy header tuned to the controllers
  * shipped by this plugin.

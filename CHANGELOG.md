@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.0.0] — Unreleased
+## [2.0.0] — 2026-06-30
 
 Comprehensive audit-remediation release. **16/16 CRITICAL findings
 from the first-iteration audit closed**, 155/155 tracked tasks green.
@@ -17,10 +17,15 @@ original scope and
 per-finding commits.
 
 The release was held back after a second-iteration audit (2026-04-17)
-surfaced 91 further findings. See
-[`docs/V2.0-POST-AUDIT-PLAN.md`](docs/V2.0-POST-AUDIT-PLAN.md) for
-the remediation plan split across Fases 15 / 16 / 17 / 18 — all of
-which must close before `v2.0.0` is tagged.
+surfaced 91 further findings, remediated across Fases 15 / 16 / 17 / 18
+(see [`docs/V2.0-POST-AUDIT-PLAN.md`](docs/V2.0-POST-AUDIT-PLAN.md)) and
+hardened by the Fase 19 stability gates (2026-04-18). A subsequent
+compatibility wave (2026-04-19) absorbed three simultaneous FacturaScripts
+core breaking changes (FS 2025.9 / FS 2026) plus PHP 8.2 dynamic-property
+deprecations without dropping FS 2025.8 support. A final release-prep pass
+(2026-06-30) re-ran every gate against PHP 8.0 / 8.1 / 8.2, caught and
+fixed a runtime regression introduced by the compat wave, and re-greened
+PHPCS / PHPStan / PHP-CS-Fixer.
 
 ### Added
 - **Webhook receiver** `/ApiMoodleWebhook` with HMAC-SHA256 + timestamp
@@ -131,17 +136,39 @@ which must close before `v2.0.0` is tagged.
 - **Moodle version mismatch** — applySiteInfo flips status to
   `unsupported` on < 4.1 (F7.18).
 - **Dashboard Chart.js 2.x warnings** after upgrade (F3.1).
+- **FS 2025.9 / FS 2026 core API drift** absorbed behind a compat layer
+  without dropping FS 2025.8 support: `Lib/Http/RequestCompat`
+  (`clientIp` / `header`), `Lib/Cache/CacheCompat` (`get` / `set` /
+  `delete` with a TTL envelope replacing `Tools::cache()`), CSP header
+  retyped for the `final` FS 2025.9 `Response`, `setTemplate(false)` on
+  response-only controllers, `SubRequest::getBoolean` → `getBool` guard,
+  and `DataSrc\DataBaseWhere` → canonical `DataBase\DataBaseWhere`
+  (2026-04-19 wave).
+- **PHP 8.2 dynamic-property deprecations** — every v2.0 migration column
+  declared as a real `public` property across the six affected models
+  (2026-04-19 wave).
+- **Fatal `Class not found` regression** in `ContactSyncWorker` and
+  `PreEnrolmentWorker` — the compat wave's `Tools::cache()` →
+  `CacheCompat` migration left four call sites pointing at the
+  non-existent `FacturaScripts\Core\CacheCompat` instead of the plugin's
+  `Lib\Cache\CacheCompat`, crashing the contact-debounce and
+  pre-enrolment skip-cache paths at runtime. Caught by the 2026-06-30
+  PHPStan re-run and fixed.
 
 ### Security
 - **All 16 CRITICAL findings from the first-iteration audit closed**
   — full list in `SECURITY.md` §Security posture.
-- **Stability gates pass Fase 19 (2026-04-18)**:
-  - PHPCS PSR-12: 0 errors, 0 warnings.
-  - PHPStan level 5: 0 errors (baseline 285 entries, all FS-core
-    magic-property access).
-  - PHP-CS-Fixer: 0 diffs after auto-apply.
+- **Stability gates pass Fase 19 (2026-04-18), re-verified 2026-06-30**:
+  - PHPCS PSR-12: 0 errors.
+  - PHPStan level 5: 0 errors. `FS_DB_TYPE` moved from two brittle
+    per-line baseline entries to a single `ignoreErrors` pattern (it is
+    an FS-core runtime constant), shrinking the baseline to 283 entries
+    and surviving the dashboard redesign without drift.
+  - PHP-CS-Fixer: 0 diffs after auto-apply (14 compat-wave files
+    re-formatted in the 2026-06-30 pass).
   - PHPUnit: 168/168 tests, 281 assertions, zero failures on PHP
-    8.0.30 / 8.1.34 / 8.2.30.
+    8.0.30 / 8.1.34 / 8.2.30 (re-run 2026-06-30 with PHPUnit 9.6 on
+    8.0/8.1 and 11.5 on 8.2).
   - **INT-06** · `UsernameGenerator::unique` pre-insert probe for
     `random_alias` strategy (up to 5 attempts).
   - **FE-12** · `maxlength` on four textareas (CourseGroups,

@@ -50,6 +50,10 @@ parameters:
         - '#Call to an undefined (static )?method FacturaScripts\\Core\\(Template|Model)\\#'
         # Tools::log() / lang() return union types with magic methods.
         - '#Cannot call method trans\(\) on mixed#'
+        # FS_DB_TYPE is a global constant defined by FS core (config.php)
+        # at runtime; PHPStan cannot see it. General ignore avoids the
+        # brittle per-line baseline entries that drift on UI redesigns.
+        - '#Constant FS_DB_TYPE not found\.#'
 
     # Treat unmatched ignores as a hint, not a failure (good during ramp-up).
     reportUnmatchedIgnoredErrors: false

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of MoodleManagement plugin for FacturaScripts
  * Copyright (C) 2026 Carlos Garcia Gomez <carlos@facturascripts.com>
@@ -174,7 +175,7 @@ class Init extends InitClass
             // `select` contra un catálogo siempre disponible si la
             // conexión está lista; devuelve array vacío en cualquier
             // DB suportado cuando no existe, sin lanzar.
-            $rows = $db->select("SELECT 1 AS ok");
+            $rows = $db->select('SELECT 1 AS ok');
             return is_array($rows) && isset($rows[0]['ok']);
         } catch (\Throwable $e) {
             return false;

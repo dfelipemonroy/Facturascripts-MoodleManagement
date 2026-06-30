@@ -10,8 +10,8 @@ declare(strict_types=1);
 namespace FacturaScripts\Plugins\MoodleManagement\Lib\Webhook;
 
 use FacturaScripts\Core\Tools;
-use FacturaScripts\Plugins\MoodleManagement\Lib\Security\TokenCipher;
 use FacturaScripts\Plugins\MoodleManagement\Lib\Cache\CacheCompat;
+use FacturaScripts\Plugins\MoodleManagement\Lib\Security\TokenCipher;
 
 /**
  * @since 2.0 — V2.0-ACTION-PLAN F10.1 · §6.14
